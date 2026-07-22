@@ -9,6 +9,11 @@
     "build": "wxt build",
     "icons:generate": "node scripts/generate-icons.mjs",
     "zip": "wxt zip",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write 'entrypoints/**/*.{ts,tsx,css,html}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'package.json'",
+    "format:check": "prettier --check 'entrypoints/**/*.{ts,tsx,css,html}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'package.json'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -19,7 +24,12 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@wxt-dev/module-react": "1.2.2",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.7.0",
+    "globals": "17.7.0",
+    "prettier": "3.9.6",
     "typescript": "7.0.2",
+    "vitest": "4.1.10",
     "wxt": "0.20.27"
   },
   "engines": {

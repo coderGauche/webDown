@@ -1,0 +1,7 @@
+node_modules
+.output
+.wxt
+coverage
+pnpm-lock.yaml
+SiteCapsule-产品需求与技术方案.md
+SiteCapsule-开发执行计划与进度.md
