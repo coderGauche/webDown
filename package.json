@@ -10,8 +10,8 @@
     "icons:generate": "node scripts/generate-icons.mjs",
     "zip": "wxt zip",
     "lint": "eslint . --max-warnings 0",
-    "format": "prettier --write 'entrypoints/**/*.{ts,tsx,css,html}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'package.json'",
-    "format:check": "prettier --check 'entrypoints/**/*.{ts,tsx,css,html}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'package.json'",
+    "format": "prettier --write 'entrypoints/**/*.{ts,tsx,css,html}' 'src/**/*.{ts,tsx}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'tsconfig.json' 'package.json'",
+    "format:check": "prettier --check 'entrypoints/**/*.{ts,tsx,css,html}' 'src/**/*.{ts,tsx}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'tsconfig.json' 'package.json'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "postinstall": "wxt prepare"

@@ -1,3 +1,5 @@
+import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
+
 export default defineBackground(() => {
-  console.info('[SiteCapsule] Background service worker initialized.');
+  console.info(`${RUNTIME_LOG_PREFIX} Background service worker initialized.`);
 });

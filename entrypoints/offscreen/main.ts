@@ -1,3 +1,5 @@
+import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
+
 document.documentElement.dataset.sitecapsuleRuntime = 'ready';
 
-console.info('[SiteCapsule] Offscreen runtime initialized.');
+console.info(`${RUNTIME_LOG_PREFIX} Offscreen runtime initialized.`);

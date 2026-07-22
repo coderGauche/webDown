@@ -1,4 +1,7 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'wxt';
+
+const sourceDirectory = fileURLToPath(new URL('./src', import.meta.url));
 
 const extensionIcons = {
   16: 'icon-16.png',
@@ -9,6 +12,13 @@ const extensionIcons = {
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
+  vite: () => ({
+    resolve: {
+      alias: {
+        '@sitecapsule': sourceDirectory,
+      },
+    },
+  }),
   manifest: {
     name: 'SiteCapsule',
     description: 'Archive public webpages for structured offline review.',

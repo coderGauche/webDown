@@ -1,3 +1,5 @@
+import { EXTENSION_NAME } from '@sitecapsule/shared';
+
 const runtimeSurfaces = [
   ['Background', 'Ready'],
   ['Content', 'Runtime'],
@@ -9,7 +11,7 @@ export function App() {
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">SiteCapsule</p>
+          <p className="eyebrow">{EXTENSION_NAME}</p>
           <h1>Archive workspace</h1>
         </div>
         <span className="status-badge">Foundation</span>

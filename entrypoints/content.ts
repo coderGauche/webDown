@@ -1,6 +1,8 @@
+import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
+
 export default defineContentScript({
   registration: 'runtime',
   main() {
-    console.info('[SiteCapsule] Content script initialized.');
+    console.info(`${RUNTIME_LOG_PREFIX} Content script initialized.`);
   },
 });
