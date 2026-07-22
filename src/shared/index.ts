@@ -1,1 +1,1 @@
-export { EXTENSION_NAME, RUNTIME_LOG_PREFIX } from './constants';
+export { CONTENT_SCRIPT_FILE, EXTENSION_NAME, RUNTIME_LOG_PREFIX } from './constants';

@@ -107,3 +107,66 @@ h2 {
 .runtime-row dd {
   color: #60708b;
 }
+
+.inspect-section {
+  padding-top: 24px;
+}
+
+.primary-action {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid #183b68;
+  border-radius: 6px;
+  color: #fff;
+  background: #183b68;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primary-action:hover:not(:disabled) {
+  background: #102e52;
+}
+
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.helper-text,
+.error-text {
+  margin-top: 12px;
+  color: #60708b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.error-text {
+  color: #a32929;
+}
+
+.page-info {
+  margin-top: 12px;
+  border-top: 1px solid #dce2eb;
+}
+
+.page-info > div {
+  padding: 10px 0;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.page-info dt {
+  color: #60708b;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.page-info dd {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: #182033;
+  font-size: 13px;
+  line-height: 1.45;
+}
