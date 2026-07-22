@@ -16,6 +16,17 @@ async function sendPageInfoRequest(tabId: number): Promise<PageInfoResponse | nu
   }
 }
 
+async function waitForPageInfoResponse(tabId: number): Promise<PageInfoResponse | null> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await sendPageInfoRequest(tabId);
+    if (response) return response;
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  return null;
+}
+
 async function collectPageInfo(tabId: number): Promise<PageInfoResponse> {
   const existingResponse = await sendPageInfoRequest(tabId);
   if (existingResponse) return existingResponse;
@@ -29,14 +40,14 @@ async function collectPageInfo(tabId: number): Promise<PageInfoResponse> {
     return createPageInfoError('当前页面不允许注入内容脚本。');
   }
 
-  const injectedResponse = await sendPageInfoRequest(tabId);
+  const injectedResponse = await waitForPageInfoResponse(tabId);
   return injectedResponse ?? createPageInfoError('内容脚本未能返回页面信息。');
 }
 
 export default defineBackground(() => {
   console.info(`${RUNTIME_LOG_PREFIX} Background service worker initialized.`);
 
-  browser.runtime.onMessage.addListener((message: unknown) => {
+  browser.runtime.onMessage.addListener(async (message: unknown) => {
     if (!isPageInfoRequest(message)) return;
 
     if (message.tabId < 0) {

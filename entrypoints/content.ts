@@ -6,7 +6,7 @@ export default defineContentScript({
   main() {
     console.info(`${RUNTIME_LOG_PREFIX} Content script initialized.`);
 
-    browser.runtime.onMessage.addListener((message: unknown) => {
+    browser.runtime.onMessage.addListener(async (message: unknown) => {
       if (!isPageInfoCollectRequest(message)) return;
 
       return createPageInfoResponse({
