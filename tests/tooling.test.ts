@@ -1,7 +1,8 @@
+import { EXTENSION_NAME } from '@sitecapsule/shared';
 import { describe, expect, it } from 'vitest';
 
 describe('tooling', () => {
-  it('runs the SiteCapsule test suite', () => {
-    expect(true).toBe(true);
+  it('resolves the shared source alias', () => {
+    expect(EXTENSION_NAME).toBe('SiteCapsule');
   });
 });
