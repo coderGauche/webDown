@@ -6,9 +6,8 @@ import {
   createPageInfoError,
   createPageInfoRequest,
   createPageInfoResponse,
-  isPageInfoRequest,
-  isPageInfoResponse,
 } from '@sitecapsule/messaging/protocol';
+import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/validators';
 import { describe, expect, it } from 'vitest';
 
 describe('page info messaging protocol', () => {

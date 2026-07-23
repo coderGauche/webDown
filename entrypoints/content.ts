@@ -1,5 +1,6 @@
 import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
-import { createPageInfoResponse, isPageInfoCollectRequest } from '@sitecapsule/messaging/protocol';
+import { createPageInfoResponse } from '@sitecapsule/messaging/protocol';
+import { isPageInfoCollectRequest } from '@sitecapsule/messaging/validators';
 
 export default defineContentScript({
   registration: 'runtime',

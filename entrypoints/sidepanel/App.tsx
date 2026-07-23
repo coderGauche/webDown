@@ -1,4 +1,5 @@
-import { createPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/protocol';
+import { createPageInfoRequest } from '@sitecapsule/messaging/protocol';
+import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
 import { EXTENSION_NAME } from '@sitecapsule/shared';
 import { useState } from 'react';
 

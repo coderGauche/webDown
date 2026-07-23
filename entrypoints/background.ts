@@ -2,10 +2,9 @@ import { CONTENT_SCRIPT_FILE, RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
 import {
   createPageInfoCollectRequest,
   createPageInfoError,
-  isPageInfoRequest,
-  isPageInfoResponse,
   type PageInfoResponse,
 } from '@sitecapsule/messaging/protocol';
+import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/validators';
 
 async function sendPageInfoRequestWithCorrelation(
   tabId: number,
@@ -58,10 +57,6 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener(async (message: unknown) => {
     if (!isPageInfoRequest(message)) return;
-
-    if (message.payload.tabId < 0) {
-      return createPageInfoError('当前标签页不可用。', message.correlationId);
-    }
 
     return collectPageInfo(message.payload.tabId, message.correlationId);
   });
