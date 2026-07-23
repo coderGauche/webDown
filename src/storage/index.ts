@@ -5,3 +5,12 @@ export {
   SiteCapsuleDatabase,
   database,
 } from './database';
+export {
+  RECOVERABLE_JOB_STATUSES,
+  JobRepository,
+  jobRepository,
+  type CaptureJobUpdate,
+  type CreateCaptureJobInput,
+  type JobRepositoryDependencies,
+  type ListCaptureJobsOptions,
+} from './job-repository';
