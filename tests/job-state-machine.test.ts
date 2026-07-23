@@ -15,6 +15,25 @@ function followTransitions(initial: JobState, statuses: JobStatus[]): JobState {
   return statuses.reduce(transitionJobState, initial);
 }
 
+const EXPECTED_TRANSITIONS = {
+  idle: ['preparing'],
+  preparing: ['discovering', 'paused', 'cancelling', 'failed'],
+  discovering: ['fetching', 'paused', 'cancelling', 'failed'],
+  fetching: ['rewriting', 'paused', 'cancelling', 'failed'],
+  rewriting: ['packaging', 'paused', 'cancelling', 'failed'],
+  packaging: ['completed', 'paused', 'cancelling', 'failed'],
+  completed: [],
+  paused: ['fetching', 'cancelling'],
+  cancelling: ['cancelled'],
+  cancelled: [],
+  failed: ['retrying'],
+  retrying: ['preparing', 'paused', 'cancelling', 'failed'],
+} as const satisfies Record<JobStatus, readonly JobStatus[]>;
+
+function createState(status: JobStatus): JobState {
+  return status === 'paused' ? { status, resumeStatus: 'fetching' } : { status };
+}
+
 describe('capture job state machine', () => {
   it('runs the complete successful pipeline in order', () => {
     const completed = followTransitions({ status: 'idle' }, [
@@ -85,6 +104,35 @@ describe('capture job state machine', () => {
             targetStage: nextStatus,
           },
         });
+      }
+    }
+  });
+
+  it('keeps the transition guard and reducer aligned for every status pair', () => {
+    for (const currentStatus of JOB_STATUSES) {
+      const current = createState(currentStatus);
+
+      for (const nextStatus of JOB_STATUSES) {
+        const expected = (EXPECTED_TRANSITIONS[currentStatus] as readonly JobStatus[]).includes(
+          nextStatus,
+        );
+
+        expect(canTransitionJobState(current, nextStatus)).toBe(expected);
+
+        if (expected) {
+          const next = transitionJobState(current, nextStatus);
+          expect(next.status).toBe(nextStatus);
+          if (next.status === 'paused') {
+            expect(next.resumeStatus).toBe(current.status);
+          }
+        } else {
+          expect(() => transitionJobState(current, nextStatus)).toThrowError(SiteCapsuleError);
+          try {
+            transitionJobState(current, nextStatus);
+          } catch (error) {
+            expect((error as SiteCapsuleError).details.code).toBe('invalid-job-transition');
+          }
+        }
       }
     }
   });

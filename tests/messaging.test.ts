@@ -1,9 +1,15 @@
-import { createCaptureError } from '@sitecapsule/domain';
+import { createCaptureError, type CaptureJob, type CaptureSettings } from '@sitecapsule/domain';
 import {
+  CAPTURE_JOB_COMMANDS,
   MESSAGE_PROTOCOL_VERSION,
+  createCaptureJobError,
   createCaptureJobControlRequest,
   createCaptureJobCreateRequest,
   createCaptureJobGetRequest,
+  createCaptureJobResponse,
+  createCaptureJobUpdatedEvent,
+  createCorrelationId,
+  createPageInfoCollectRequest,
   createPageInfoError,
   createPageInfoRequest,
   createPageInfoResponse,
@@ -22,6 +28,19 @@ describe('page info messaging protocol', () => {
       payload: { tabId: 42 },
     });
     expect(isPageInfoRequest(request)).toBe(true);
+  });
+
+  it('creates an empty content collection request and unique default correlation IDs', () => {
+    expect(createPageInfoCollectRequest('collect-1')).toEqual({
+      protocolVersion: MESSAGE_PROTOCOL_VERSION,
+      correlationId: 'collect-1',
+      type: 'page-info/collect',
+      payload: {},
+    });
+
+    const correlationIds = Array.from({ length: 20 }, () => createCorrelationId());
+    expect(correlationIds.every((correlationId) => correlationId.length > 0)).toBe(true);
+    expect(new Set(correlationIds).size).toBe(correlationIds.length);
   });
 
   it('rejects unsupported versions and malformed payloads', () => {
@@ -67,7 +86,7 @@ describe('page info messaging protocol', () => {
 });
 
 describe('capture job messaging protocol', () => {
-  const settings = {
+  const settings: CaptureSettings = {
     archiveFileName: 'example.zip',
     renderWaitMs: 1_000,
     maxConcurrentRequests: 4,
@@ -81,6 +100,26 @@ describe('capture job messaging protocol', () => {
     blockedUrlPatterns: [],
     maxFileSizeBytes: null,
     maxTotalSizeBytes: null,
+  };
+  const job: CaptureJob = {
+    id: 'job-1',
+    tabId: 7,
+    startUrl: 'https://example.com/',
+    mode: 'current-page',
+    profile: 'standard',
+    status: 'idle',
+    settings,
+    counters: {
+      pagesDiscovered: 0,
+      pagesCaptured: 0,
+      resourcesDiscovered: 0,
+      resourcesSaved: 0,
+      resourcesFailed: 0,
+      resourcesSkipped: 0,
+      bytesWritten: 0,
+    },
+    createdAt: '2026-07-23T00:00:00.000Z',
+    updatedAt: '2026-07-23T00:00:00.000Z',
   };
 
   it('defines versioned create, control, and query requests', () => {
@@ -106,5 +145,40 @@ describe('capture job messaging protocol', () => {
       payload: { jobId: 'job-1', command: 'pause' },
     });
     expect(getRequest.payload).toEqual({ jobId: 'job-1' });
+  });
+
+  it('supports every capture job control command', () => {
+    for (const command of CAPTURE_JOB_COMMANDS) {
+      expect(createCaptureJobControlRequest(job.id, command, `control-${command}`)).toMatchObject({
+        protocolVersion: MESSAGE_PROTOCOL_VERSION,
+        correlationId: `control-${command}`,
+        type: 'capture-job/control',
+        payload: { jobId: job.id, command },
+      });
+    }
+  });
+
+  it('preserves correlation IDs across job responses and update events', () => {
+    const success = createCaptureJobResponse(job, 'job-success');
+    const failure = createCaptureJobError(createCaptureError('job-not-found'), 'job-failure');
+    const update = createCaptureJobUpdatedEvent(job, 'job-update');
+
+    expect(success).toMatchObject({
+      protocolVersion: MESSAGE_PROTOCOL_VERSION,
+      correlationId: 'job-success',
+      type: 'capture-job/response',
+      payload: { ok: true, job },
+    });
+    expect(failure).toMatchObject({
+      correlationId: 'job-failure',
+      type: 'capture-job/response',
+      payload: { ok: false, error: { code: 'job-not-found', retryable: false } },
+    });
+    expect(update).toEqual({
+      protocolVersion: MESSAGE_PROTOCOL_VERSION,
+      correlationId: 'job-update',
+      type: 'capture-job/updated',
+      payload: { job },
+    });
   });
 });

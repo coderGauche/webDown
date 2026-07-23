@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 
 import type { CaptureSettings, ResourceRecord } from '@sitecapsule/domain';
-import { JobRepository, SiteCapsuleDatabase } from '@sitecapsule/storage';
+import { RECOVERABLE_JOB_STATUSES, JobRepository, SiteCapsuleDatabase } from '@sitecapsule/storage';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const settings: CaptureSettings = {
@@ -51,7 +51,7 @@ beforeEach(() => {
   timeSequence = 0;
   repository = new JobRepository(database, {
     createId: () => `job-${++idSequence}`,
-    now: () => `2026-07-23T00:00:0${timeSequence++}.000Z`,
+    now: () => new Date(Date.UTC(2026, 6, 23, 0, 0, timeSequence++)).toISOString(),
   });
 });
 
@@ -122,6 +122,19 @@ describe('JobRepository', () => {
     expect('resumeStatus' in (resumed ?? {})).toBe(false);
   });
 
+  it('updates settings and returns undefined when the requested job is missing', async () => {
+    const created = await repository.createJob(createInput);
+    const updatedSettings = { ...settings, includeMedia: false, maxPages: 3 };
+
+    expect(await repository.updateJob('missing-job', { status: 'preparing' })).toBeUndefined();
+    expect(await repository.updateJob(created.id, { settings: updatedSettings })).toMatchObject({
+      id: created.id,
+      status: 'idle',
+      settings: updatedSettings,
+    });
+    expect((await repository.getJob(created.id))?.settings).toEqual(updatedSettings);
+  });
+
   it('rejects an illegal transition without changing the stored job', async () => {
     const created = await repository.createJob(createInput);
 
@@ -163,6 +176,9 @@ describe('JobRepository', () => {
     expect((await repository.listJobs({ statuses: ['preparing'] })).map((job) => job.id)).toEqual([
       first.id,
     ]);
+    expect((await repository.listJobs({ limit: 1 })).map((job) => job.id)).toEqual([second.id]);
+    expect(RECOVERABLE_JOB_STATUSES).not.toContain('completed');
+    expect(RECOVERABLE_JOB_STATUSES).not.toContain('cancelled');
     expect(await repository.listJobs({ limit: -1 })).toEqual([]);
 
     const databaseName = database.name;
@@ -192,29 +208,34 @@ describe('JobRepository', () => {
   it('clears eligible terminal jobs and can clear all remaining records', async () => {
     const oldCompleted = await repository.createJob(createInput);
     const active = await repository.createJob(createInput);
-    const recentCompleted = await repository.createJob(createInput);
+    const recentCancelled = await repository.createJob(createInput);
 
     await database.jobs.update(oldCompleted.id, {
       status: 'completed',
       updatedAt: '2026-07-20T00:00:00.000Z',
     });
-    await database.jobs.update(recentCompleted.id, {
-      status: 'completed',
+    await database.jobs.update(recentCancelled.id, {
+      status: 'cancelled',
       updatedAt: '2026-07-23T00:00:00.000Z',
     });
     await database.resources.bulkAdd([
       createResource('resource-old', oldCompleted.id),
       createResource('resource-active', active.id),
-      createResource('resource-recent', recentCompleted.id),
+      createResource('resource-recent', recentCancelled.id),
     ]);
 
     expect(await repository.clearTerminalJobs('2026-07-21T00:00:00.000Z')).toBe(1);
     expect(await repository.getJob(oldCompleted.id)).toBeUndefined();
     expect(await repository.getJob(active.id)).toBeDefined();
-    expect(await repository.getJob(recentCompleted.id)).toBeDefined();
+    expect(await repository.getJob(recentCancelled.id)).toBeDefined();
     expect(await database.resources.get('resource-old')).toBeUndefined();
 
-    expect(await repository.clearAllJobs()).toBe(2);
+    expect(await repository.clearTerminalJobs()).toBe(1);
+    expect(await repository.getJob(recentCancelled.id)).toBeUndefined();
+    expect(await repository.getJob(active.id)).toBeDefined();
+    expect(await database.resources.get('resource-recent')).toBeUndefined();
+
+    expect(await repository.clearAllJobs()).toBe(1);
     expect(await database.jobs.count()).toBe(0);
     expect(await database.resources.count()).toBe(0);
   });
