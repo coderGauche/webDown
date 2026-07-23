@@ -15,6 +15,15 @@ export const JOB_STATUSES = [
   'retrying',
 ] as const;
 
+export const PAUSABLE_JOB_STATUSES = [
+  'preparing',
+  'discovering',
+  'fetching',
+  'rewriting',
+  'packaging',
+  'retrying',
+] as const satisfies readonly (typeof JOB_STATUSES)[number][];
+
 export const RESOURCE_TYPES = [
   'document',
   'stylesheet',
@@ -48,6 +57,17 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 export type ResourceState = (typeof RESOURCE_STATES)[number];
 export type ResourceDiscoverySource = (typeof RESOURCE_DISCOVERY_SOURCES)[number];
+export type PausableJobStatus = (typeof PAUSABLE_JOB_STATUSES)[number];
+
+export type JobState =
+  | {
+      status: 'paused';
+      resumeStatus: PausableJobStatus;
+    }
+  | {
+      status: Exclude<JobStatus, 'paused'>;
+      resumeStatus?: never;
+    };
 
 export type CaptureSettings = {
   archiveFileName: string;
@@ -75,18 +95,19 @@ export type JobCounters = {
   bytesWritten: number;
 };
 
-export type CaptureJob = {
+type CaptureJobDetails = {
   id: string;
   tabId: number;
   startUrl: string;
   mode: CaptureMode;
   profile: CaptureProfile;
-  status: JobStatus;
   settings: CaptureSettings;
   counters: JobCounters;
   createdAt: string;
   updatedAt: string;
 };
+
+export type CaptureJob = CaptureJobDetails & JobState;
 
 export type ResourceRecord = {
   id: string;

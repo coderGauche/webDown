@@ -319,10 +319,12 @@ idle
   -> packaging
   -> completed
 
-任意执行状态 -> paused -> 原状态
+任意执行状态 -> paused（记录 resumeStatus）-> 原状态
 任意执行状态 -> cancelling -> cancelled
-任意执行状态 -> failed -> retrying
+任意执行状态 -> failed -> retrying -> preparing
 ```
+
+`completed` 和 `cancelled` 为终态，不允许继续转换。暂停只能恢复到进入 `paused` 前记录的执行状态；失败重试从 `preparing` 重新开始，避免在缺少持久化阶段上下文时跳入不完整的中间流程。
 
 ### 9.3 错误呈现原则
 

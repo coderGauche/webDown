@@ -2,6 +2,7 @@ export {
   CAPTURE_MODES,
   CAPTURE_PROFILES,
   JOB_STATUSES,
+  PAUSABLE_JOB_STATUSES,
   RESOURCE_DISCOVERY_SOURCES,
   RESOURCE_STATES,
   RESOURCE_TYPES,
@@ -10,9 +11,19 @@ export {
   type CaptureProfile,
   type CaptureSettings,
   type JobCounters,
+  type JobState,
   type JobStatus,
+  type PausableJobStatus,
   type ResourceDiscoverySource,
   type ResourceRecord,
   type ResourceState,
   type ResourceType,
 } from './capture';
+export {
+  TERMINAL_JOB_STATUSES,
+  canTransitionJobState,
+  isJobStatus,
+  isPausableJobStatus,
+  isTerminalJobStatus,
+  transitionJobState,
+} from './job-state-machine';
