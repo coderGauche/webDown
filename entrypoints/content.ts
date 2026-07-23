@@ -1,6 +1,7 @@
 import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
 import { createPageInfoResponse } from '@sitecapsule/messaging/protocol';
 import { isPageInfoCollectRequest } from '@sitecapsule/messaging/validators';
+import { readPageMetadata } from '@sitecapsule/page';
 
 export default defineContentScript({
   registration: 'runtime',
@@ -11,10 +12,7 @@ export default defineContentScript({
       if (!isPageInfoCollectRequest(message)) return;
 
       return createPageInfoResponse(
-        {
-          title: document.title,
-          url: window.location.href,
-        },
+        readPageMetadata(document, message.payload.tabUrl),
         message.correlationId,
       );
     });

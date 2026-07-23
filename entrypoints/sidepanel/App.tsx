@@ -1,6 +1,7 @@
 import { SiteCapsuleError, createCaptureError, toCaptureError } from '@sitecapsule/domain';
-import { createPageInfoRequest } from '@sitecapsule/messaging/protocol';
+import { createPageInfoRequest, type PageInfo } from '@sitecapsule/messaging/protocol';
 import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
+import { createPageAccessRequest } from '@sitecapsule/permissions';
 import { EXTENSION_NAME } from '@sitecapsule/shared';
 import { useState } from 'react';
 
@@ -12,11 +13,6 @@ const runtimeSurfaces = [
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 
-type PageInfo = {
-  title: string;
-  url: string;
-};
-
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
@@ -27,6 +23,13 @@ export function App() {
     setError(null);
 
     try {
+      const accessGranted = await browser.permissions.request(createPageAccessRequest());
+      if (!accessGranted) {
+        throw new SiteCapsuleError(
+          createCaptureError('permission-denied', { operation: 'page-info' }),
+        );
+      }
+
       const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
       if (activeTab?.id === undefined) {
         throw new SiteCapsuleError(
@@ -53,7 +56,11 @@ export function App() {
         operation: 'page-info',
       });
       setPageInfo(null);
-      setError(captureError.message);
+      setError(
+        [captureError.message, captureError.context?.browserError]
+          .filter((message): message is string => Boolean(message))
+          .join(' '),
+      );
       setStatus('error');
     }
   };
@@ -110,8 +117,16 @@ export function App() {
               <dd>{pageInfo.title || 'Untitled page'}</dd>
             </div>
             <div>
-              <dt>URL</dt>
-              <dd>{pageInfo.url}</dd>
+              <dt>Tab URL</dt>
+              <dd>{pageInfo.tabUrl}</dd>
+            </div>
+            <div>
+              <dt>Base URL</dt>
+              <dd>{pageInfo.baseUrl}</dd>
+            </div>
+            <div>
+              <dt>Final URL</dt>
+              <dd>{pageInfo.finalUrl}</dd>
             </div>
           </dl>
         )}

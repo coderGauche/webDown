@@ -5,8 +5,9 @@ import type {
   CaptureProfile,
   CaptureSettings,
 } from '@sitecapsule/domain';
+import type { PageMetadata } from '@sitecapsule/page';
 
-export const MESSAGE_PROTOCOL_VERSION = 2 as const;
+export const MESSAGE_PROTOCOL_VERSION = 3 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -36,10 +37,7 @@ export type ProtocolMessage<
   payload: TPayload;
 };
 
-export type PageInfo = {
-  title: string;
-  url: string;
-};
+export type PageInfo = PageMetadata;
 
 export type PageInfoRequest = ProtocolMessage<
   typeof MESSAGE_TYPES.pageInfoRequest,
@@ -50,7 +48,9 @@ export type PageInfoRequest = ProtocolMessage<
 
 export type PageInfoCollectRequest = ProtocolMessage<
   typeof MESSAGE_TYPES.pageInfoCollect,
-  Record<string, never>
+  {
+    tabUrl: string;
+  }
 >;
 
 export type PageInfoResponse = ProtocolMessage<
@@ -155,9 +155,10 @@ export function createPageInfoRequest(
 }
 
 export function createPageInfoCollectRequest(
+  tabUrl: string,
   correlationId = createCorrelationId(),
 ): PageInfoCollectRequest {
-  return createMessage(MESSAGE_TYPES.pageInfoCollect, {}, correlationId);
+  return createMessage(MESSAGE_TYPES.pageInfoCollect, { tabUrl }, correlationId);
 }
 
 export function createPageInfoResponse(

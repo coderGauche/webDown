@@ -93,6 +93,16 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function isAbsoluteUrl(value: unknown): value is string {
+  if (!isNonEmptyString(value)) return false;
+
+  try {
+    return new URL(value).href.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }
@@ -219,7 +229,8 @@ export function isPageInfoCollectRequest(message: unknown): message is PageInfoC
     isProtocolMessageEnvelope(message) &&
     hasMessageType(message, MESSAGE_TYPES.pageInfoCollect) &&
     isRecord(message.payload) &&
-    hasExactKeys(message.payload, [])
+    hasExactKeys(message.payload, ['tabUrl']) &&
+    isAbsoluteUrl(message.payload.tabUrl)
   );
 }
 
@@ -236,9 +247,11 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
     return (
       hasExactKeys(message.payload, ['ok', 'page']) &&
       isRecord(message.payload.page) &&
-      hasExactKeys(message.payload.page, ['title', 'url']) &&
+      hasExactKeys(message.payload.page, ['title', 'tabUrl', 'baseUrl', 'finalUrl']) &&
       typeof message.payload.page.title === 'string' &&
-      isNonEmptyString(message.payload.page.url)
+      isAbsoluteUrl(message.payload.page.tabUrl) &&
+      isAbsoluteUrl(message.payload.page.baseUrl) &&
+      isAbsoluteUrl(message.payload.page.finalUrl)
     );
   }
 

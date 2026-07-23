@@ -123,9 +123,9 @@ open -a Finder "$(pwd)/.output/chrome-mv3"
 使用普通 `http://` 或 `https://` 页面验证，避免从 `chrome://extensions` 页面直接验证：
 
 1. 打开一个普通网页，例如公开文档或新闻页面；
-2. 打开 SiteCapsule Side Panel；
-3. 在 `Current page` 区域点击 `Read page`；
-4. 预期看到当前页面的 `Title` 和 `URL`。
+2. 点击 Chrome 工具栏中的 SiteCapsule 扩展图标，由该图标打开 Side Panel 并授予当前标签页临时访问权；
+3. 在 `Current page` 区域点击 `Read page`；首次使用时，Chrome 会请求普通 HTTP/HTTPS 网站访问权限，确认授权；
+4. 预期看到当前页面的 `Title`、`Tab URL`、`Base URL` 和 `Final URL`。
 
 消息链路如下：
 
@@ -135,7 +135,7 @@ Side Panel
 Background
   -> browser.tabs.sendMessage(page-info/collect)
 Content Script
-  -> 返回 document.title 和 location.href
+  -> 返回 document.title、location.href、document.baseURI 和 document.URL
 Background
   -> 将响应返回 Side Panel
 ```
@@ -152,9 +152,9 @@ Background
 - `downloads`：为后续 ZIP 下载预留；
 - `offscreen`：为后续离线处理和压缩任务预留；
 - `sidePanel`：提供 Side Panel UI；
-- `optional_host_permissions`：预留 HTTP/HTTPS 站点授权，不在安装时默认申请全站访问。
+- `optional_host_permissions`：不在安装时默认获取网页访问权；用户首次执行 `Read page` 时由 Chrome 显式确认普通 HTTP/HTTPS 网站访问权限。
 
-这意味着 `chrome://`、Chrome Web Store 等受限页面可能无法注入 Content Script，Side Panel 会显示“当前页面不允许注入内容脚本”。这属于预期的浏览器安全限制。
+这意味着 `chrome://`、Chrome Web Store 等受限页面可能无法注入 Content Script，Side Panel 会显示“当前页面不允许注入内容脚本”。这属于预期的浏览器安全限制。从 Chrome 自带的 Side Panel 列表直接打开扩展不会触发 `activeTab`，应先激活目标网页，再点击 SiteCapsule 工具栏图标打开面板。
 
 ## 9. 常见问题
 

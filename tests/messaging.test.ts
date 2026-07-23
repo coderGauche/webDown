@@ -18,6 +18,13 @@ import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/va
 import { describe, expect, it } from 'vitest';
 
 describe('page info messaging protocol', () => {
+  const page = {
+    title: 'Example',
+    tabUrl: 'https://example.com/requested',
+    baseUrl: 'https://cdn.example.com/assets/',
+    finalUrl: 'https://example.com/final',
+  };
+
   it('adds the protocol version and correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 'request-42');
 
@@ -30,12 +37,12 @@ describe('page info messaging protocol', () => {
     expect(isPageInfoRequest(request)).toBe(true);
   });
 
-  it('creates an empty content collection request and unique default correlation IDs', () => {
-    expect(createPageInfoCollectRequest('collect-1')).toEqual({
+  it('passes the browser tab URL to content and creates unique default correlation IDs', () => {
+    expect(createPageInfoCollectRequest('https://example.com/requested', 'collect-1')).toEqual({
       protocolVersion: MESSAGE_PROTOCOL_VERSION,
       correlationId: 'collect-1',
       type: 'page-info/collect',
-      payload: {},
+      payload: { tabUrl: 'https://example.com/requested' },
     });
 
     const correlationIds = Array.from({ length: 20 }, () => createCorrelationId());
@@ -59,10 +66,7 @@ describe('page info messaging protocol', () => {
   });
 
   it('preserves correlation IDs across successful and failed responses', () => {
-    const success = createPageInfoResponse(
-      { title: 'Example', url: 'https://example.com' },
-      'request-success',
-    );
+    const success = createPageInfoResponse(page, 'request-success');
     const failure = createPageInfoError(
       createCaptureError('content-script-unresponsive'),
       'request-failure',
@@ -79,7 +83,7 @@ describe('page info messaging protocol', () => {
     expect(
       isPageInfoResponse({
         ...success,
-        payload: { ok: true, page: { title: 1, url: 'https://example.com' } },
+        payload: { ok: true, page: { ...page, title: 1 } },
       }),
     ).toBe(false);
   });

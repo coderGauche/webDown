@@ -75,17 +75,24 @@ const createInput = {
   settings,
 };
 
+const pageInfo = {
+  title: 'Example',
+  tabUrl: 'https://example.com/requested',
+  baseUrl: 'https://cdn.example.com/assets/',
+  finalUrl: job.startUrl,
+};
+
 describe('message runtime validation', () => {
-  it('accepts every v2 request, response, and event shape', () => {
+  it('accepts every v3 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 'page-request'),
-      createPageInfoCollectRequest('page-collect'),
+      createPageInfoCollectRequest(pageInfo.tabUrl, 'page-collect'),
       createCaptureJobCreateRequest(createInput, 'job-create'),
       createCaptureJobControlRequest(job.id, 'pause', 'job-control'),
       createCaptureJobGetRequest(job.id, 'job-get'),
     ];
     const responses = [
-      createPageInfoResponse({ title: 'Example', url: job.startUrl }, 'page-success'),
+      createPageInfoResponse(pageInfo, 'page-success'),
       createPageInfoError(createCaptureError('content-script-unresponsive'), 'page-error'),
       createCaptureJobResponse(job, 'job-success'),
       createCaptureJobError(createCaptureError('job-not-found'), 'job-error'),
@@ -129,7 +136,14 @@ describe('message runtime validation', () => {
     const invalidRequests = [
       { ...createPageInfoRequest(7), payload: { tabId: -1 } },
       { ...createPageInfoRequest(7), payload: { tabId: 7, url: 'https://attacker.test' } },
-      { ...createPageInfoCollectRequest(), payload: { command: 'capture' } },
+      {
+        ...createPageInfoCollectRequest(pageInfo.tabUrl),
+        payload: { tabUrl: 'not-an-absolute-url' },
+      },
+      {
+        ...createPageInfoCollectRequest(pageInfo.tabUrl),
+        payload: { tabUrl: pageInfo.tabUrl, unexpected: true },
+      },
       {
         ...createCaptureJobCreateRequest(createInput),
         payload: { ...createInput, mode: 'unrestricted-crawl' },
@@ -181,8 +195,26 @@ describe('message runtime validation', () => {
 
     expect(
       isPageInfoResponse({
-        ...createPageInfoResponse({ title: 'Example', url: job.startUrl }),
-        payload: { ok: true, page: { title: 'Example', url: job.startUrl }, error: 'mixed' },
+        ...createPageInfoResponse(pageInfo),
+        payload: { ok: true, page: pageInfo, error: 'mixed' },
+      }),
+    ).toBe(false);
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: { title: 'Legacy', url: job.startUrl },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: { ...pageInfo, baseUrl: './assets/' },
+        },
       }),
     ).toBe(false);
     expect(
