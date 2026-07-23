@@ -36,11 +36,11 @@ export function App() {
       if (!isPageInfoResponse(response)) {
         throw new Error('扩展未返回有效的页面信息。');
       }
-      if (!response.ok) {
-        throw new Error(response.error);
+      if (!response.payload.ok) {
+        throw new Error(response.payload.error);
       }
 
-      setPageInfo(response.page);
+      setPageInfo(response.payload.page);
       setStatus('success');
     } catch (requestError) {
       setPageInfo(null);

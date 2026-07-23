@@ -9,10 +9,13 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener(async (message: unknown) => {
       if (!isPageInfoCollectRequest(message)) return;
 
-      return createPageInfoResponse({
-        title: document.title,
-        url: window.location.href,
-      });
+      return createPageInfoResponse(
+        {
+          title: document.title,
+          url: window.location.href,
+        },
+        message.correlationId,
+      );
     });
   },
 });
