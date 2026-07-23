@@ -1,12 +1,16 @@
 import {
   JOB_STATUSES,
+  SiteCapsuleError,
   TERMINAL_JOB_STATUSES,
+  createCaptureError,
+  toSiteCapsuleError,
   transitionJobState,
   type CaptureJob,
   type CaptureMode,
   type CaptureProfile,
   type CaptureSettings,
   type JobCounters,
+  type CaptureErrorOperation,
   type JobState,
   type JobStatus,
 } from '@sitecapsule/domain';
@@ -69,6 +73,7 @@ function currentJobState(job: CaptureJob): JobState {
 function mergeJobCounters(
   current: JobCounters,
   update: Partial<JobCounters> | undefined,
+  jobId: string,
 ): JobCounters {
   const counters: JobCounters = {
     pagesDiscovered: update?.pagesDiscovered ?? current.pagesDiscovered,
@@ -82,7 +87,13 @@ function mergeJobCounters(
 
   for (const [name, value] of Object.entries(counters)) {
     if (!Number.isSafeInteger(value) || value < 0) {
-      throw new Error(`Invalid capture job counter: ${name}`);
+      throw new SiteCapsuleError(
+        createCaptureError('invalid-job-counter', {
+          operation: 'job-counter-update',
+          jobId,
+          field: name,
+        }),
+      );
     }
   }
 
@@ -100,22 +111,24 @@ export class JobRepository {
   }
 
   async createJob(input: CreateCaptureJobInput): Promise<CaptureJob> {
-    const timestamp = this.dependencies.now();
-    const job: CaptureJob = {
-      id: this.dependencies.createId(),
-      ...input,
-      status: 'idle',
-      counters: { ...EMPTY_JOB_COUNTERS },
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
+    return this.runStorageOperation('job-create', async () => {
+      const timestamp = this.dependencies.now();
+      const job: CaptureJob = {
+        id: this.dependencies.createId(),
+        ...input,
+        status: 'idle',
+        counters: { ...EMPTY_JOB_COUNTERS },
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
 
-    await this.db.jobs.add(job);
-    return job;
+      await this.db.jobs.add(job);
+      return job;
+    });
   }
 
   getJob(jobId: string): Promise<CaptureJob | undefined> {
-    return this.db.jobs.get(jobId);
+    return this.runStorageOperation('job-read', () => this.db.jobs.get(jobId));
   }
 
   async listJobs(options: ListCaptureJobsOptions = {}): Promise<CaptureJob[]> {
@@ -126,16 +139,18 @@ export class JobRepository {
       return [];
     }
 
-    const jobs = options.statuses
-      ? await this.db.jobs
-          .where('status')
-          .anyOf([...options.statuses])
-          .toArray()
-      : await this.db.jobs.toArray();
+    return this.runStorageOperation('job-list', async () => {
+      const jobs = options.statuses
+        ? await this.db.jobs
+            .where('status')
+            .anyOf([...options.statuses])
+            .toArray()
+        : await this.db.jobs.toArray();
 
-    jobs.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      jobs.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
-    return options.limit === undefined ? jobs : jobs.slice(0, options.limit);
+      return options.limit === undefined ? jobs : jobs.slice(0, options.limit);
+    });
   }
 
   listRecoverableJobs(): Promise<CaptureJob[]> {
@@ -143,51 +158,76 @@ export class JobRepository {
   }
 
   async updateJob(jobId: string, update: CaptureJobUpdate): Promise<CaptureJob | undefined> {
-    return this.db.transaction('rw', this.db.jobs, async () => {
-      const current = await this.db.jobs.get(jobId);
-      if (!current) return undefined;
+    return this.runStorageOperation('job-update', () => {
+      return this.db.transaction('rw', this.db.jobs, async () => {
+        const current = await this.db.jobs.get(jobId);
+        if (!current) return undefined;
 
-      const nextState =
-        update.status === undefined || update.status === current.status
-          ? currentJobState(current)
-          : transitionJobState(current, update.status);
-      const { status: _status, resumeStatus: _resumeStatus, ...details } = current;
-      const updated: CaptureJob = {
-        ...details,
-        settings: update.settings ?? current.settings,
-        counters: mergeJobCounters(current.counters, update.counters),
-        updatedAt: this.dependencies.now(),
-        ...nextState,
-      };
+        const nextState =
+          update.status === undefined || update.status === current.status
+            ? currentJobState(current)
+            : transitionJobState(current, update.status);
+        const { status: _status, resumeStatus: _resumeStatus, ...details } = current;
+        const updated: CaptureJob = {
+          ...details,
+          settings: update.settings ?? current.settings,
+          counters: mergeJobCounters(current.counters, update.counters, jobId),
+          updatedAt: this.dependencies.now(),
+          ...nextState,
+        };
 
-      await this.db.jobs.put(updated);
-      return updated;
+        await this.db.jobs.put(updated);
+        return updated;
+      });
     });
   }
 
   async deleteJob(jobId: string): Promise<boolean> {
-    return (await this.deleteJobs([jobId])) === 1;
+    return this.runStorageOperation('job-delete', async () => {
+      return (await this.deleteJobs([jobId])) === 1;
+    });
   }
 
   async clearTerminalJobs(updatedBefore?: string): Promise<number> {
-    const terminalJobs = await this.db.jobs
-      .where('status')
-      .anyOf([...TERMINAL_JOB_STATUSES])
-      .toArray();
-    const jobIds = terminalJobs
-      .filter((job) => updatedBefore === undefined || job.updatedAt <= updatedBefore)
-      .map((job) => job.id);
+    return this.runStorageOperation('job-cleanup', async () => {
+      const terminalJobs = await this.db.jobs
+        .where('status')
+        .anyOf([...TERMINAL_JOB_STATUSES])
+        .toArray();
+      const jobIds = terminalJobs
+        .filter((job) => updatedBefore === undefined || job.updatedAt <= updatedBefore)
+        .map((job) => job.id);
 
-    return this.deleteJobs(jobIds);
+      return this.deleteJobs(jobIds);
+    });
   }
 
   async clearAllJobs(): Promise<number> {
-    return this.db.transaction('rw', this.db.jobs, this.db.resources, async () => {
-      const deletedJobCount = await this.db.jobs.count();
-      await this.db.resources.clear();
-      await this.db.jobs.clear();
-      return deletedJobCount;
+    return this.runStorageOperation('job-cleanup', () => {
+      return this.db.transaction('rw', this.db.jobs, this.db.resources, async () => {
+        const deletedJobCount = await this.db.jobs.count();
+        await this.db.resources.clear();
+        await this.db.jobs.clear();
+        return deletedJobCount;
+      });
     });
+  }
+
+  private async runStorageOperation<T>(
+    operation: CaptureErrorOperation,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await action();
+    } catch (error) {
+      const fallbackCode =
+        error instanceof Error && error.name === 'ConstraintError'
+          ? 'storage-conflict'
+          : 'storage-unavailable';
+      throw toSiteCapsuleError(error, fallbackCode, {
+        operation,
+      });
+    }
   }
 
   private async deleteJobs(jobIds: readonly string[]): Promise<number> {

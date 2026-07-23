@@ -1,3 +1,4 @@
+import { SiteCapsuleError, createCaptureError, toCaptureError } from '@sitecapsule/domain';
 import { createPageInfoRequest } from '@sitecapsule/messaging/protocol';
 import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
 import { EXTENSION_NAME } from '@sitecapsule/shared';
@@ -28,24 +29,31 @@ export function App() {
     try {
       const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
       if (activeTab?.id === undefined) {
-        throw new Error('当前标签页不可用。');
+        throw new SiteCapsuleError(
+          createCaptureError('page-unavailable', { operation: 'page-info' }),
+        );
       }
 
       const response: unknown = await browser.runtime.sendMessage(
         createPageInfoRequest(activeTab.id),
       );
       if (!isPageInfoResponse(response)) {
-        throw new Error('扩展未返回有效的页面信息。');
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'page-info' }),
+        );
       }
       if (!response.payload.ok) {
-        throw new Error(response.payload.error);
+        throw new SiteCapsuleError(response.payload.error);
       }
 
       setPageInfo(response.payload.page);
       setStatus('success');
     } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'unexpected-error', {
+        operation: 'page-info',
+      });
       setPageInfo(null);
-      setError(requestError instanceof Error ? requestError.message : '读取页面信息失败。');
+      setError(captureError.message);
       setStatus('error');
     }
   };

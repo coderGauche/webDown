@@ -1,6 +1,12 @@
-import type { CaptureJob, CaptureMode, CaptureProfile, CaptureSettings } from '@sitecapsule/domain';
+import type {
+  CaptureError,
+  CaptureJob,
+  CaptureMode,
+  CaptureProfile,
+  CaptureSettings,
+} from '@sitecapsule/domain';
 
-export const MESSAGE_PROTOCOL_VERSION = 1 as const;
+export const MESSAGE_PROTOCOL_VERSION = 2 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -55,7 +61,7 @@ export type PageInfoResponse = ProtocolMessage<
     }
   | {
       ok: false;
-      error: string;
+      error: CaptureError;
     }
 >;
 
@@ -95,7 +101,7 @@ export type CaptureJobResponse = ProtocolMessage<
     }
   | {
       ok: false;
-      error: string;
+      error: CaptureError;
     }
 >;
 
@@ -162,7 +168,7 @@ export function createPageInfoResponse(
 }
 
 export function createPageInfoError(
-  error: string,
+  error: CaptureError,
   correlationId = createCorrelationId(),
 ): PageInfoResponse {
   return createMessage(MESSAGE_TYPES.pageInfoResponse, { ok: false, error }, correlationId);
@@ -198,7 +204,7 @@ export function createCaptureJobResponse(
 }
 
 export function createCaptureJobError(
-  error: string,
+  error: CaptureError,
   correlationId = createCorrelationId(),
 ): CaptureJobResponse {
   return createMessage(MESSAGE_TYPES.captureJobResponse, { ok: false, error }, correlationId);

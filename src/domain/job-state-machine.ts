@@ -5,6 +5,7 @@ import {
   type JobStatus,
   type PausableJobStatus,
 } from './capture';
+import { SiteCapsuleError, createCaptureError } from './errors';
 
 export const TERMINAL_JOB_STATUSES = [
   'completed',
@@ -48,12 +49,24 @@ export function canTransitionJobState(current: JobState, nextStatus: JobStatus):
 
 export function transitionJobState(current: JobState, nextStatus: JobStatus): JobState {
   if (!canTransitionJobState(current, nextStatus)) {
-    throw new Error(`Invalid capture job transition: ${current.status} -> ${nextStatus}`);
+    throw new SiteCapsuleError(
+      createCaptureError('invalid-job-transition', {
+        operation: 'job-transition',
+        stage: current.status,
+        targetStage: nextStatus,
+      }),
+    );
   }
 
   if (nextStatus === 'paused') {
     if (!isPausableJobStatus(current.status)) {
-      throw new Error(`Capture job status cannot be paused: ${current.status}`);
+      throw new SiteCapsuleError(
+        createCaptureError('invalid-job-transition', {
+          operation: 'job-transition',
+          stage: current.status,
+          targetStage: nextStatus,
+        }),
+      );
     }
 
     return {

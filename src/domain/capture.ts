@@ -123,4 +123,6 @@ export type ResourceRecord = {
   byteLength?: number;
   sha256?: string;
   state: ResourceState;
+  error?: CaptureError;
 };
+import type { CaptureError } from './errors';

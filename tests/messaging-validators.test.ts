@@ -1,4 +1,4 @@
-import type { CaptureJob, CaptureSettings } from '@sitecapsule/domain';
+import { createCaptureError, type CaptureJob, type CaptureSettings } from '@sitecapsule/domain';
 import {
   MESSAGE_PROTOCOL_VERSION,
   createCaptureJobControlRequest,
@@ -76,7 +76,7 @@ const createInput = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v1 request, response, and event shape', () => {
+  it('accepts every v2 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 'page-request'),
       createPageInfoCollectRequest('page-collect'),
@@ -86,9 +86,9 @@ describe('message runtime validation', () => {
     ];
     const responses = [
       createPageInfoResponse({ title: 'Example', url: job.startUrl }, 'page-success'),
-      createPageInfoError('Unavailable', 'page-error'),
+      createPageInfoError(createCaptureError('content-script-unresponsive'), 'page-error'),
       createCaptureJobResponse(job, 'job-success'),
-      createCaptureJobError('Missing job', 'job-error'),
+      createCaptureJobError(createCaptureError('job-not-found'), 'job-error'),
     ];
     const events = [createCaptureJobUpdatedEvent(job, 'job-updated')];
 
@@ -187,8 +187,11 @@ describe('message runtime validation', () => {
     ).toBe(false);
     expect(
       isCaptureJobResponse({
-        ...createCaptureJobError('Missing job'),
-        payload: { ok: false, error: '' },
+        ...createCaptureJobError(createCaptureError('job-not-found')),
+        payload: {
+          ok: false,
+          error: { ...createCaptureError('job-not-found'), message: '' },
+        },
       }),
     ).toBe(false);
     expect(

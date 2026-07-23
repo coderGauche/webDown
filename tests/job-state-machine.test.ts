@@ -1,5 +1,6 @@
 import {
   JOB_STATUSES,
+  SiteCapsuleError,
   canTransitionJobState,
   isJobStatus,
   isPausableJobStatus,
@@ -63,15 +64,29 @@ describe('capture job state machine', () => {
   });
 
   it('rejects skipped phases, invalid resumes, and terminal transitions', () => {
-    expect(() => transitionJobState({ status: 'idle' }, 'fetching')).toThrow(
-      'Invalid capture job transition: idle -> fetching',
-    );
-    expect(() =>
-      transitionJobState({ status: 'paused', resumeStatus: 'fetching' }, 'rewriting'),
-    ).toThrow('Invalid capture job transition: paused -> rewriting');
-    expect(() => transitionJobState({ status: 'completed' }, 'preparing')).toThrow(
-      'Invalid capture job transition: completed -> preparing',
-    );
+    const invalidTransitions = [
+      [{ status: 'idle' }, 'fetching'],
+      [{ status: 'paused', resumeStatus: 'fetching' }, 'rewriting'],
+      [{ status: 'completed' }, 'preparing'],
+    ] as const;
+
+    for (const [current, nextStatus] of invalidTransitions) {
+      try {
+        transitionJobState(current, nextStatus);
+        throw new Error('Expected transition to fail.');
+      } catch (error) {
+        expect(error).toBeInstanceOf(SiteCapsuleError);
+        expect((error as SiteCapsuleError).details).toMatchObject({
+          code: 'invalid-job-transition',
+          retryable: false,
+          context: {
+            operation: 'job-transition',
+            stage: current.status,
+            targetStage: nextStatus,
+          },
+        });
+      }
+    }
   });
 
   it('keeps runtime status checks aligned with the domain vocabulary', () => {

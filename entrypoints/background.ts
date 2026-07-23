@@ -1,3 +1,4 @@
+import { createCaptureError, toCaptureError } from '@sitecapsule/domain';
 import { CONTENT_SCRIPT_FILE, RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
 import {
   createPageInfoCollectRequest,
@@ -44,12 +45,25 @@ async function collectPageInfo(tabId: number, correlationId: string): Promise<Pa
       target: { tabId },
       files: [CONTENT_SCRIPT_FILE],
     });
-  } catch {
-    return createPageInfoError('当前页面不允许注入内容脚本。', correlationId);
+  } catch (error) {
+    return createPageInfoError(
+      toCaptureError(error, 'content-script-injection-failed', {
+        operation: 'content-script-injection',
+      }),
+      correlationId,
+    );
   }
 
   const injectedResponse = await waitForPageInfoResponse(tabId, correlationId);
-  return injectedResponse ?? createPageInfoError('内容脚本未能返回页面信息。', correlationId);
+  return (
+    injectedResponse ??
+    createPageInfoError(
+      createCaptureError('content-script-unresponsive', {
+        operation: 'content-script-response',
+      }),
+      correlationId,
+    )
+  );
 }
 
 export default defineBackground(() => {

@@ -81,6 +81,22 @@ describe('JobRepository', () => {
     expect(await repository.getJob(created.id)).toEqual(created);
   });
 
+  it('maps IndexedDB constraint failures to a structured storage conflict', async () => {
+    repository = new JobRepository(database, {
+      createId: () => 'duplicate-job',
+      now: () => '2026-07-23T00:00:00.000Z',
+    });
+    await repository.createJob(createInput);
+
+    await expect(repository.createJob(createInput)).rejects.toMatchObject({
+      details: {
+        code: 'storage-conflict',
+        retryable: true,
+        context: { operation: 'job-create', browserError: 'ConstraintError' },
+      },
+    });
+  });
+
   it('updates counters and status atomically through legal transitions', async () => {
     const created = await repository.createJob(createInput);
     const preparing = await repository.updateJob(created.id, {
@@ -109,12 +125,24 @@ describe('JobRepository', () => {
   it('rejects an illegal transition without changing the stored job', async () => {
     const created = await repository.createJob(createInput);
 
-    await expect(repository.updateJob(created.id, { status: 'completed' })).rejects.toThrow(
-      'Invalid capture job transition: idle -> completed',
-    );
+    await expect(repository.updateJob(created.id, { status: 'completed' })).rejects.toMatchObject({
+      details: {
+        code: 'invalid-job-transition',
+        context: { operation: 'job-transition', stage: 'idle', targetStage: 'completed' },
+      },
+    });
     await expect(
       repository.updateJob(created.id, { counters: { resourcesSaved: -1 } }),
-    ).rejects.toThrow('Invalid capture job counter: resourcesSaved');
+    ).rejects.toMatchObject({
+      details: {
+        code: 'invalid-job-counter',
+        context: {
+          operation: 'job-counter-update',
+          jobId: created.id,
+          field: 'resourcesSaved',
+        },
+      },
+    });
     expect(await repository.getJob(created.id)).toEqual(created);
   });
 

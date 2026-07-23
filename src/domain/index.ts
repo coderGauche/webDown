@@ -27,3 +27,18 @@ export {
   isTerminalJobStatus,
   transitionJobState,
 } from './job-state-machine';
+export {
+  CAPTURE_ERROR_CATALOG,
+  CAPTURE_ERROR_CODES,
+  CAPTURE_ERROR_OPERATIONS,
+  SiteCapsuleError,
+  createCaptureError,
+  isCaptureError,
+  isCaptureErrorContext,
+  toCaptureError,
+  toSiteCapsuleError,
+  type CaptureError,
+  type CaptureErrorCode,
+  type CaptureErrorContext,
+  type CaptureErrorOperation,
+} from './errors';

@@ -1,3 +1,4 @@
+import { createCaptureError } from '@sitecapsule/domain';
 import {
   MESSAGE_PROTOCOL_VERSION,
   createCaptureJobControlRequest,
@@ -43,10 +44,17 @@ describe('page info messaging protocol', () => {
       { title: 'Example', url: 'https://example.com' },
       'request-success',
     );
-    const failure = createPageInfoError('Unavailable', 'request-failure');
+    const failure = createPageInfoError(
+      createCaptureError('content-script-unresponsive'),
+      'request-failure',
+    );
 
     expect(success.correlationId).toBe('request-success');
     expect(failure.correlationId).toBe('request-failure');
+    expect(failure.payload).toMatchObject({
+      ok: false,
+      error: { code: 'content-script-unresponsive', retryable: true },
+    });
     expect(isPageInfoResponse(success)).toBe(true);
     expect(isPageInfoResponse(failure)).toBe(true);
     expect(

@@ -3,6 +3,7 @@ import {
   CAPTURE_PROFILES,
   JOB_STATUSES,
   PAUSABLE_JOB_STATUSES,
+  isCaptureError,
   type CaptureJob,
   type CaptureSettings,
   type JobCounters,
@@ -241,7 +242,7 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
     );
   }
 
-  return hasExactKeys(message.payload, ['ok', 'error']) && isNonEmptyString(message.payload.error);
+  return hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
 }
 
 export function isCaptureJobCreateRequest(message: unknown): message is CaptureJobCreateRequest {
@@ -311,7 +312,7 @@ export function isCaptureJobResponse(message: unknown): message is CaptureJobRes
     return hasExactKeys(message.payload, ['ok', 'job']) && isCaptureJob(message.payload.job);
   }
 
-  return hasExactKeys(message.payload, ['ok', 'error']) && isNonEmptyString(message.payload.error);
+  return hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
 }
 
 export function isCaptureJobUpdatedEvent(message: unknown): message is CaptureJobUpdatedEvent {
