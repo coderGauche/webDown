@@ -132,6 +132,11 @@ describe('M3 page fixtures', () => {
       'https://cdn.fixture.test/static/styles/site.css',
       'https://cdn.fixture.test/static/images/cover.png',
     ]);
+    expect(snapshot.mergedResources.map((resource) => resource.url)).toEqual([
+      'https://cdn.fixture.test/static/images/cover.png',
+      'https://cdn.fixture.test/static/styles/site.css',
+    ]);
+    expect(snapshot.mergedResources.map((resource) => resource.evidence.length)).toEqual([2, 1]);
     expect(capturePageSnapshot(document, STATIC_URL)).toEqual(snapshot);
   });
 
@@ -183,6 +188,11 @@ describe('M3 page fixtures', () => {
       'script',
       'img',
     ]);
+    expect(snapshot.mergedResources.map((resource) => resource.url)).toEqual([
+      'https://cdn.fixture.test/spa/images/dashboard.png',
+      'https://cdn.fixture.test/spa/runtime.js',
+    ]);
+    expect(snapshot.mergedResources.map((resource) => resource.evidence.length)).toEqual([2, 1]);
     expect(capturePageSnapshot(document, SPA_URL)).toEqual(snapshot);
 
     await act(async () => root?.unmount());

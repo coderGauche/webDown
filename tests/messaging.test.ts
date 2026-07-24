@@ -39,13 +39,14 @@ describe('page info messaging protocol', () => {
       limitations: ['closed-shadow-roots-unobservable'],
     },
     performanceResources: [],
+    mergedResources: [],
   };
 
-  it('adds protocol v11 and a correlation ID to requests', () => {
+  it('adds protocol v12 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
-      protocolVersion: 11,
+      protocolVersion: 12,
       correlationId: 'request-42',
       type: 'page-info/request',
       payload: { tabId: 42, renderWaitMs: 1_500 },

@@ -18,6 +18,7 @@ import {
   type PageRegionDiagnostics,
   type PageRegionSource,
 } from './page-regions';
+import { mergeResourceCandidates, type MergedResourceCandidate } from './resource-discovery';
 import { sanitizeClonedDom } from './sanitize-cloned-dom';
 
 export type DocumentTypeSource = Pick<DocumentType, 'name' | 'publicId' | 'systemId'>;
@@ -37,6 +38,7 @@ export type PageSnapshot = PageMetadata & {
   svgResources: SvgResourceCandidate[];
   regionDiagnostics: PageRegionDiagnostics;
   performanceResources: PerformanceResourceRecord[];
+  mergedResources: MergedResourceCandidate[];
 };
 
 function quoteDocumentTypeIdentifier(value: string): string {
@@ -76,14 +78,23 @@ export function capturePageSnapshot(
 ): PageSnapshot {
   const embeddedResources = discoverEmbeddedResources(source);
   const cssResources = discoverCssResources(embeddedResources.cssSources);
+  const domResources = discoverDomResources(source);
+  const performanceResources = collectPerformanceResources(source.defaultView?.performance ?? null);
+  const mergedResources = mergeResourceCandidates({
+    domResources,
+    svgResources: embeddedResources.svgResources,
+    cssResources,
+    performanceResources,
+  });
 
   return {
     ...readPageMetadata(source, tabUrl),
     serializedDom: serializeDocument(source),
-    domResources: discoverDomResources(source),
+    domResources,
     ...embeddedResources,
     cssResources,
     regionDiagnostics: inspectPageRegions(source),
-    performanceResources: collectPerformanceResources(source.defaultView?.performance ?? null),
+    performanceResources,
+    mergedResources,
   };
 }

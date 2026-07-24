@@ -15,6 +15,24 @@ export {
   type PerformanceResourceSource,
 } from './performance-resources';
 export {
+  isMergedResourceCandidate,
+  isMergedResourceCandidates,
+  isResourceDiscoveryEvidence,
+  matchesMergedResourceCandidates,
+  MERGED_RESOURCE_DISCOVERY_SOURCES,
+  mergeResourceCandidates,
+  RESOURCE_DISCOVERY_CHANNELS,
+  type CssResourceEvidence,
+  type DomResourceEvidence,
+  type MergedResourceCandidate,
+  type MergedResourceDiscoverySource,
+  type MergeResourceCandidatesInput,
+  type PerformanceResourceEvidence,
+  type ResourceDiscoveryChannel,
+  type ResourceDiscoveryEvidence,
+  type SvgResourceEvidence,
+} from './resource-discovery';
+export {
   getPageCaptureTimeoutMs,
   PAGE_CAPTURE_TIMEOUT_GRACE_MS,
   runPageCaptureSession,

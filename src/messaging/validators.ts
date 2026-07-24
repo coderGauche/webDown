@@ -9,12 +9,20 @@ import {
   type CaptureSettings,
   type JobCounters,
 } from '@sitecapsule/domain';
-import { PAGE_REGION_LIMITATIONS, PERFORMANCE_RESOURCE_INITIATORS } from '@sitecapsule/page';
+import {
+  matchesMergedResourceCandidates,
+  PAGE_REGION_LIMITATIONS,
+  PERFORMANCE_RESOURCE_INITIATORS,
+  type PerformanceResourceRecord,
+} from '@sitecapsule/page';
 import {
   isCssResourceCandidate,
   isDomResourceCandidate,
   isEmbeddedCssSource,
   isSvgResourceCandidate,
+  type CssResourceCandidate,
+  type DomResourceCandidate,
+  type SvgResourceCandidate,
 } from '@sitecapsule/discovery';
 import {
   CAPTURE_JOB_COMMANDS,
@@ -235,6 +243,27 @@ function isPerformanceResourceRecords(value: unknown): boolean {
   return new Set(urls).size === urls.length;
 }
 
+function isPageResourceDiscovery(page: UnknownRecord): boolean {
+  if (
+    !Array.isArray(page.domResources) ||
+    !page.domResources.every(isDomResourceCandidate) ||
+    !Array.isArray(page.cssResources) ||
+    !page.cssResources.every(isCssResourceCandidate) ||
+    !Array.isArray(page.svgResources) ||
+    !page.svgResources.every(isSvgResourceCandidate) ||
+    !isPerformanceResourceRecords(page.performanceResources)
+  ) {
+    return false;
+  }
+
+  return matchesMergedResourceCandidates(page.mergedResources, {
+    domResources: page.domResources as DomResourceCandidate[],
+    cssResources: page.cssResources as CssResourceCandidate[],
+    svgResources: page.svgResources as SvgResourceCandidate[],
+    performanceResources: page.performanceResources as PerformanceResourceRecord[],
+  });
+}
+
 function hasMessageType<TType extends MessageType>(
   message: ProtocolMessage<MessageType, unknown>,
   type: TType,
@@ -369,22 +398,17 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'svgResources',
         'regionDiagnostics',
         'performanceResources',
+        'mergedResources',
       ]) &&
       typeof message.payload.page.title === 'string' &&
       isAbsoluteUrl(message.payload.page.tabUrl) &&
       isAbsoluteUrl(message.payload.page.baseUrl) &&
       isAbsoluteUrl(message.payload.page.finalUrl) &&
       isNonEmptyString(message.payload.page.serializedDom) &&
-      Array.isArray(message.payload.page.domResources) &&
-      message.payload.page.domResources.every(isDomResourceCandidate) &&
       Array.isArray(message.payload.page.cssSources) &&
       message.payload.page.cssSources.every(isEmbeddedCssSource) &&
-      Array.isArray(message.payload.page.cssResources) &&
-      message.payload.page.cssResources.every(isCssResourceCandidate) &&
-      Array.isArray(message.payload.page.svgResources) &&
-      message.payload.page.svgResources.every(isSvgResourceCandidate) &&
       isPageRegionDiagnostics(message.payload.page.regionDiagnostics) &&
-      isPerformanceResourceRecords(message.payload.page.performanceResources)
+      isPageResourceDiscovery(message.payload.page)
     );
   }
 

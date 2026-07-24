@@ -132,6 +132,29 @@ describe('document snapshot', () => {
           decodedBodySize: 2_000,
         },
       ],
+      mergedResources: [
+        {
+          ordinal: 1,
+          url: 'https://cdn.example.com/rendered.js',
+          discoverySources: ['performance'],
+          evidence: [
+            {
+              source: 'performance',
+              channel: 'performance',
+              sourceOrdinal: 1,
+              candidate: {
+                url: 'https://cdn.example.com/rendered.js',
+                initiatorType: 'script',
+                startTimeMs: 15,
+                durationMs: 30,
+                transferSize: 1_200,
+                encodedBodySize: 1_000,
+                decodedBodySize: 2_000,
+              },
+            },
+          ],
+        },
+      ],
     });
     expect(fixture.cloneNode).toHaveBeenCalledTimes(1);
     expect(fixture.cloneNode).toHaveBeenCalledWith(true);

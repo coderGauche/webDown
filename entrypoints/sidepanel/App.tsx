@@ -33,6 +33,10 @@ function summarizeRegions(pageInfo: PageInfo): string {
   return `${counts.iframes} iframe / ${counts.shadowRoots} shadow / ${counts.inaccessible} inaccessible`;
 }
 
+function countMergedEvidence(pageInfo: PageInfo): number {
+  return pageInfo.mergedResources.reduce((total, resource) => total + resource.evidence.length, 0);
+}
+
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
@@ -203,6 +207,13 @@ export function App() {
             <div>
               <dt>CSS references</dt>
               <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
+            </div>
+            <div>
+              <dt>Unified resources</dt>
+              <dd>
+                {pageInfo.mergedResources.length.toLocaleString()} exact URLs /{' '}
+                {countMergedEvidence(pageInfo).toLocaleString()} discoveries
+              </dd>
             </div>
           </dl>
         )}

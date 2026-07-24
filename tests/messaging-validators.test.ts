@@ -29,6 +29,7 @@ import {
   isSiteCapsuleRequest,
   isSiteCapsuleResponse,
 } from '@sitecapsule/messaging/validators';
+import { mergeResourceCandidates } from '@sitecapsule/page';
 import { describe, expect, it } from 'vitest';
 
 const settings: CaptureSettings = {
@@ -76,7 +77,7 @@ const createInput = {
   settings,
 };
 
-const pageInfo: PageInfo = {
+const pageInfoWithoutMerged = {
   title: 'Example',
   tabUrl: 'https://example.com/requested',
   baseUrl: 'https://cdn.example.com/assets/',
@@ -174,10 +175,15 @@ const pageInfo: PageInfo = {
       decodedBodySize: 1_500,
     },
   ],
+} satisfies Omit<PageInfo, 'mergedResources'>;
+
+const pageInfo: PageInfo = {
+  ...pageInfoWithoutMerged,
+  mergedResources: mergeResourceCandidates(pageInfoWithoutMerged),
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v11 request, response, and event shape', () => {
+  it('accepts every v12 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -377,6 +383,16 @@ describe('message runtime validation', () => {
         }),
       ).toBe(false);
     }
+
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: { ...pageInfo, mergedResources: [] },
+        },
+      }),
+    ).toBe(false);
 
     const validTiming = pageInfo.performanceResources[0];
     expect(validTiming).toBeDefined();
