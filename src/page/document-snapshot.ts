@@ -22,6 +22,7 @@ export type DocumentSnapshotSource = PageMetadataSource &
 
 export type PageSnapshot = PageMetadata & {
   serializedDom: string;
+  domResources: DomResourceCandidate[];
   regionDiagnostics: PageRegionDiagnostics;
   performanceResources: PerformanceResourceRecord[];
 };
@@ -64,7 +65,9 @@ export function capturePageSnapshot(
   return {
     ...readPageMetadata(source, tabUrl),
     serializedDom: serializeDocument(source),
+    domResources: discoverDomResources(source),
     regionDiagnostics: inspectPageRegions(source),
     performanceResources: collectPerformanceResources(source.defaultView?.performance ?? null),
   };
 }
+import { discoverDomResources, type DomResourceCandidate } from '@sitecapsule/discovery';

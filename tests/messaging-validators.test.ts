@@ -82,6 +82,18 @@ const pageInfo: PageInfo = {
   baseUrl: 'https://cdn.example.com/assets/',
   finalUrl: job.startUrl,
   serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
+  domResources: [
+    {
+      source: 'dom',
+      tagName: 'img',
+      attributeName: 'src',
+      attributeValue: 'images/hero.png',
+      rawUrl: 'images/hero.png',
+      resolvedUrl: 'https://cdn.example.com/assets/images/hero.png',
+      documentUrl: job.startUrl,
+      baseUrl: 'https://cdn.example.com/assets/',
+    },
+  ],
   regionDiagnostics: {
     regions: [
       {
@@ -116,7 +128,7 @@ const pageInfo: PageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v7 request, response, and event shape', () => {
+  it('accepts every v9 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -237,6 +249,27 @@ describe('message runtime validation', () => {
         payload: { ok: true, page: pageInfo, error: 'mixed' },
       }),
     ).toBe(false);
+
+    const validDomResource = pageInfo.domResources[0];
+    expect(validDomResource).toBeDefined();
+    if (!validDomResource) throw new Error('Missing DOM resource fixture.');
+    for (const invalidDomResource of [
+      { ...validDomResource, tagName: 'div' },
+      { ...validDomResource, attributeName: 'poster' },
+      { ...validDomResource, resolvedUrl: 'relative.png' },
+      { ...validDomResource, descriptor: '2x' },
+      { ...validDomResource, unexpected: true },
+    ]) {
+      expect(
+        isPageInfoResponse({
+          ...createPageInfoResponse(pageInfo),
+          payload: {
+            ok: true,
+            page: { ...pageInfo, domResources: [invalidDomResource] },
+          },
+        }),
+      ).toBe(false);
+    }
 
     const validTiming = pageInfo.performanceResources[0];
     expect(validTiming).toBeDefined();

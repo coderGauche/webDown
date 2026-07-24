@@ -10,6 +10,7 @@ import {
   type JobCounters,
 } from '@sitecapsule/domain';
 import { PAGE_REGION_LIMITATIONS, PERFORMANCE_RESOURCE_INITIATORS } from '@sitecapsule/page';
+import { isDomResourceCandidate } from '@sitecapsule/discovery';
 import {
   CAPTURE_JOB_COMMANDS,
   MESSAGE_PROTOCOL_VERSION,
@@ -357,6 +358,7 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'baseUrl',
         'finalUrl',
         'serializedDom',
+        'domResources',
         'regionDiagnostics',
         'performanceResources',
       ]) &&
@@ -365,6 +367,8 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
       isAbsoluteUrl(message.payload.page.baseUrl) &&
       isAbsoluteUrl(message.payload.page.finalUrl) &&
       isNonEmptyString(message.payload.page.serializedDom) &&
+      Array.isArray(message.payload.page.domResources) &&
+      message.payload.page.domResources.every(isDomResourceCandidate) &&
       isPageRegionDiagnostics(message.payload.page.regionDiagnostics) &&
       isPerformanceResourceRecords(message.payload.page.performanceResources)
     );

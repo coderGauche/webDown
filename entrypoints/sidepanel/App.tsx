@@ -189,6 +189,10 @@ export function App() {
               <dt>Runtime resources</dt>
               <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
             </div>
+            <div>
+              <dt>DOM resources</dt>
+              <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
+            </div>
           </dl>
         )}
       </section>

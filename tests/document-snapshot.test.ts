@@ -113,6 +113,7 @@ describe('document snapshot', () => {
       baseUrl: 'https://cdn.example.com/assets/',
       finalUrl: 'https://example.com/final',
       serializedDom: '<!DOCTYPE html>\n<html><body><main>Rendered content</main></body></html>',
+      domResources: [],
       regionDiagnostics: {
         regions: [],
         limitations: ['closed-shadow-roots-unobservable'],

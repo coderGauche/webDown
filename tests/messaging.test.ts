@@ -30,6 +30,7 @@ describe('page info messaging protocol', () => {
     baseUrl: 'https://cdn.example.com/assets/',
     finalUrl: 'https://example.com/final',
     serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
+    domResources: [],
     regionDiagnostics: {
       regions: [],
       limitations: ['closed-shadow-roots-unobservable'],
@@ -37,11 +38,11 @@ describe('page info messaging protocol', () => {
     performanceResources: [],
   };
 
-  it('adds protocol v8 and a correlation ID to requests', () => {
+  it('adds protocol v9 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
-      protocolVersion: 8,
+      protocolVersion: 9,
       correlationId: 'request-42',
       type: 'page-info/request',
       payload: { tabId: 42, renderWaitMs: 1_500 },

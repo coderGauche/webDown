@@ -113,6 +113,9 @@ describe('M3 page fixtures', () => {
     expect(snapshot.serializedDom).toContain('name="password"');
     expect(snapshot.serializedDom).not.toContain('static-password');
     expect(snapshot.serializedDom).not.toContain('static-person@example.test');
+    expect(snapshot.domResources.map((resource) => resource.resolvedUrl)).toEqual([
+      'https://cdn.fixture.test/static/images/cover.png',
+    ]);
     expect(snapshot.regionDiagnostics.regions).toContainEqual({
       kind: 'iframe',
       ordinal: 1,
@@ -159,6 +162,9 @@ describe('M3 page fixtures', () => {
     expect(snapshot.serializedDom).toContain('Rendered SPA dashboard');
     expect(snapshot.serializedDom).not.toContain('Loading application');
     expect(snapshot.serializedDom).not.toContain('spa-runtime-token');
+    expect(snapshot.domResources.map((resource) => resource.resolvedUrl)).toEqual([
+      'https://cdn.fixture.test/spa/images/dashboard.png',
+    ]);
     expect(snapshot.regionDiagnostics.regions).toContainEqual({
       kind: 'shadow-root',
       ordinal: 1,
