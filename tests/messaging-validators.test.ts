@@ -94,6 +94,30 @@ const pageInfo: PageInfo = {
       baseUrl: 'https://cdn.example.com/assets/',
     },
   ],
+  cssSources: [
+    {
+      source: 'style-attribute',
+      ordinal: 1,
+      tagName: 'main',
+      attributeName: 'style',
+      cssText: 'background-image: url(./hero.png)',
+      documentUrl: job.startUrl,
+      baseUrl: 'https://cdn.example.com/assets/',
+    },
+  ],
+  svgResources: [
+    {
+      source: 'svg',
+      ordinal: 1,
+      tagName: 'image',
+      attributeName: 'href',
+      attributeValue: 'images/diagram.png',
+      rawUrl: 'images/diagram.png',
+      resolvedUrl: 'https://cdn.example.com/assets/images/diagram.png',
+      documentUrl: job.startUrl,
+      baseUrl: 'https://cdn.example.com/assets/',
+    },
+  ],
   regionDiagnostics: {
     regions: [
       {
@@ -128,7 +152,7 @@ const pageInfo: PageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v9 request, response, and event shape', () => {
+  it('accepts every v10 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -266,6 +290,44 @@ describe('message runtime validation', () => {
           payload: {
             ok: true,
             page: { ...pageInfo, domResources: [invalidDomResource] },
+          },
+        }),
+      ).toBe(false);
+    }
+
+    const validCssSource = pageInfo.cssSources[0];
+    const validSvgResource = pageInfo.svgResources[0];
+    expect(validCssSource).toBeDefined();
+    expect(validSvgResource).toBeDefined();
+    if (!validCssSource || !validSvgResource) {
+      throw new Error('Missing embedded resource fixtures.');
+    }
+    for (const invalidCssSource of [
+      { ...validCssSource, cssText: '   ' },
+      { ...validCssSource, ordinal: 0 },
+      { ...validCssSource, unexpected: true },
+    ]) {
+      expect(
+        isPageInfoResponse({
+          ...createPageInfoResponse(pageInfo),
+          payload: {
+            ok: true,
+            page: { ...pageInfo, cssSources: [invalidCssSource] },
+          },
+        }),
+      ).toBe(false);
+    }
+    for (const invalidSvgResource of [
+      { ...validSvgResource, tagName: 'a' },
+      { ...validSvgResource, rawUrl: '#local' },
+      { ...validSvgResource, unexpected: true },
+    ]) {
+      expect(
+        isPageInfoResponse({
+          ...createPageInfoResponse(pageInfo),
+          payload: {
+            ok: true,
+            page: { ...pageInfo, svgResources: [invalidSvgResource] },
           },
         }),
       ).toBe(false);

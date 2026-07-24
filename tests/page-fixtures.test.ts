@@ -116,6 +116,9 @@ describe('M3 page fixtures', () => {
     expect(snapshot.domResources.map((resource) => resource.resolvedUrl)).toEqual([
       'https://cdn.fixture.test/static/images/cover.png',
     ]);
+    expect(snapshot.cssSources).toHaveLength(1);
+    expect(snapshot.cssSources[0]).toMatchObject({ source: 'style-element', tagName: 'style' });
+    expect(snapshot.svgResources).toEqual([]);
     expect(snapshot.regionDiagnostics.regions).toContainEqual({
       kind: 'iframe',
       ordinal: 1,
@@ -165,6 +168,8 @@ describe('M3 page fixtures', () => {
     expect(snapshot.domResources.map((resource) => resource.resolvedUrl)).toEqual([
       'https://cdn.fixture.test/spa/images/dashboard.png',
     ]);
+    expect(snapshot.cssSources).toEqual([]);
+    expect(snapshot.svgResources).toEqual([]);
     expect(snapshot.regionDiagnostics.regions).toContainEqual({
       kind: 'shadow-root',
       ordinal: 1,

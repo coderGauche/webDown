@@ -193,6 +193,13 @@ export function App() {
               <dt>DOM resources</dt>
               <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
             </div>
+            <div>
+              <dt>Embedded sources</dt>
+              <dd>
+                {pageInfo.cssSources.length.toLocaleString()} CSS /{' '}
+                {pageInfo.svgResources.length.toLocaleString()} SVG
+              </dd>
+            </div>
           </dl>
         )}
       </section>

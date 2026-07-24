@@ -10,7 +10,11 @@ import {
   type JobCounters,
 } from '@sitecapsule/domain';
 import { PAGE_REGION_LIMITATIONS, PERFORMANCE_RESOURCE_INITIATORS } from '@sitecapsule/page';
-import { isDomResourceCandidate } from '@sitecapsule/discovery';
+import {
+  isDomResourceCandidate,
+  isEmbeddedCssSource,
+  isSvgResourceCandidate,
+} from '@sitecapsule/discovery';
 import {
   CAPTURE_JOB_COMMANDS,
   MESSAGE_PROTOCOL_VERSION,
@@ -359,6 +363,8 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'finalUrl',
         'serializedDom',
         'domResources',
+        'cssSources',
+        'svgResources',
         'regionDiagnostics',
         'performanceResources',
       ]) &&
@@ -369,6 +375,10 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
       isNonEmptyString(message.payload.page.serializedDom) &&
       Array.isArray(message.payload.page.domResources) &&
       message.payload.page.domResources.every(isDomResourceCandidate) &&
+      Array.isArray(message.payload.page.cssSources) &&
+      message.payload.page.cssSources.every(isEmbeddedCssSource) &&
+      Array.isArray(message.payload.page.svgResources) &&
+      message.payload.page.svgResources.every(isSvgResourceCandidate) &&
       isPageRegionDiagnostics(message.payload.page.regionDiagnostics) &&
       isPerformanceResourceRecords(message.payload.page.performanceResources)
     );

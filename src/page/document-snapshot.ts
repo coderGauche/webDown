@@ -1,3 +1,10 @@
+import {
+  discoverDomResources,
+  discoverEmbeddedResources,
+  type DomResourceCandidate,
+  type EmbeddedCssSource,
+  type SvgResourceCandidate,
+} from '@sitecapsule/discovery';
 import { readPageMetadata, type PageMetadata, type PageMetadataSource } from './page-metadata';
 import {
   collectPerformanceResources,
@@ -23,6 +30,8 @@ export type DocumentSnapshotSource = PageMetadataSource &
 export type PageSnapshot = PageMetadata & {
   serializedDom: string;
   domResources: DomResourceCandidate[];
+  cssSources: EmbeddedCssSource[];
+  svgResources: SvgResourceCandidate[];
   regionDiagnostics: PageRegionDiagnostics;
   performanceResources: PerformanceResourceRecord[];
 };
@@ -62,12 +71,14 @@ export function capturePageSnapshot(
   source: DocumentSnapshotSource,
   tabUrl = source.URL,
 ): PageSnapshot {
+  const embeddedResources = discoverEmbeddedResources(source);
+
   return {
     ...readPageMetadata(source, tabUrl),
     serializedDom: serializeDocument(source),
     domResources: discoverDomResources(source),
+    ...embeddedResources,
     regionDiagnostics: inspectPageRegions(source),
     performanceResources: collectPerformanceResources(source.defaultView?.performance ?? null),
   };
 }
-import { discoverDomResources, type DomResourceCandidate } from '@sitecapsule/discovery';
