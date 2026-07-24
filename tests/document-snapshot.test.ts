@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 type DocumentFixture = {
   cloneNode: ReturnType<typeof vi.fn>;
   setMarkup: (markup: string) => void;
+  setPerformanceEntries: (entries: PerformanceEntry[]) => void;
   source: DocumentSnapshotSource;
 };
 
@@ -18,6 +19,7 @@ function createDocumentFixture(
   doctype: DocumentTypeSource | null = { name: 'html', publicId: '', systemId: '' },
 ): DocumentFixture {
   let markup = initialMarkup;
+  let performanceEntries: PerformanceEntry[] = [];
   const cloneNode = vi.fn(
     (deep?: boolean) =>
       ({
@@ -40,6 +42,11 @@ function createDocumentFixture(
     baseURI: 'https://cdn.example.com/assets/',
     URL: 'https://example.com/final',
     doctype,
+    defaultView: {
+      performance: {
+        getEntriesByType: () => performanceEntries,
+      },
+    },
     documentElement,
     querySelectorAll: () => [],
   };
@@ -48,6 +55,9 @@ function createDocumentFixture(
     cloneNode,
     setMarkup: (nextMarkup) => {
       markup = nextMarkup;
+    },
+    setPerformanceEntries: (entries) => {
+      performanceEntries = entries;
     },
     source,
   };
@@ -82,6 +92,18 @@ describe('document snapshot', () => {
   it('captures content present after rendering and leaves the live root untouched', () => {
     const fixture = createDocumentFixture('<html><body>Loading</body></html>');
     fixture.setMarkup('<html><body><main>Rendered content</main></body></html>');
+    fixture.setPerformanceEntries([
+      {
+        name: 'https://cdn.example.com/rendered.js#runtime',
+        entryType: 'resource',
+        initiatorType: 'script',
+        startTime: 15,
+        duration: 30,
+        transferSize: 1_200,
+        encodedBodySize: 1_000,
+        decodedBodySize: 2_000,
+      } as PerformanceResourceTiming,
+    ]);
 
     const snapshot = capturePageSnapshot(fixture.source, 'https://example.com/requested');
 
@@ -95,6 +117,17 @@ describe('document snapshot', () => {
         regions: [],
         limitations: ['closed-shadow-roots-unobservable'],
       },
+      performanceResources: [
+        {
+          url: 'https://cdn.example.com/rendered.js',
+          initiatorType: 'script',
+          startTimeMs: 15,
+          durationMs: 30,
+          transferSize: 1_200,
+          encodedBodySize: 1_000,
+          decodedBodySize: 2_000,
+        },
+      ],
     });
     expect(fixture.cloneNode).toHaveBeenCalledTimes(1);
     expect(fixture.cloneNode).toHaveBeenCalledWith(true);

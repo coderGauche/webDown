@@ -9,7 +9,7 @@ import {
   type CaptureSettings,
   type JobCounters,
 } from '@sitecapsule/domain';
-import { PAGE_REGION_LIMITATIONS } from '@sitecapsule/page';
+import { PAGE_REGION_LIMITATIONS, PERFORMANCE_RESOURCE_INITIATORS } from '@sitecapsule/page';
 import {
   CAPTURE_JOB_COMMANDS,
   MESSAGE_PROTOCOL_VERSION,
@@ -117,6 +117,27 @@ function isNullableOrigin(value: unknown): value is string | null {
   }
 }
 
+function isNormalizedHttpResourceUrl(value: unknown): value is string {
+  if (!isNonEmptyString(value)) return false;
+
+  try {
+    const url = new URL(value);
+    return (
+      ['http:', 'https:'].includes(url.protocol) &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      url.href === value
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }
@@ -176,6 +197,36 @@ function isPageRegionDiagnostics(value: unknown): boolean {
     limitations.length === PAGE_REGION_LIMITATIONS.length &&
     PAGE_REGION_LIMITATIONS.every((limitation) => limitations.includes(limitation))
   );
+}
+
+function isPerformanceResourceRecord(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [
+      'url',
+      'initiatorType',
+      'startTimeMs',
+      'durationMs',
+      'transferSize',
+      'encodedBodySize',
+      'decodedBodySize',
+    ]) &&
+    isNormalizedHttpResourceUrl(value.url) &&
+    PERFORMANCE_RESOURCE_INITIATORS.includes(
+      value.initiatorType as (typeof PERFORMANCE_RESOURCE_INITIATORS)[number],
+    ) &&
+    isNonNegativeFiniteNumber(value.startTimeMs) &&
+    isNonNegativeFiniteNumber(value.durationMs) &&
+    isNonNegativeSafeInteger(value.transferSize) &&
+    isNonNegativeSafeInteger(value.encodedBodySize) &&
+    isNonNegativeSafeInteger(value.decodedBodySize)
+  );
+}
+
+function isPerformanceResourceRecords(value: unknown): boolean {
+  if (!Array.isArray(value) || !value.every(isPerformanceResourceRecord)) return false;
+  const urls = value.map((resource) => (resource as UnknownRecord).url);
+  return new Set(urls).size === urls.length;
 }
 
 function hasMessageType<TType extends MessageType>(
@@ -307,13 +358,15 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'finalUrl',
         'serializedDom',
         'regionDiagnostics',
+        'performanceResources',
       ]) &&
       typeof message.payload.page.title === 'string' &&
       isAbsoluteUrl(message.payload.page.tabUrl) &&
       isAbsoluteUrl(message.payload.page.baseUrl) &&
       isAbsoluteUrl(message.payload.page.finalUrl) &&
       isNonEmptyString(message.payload.page.serializedDom) &&
-      isPageRegionDiagnostics(message.payload.page.regionDiagnostics)
+      isPageRegionDiagnostics(message.payload.page.regionDiagnostics) &&
+      isPerformanceResourceRecords(message.payload.page.performanceResources)
     );
   }
 

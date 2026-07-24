@@ -185,6 +185,10 @@ export function App() {
               <dt>Special regions</dt>
               <dd>{summarizeRegions(pageInfo)}</dd>
             </div>
+            <div>
+              <dt>Runtime resources</dt>
+              <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
+            </div>
           </dl>
         )}
       </section>

@@ -8,6 +8,13 @@ export {
 } from './document-snapshot';
 export { readPageMetadata, type PageMetadata, type PageMetadataSource } from './page-metadata';
 export {
+  collectPerformanceResources,
+  PERFORMANCE_RESOURCE_INITIATORS,
+  type PerformanceResourceInitiator,
+  type PerformanceResourceRecord,
+  type PerformanceResourceSource,
+} from './performance-resources';
+export {
   inspectPageRegions,
   PAGE_REGION_LIMITATIONS,
   type IframeRegionDiagnostic,

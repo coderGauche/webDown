@@ -1,5 +1,10 @@
 import { readPageMetadata, type PageMetadata, type PageMetadataSource } from './page-metadata';
 import {
+  collectPerformanceResources,
+  type PerformanceResourceRecord,
+  type PerformanceResourceSource,
+} from './performance-resources';
+import {
   inspectPageRegions,
   type PageRegionDiagnostics,
   type PageRegionSource,
@@ -12,11 +17,13 @@ export type DocumentSnapshotSource = PageMetadataSource &
   PageRegionSource & {
     doctype: DocumentTypeSource | null;
     documentElement: Pick<Document['documentElement'], 'cloneNode'>;
+    defaultView: { performance: PerformanceResourceSource } | null;
   };
 
 export type PageSnapshot = PageMetadata & {
   serializedDom: string;
   regionDiagnostics: PageRegionDiagnostics;
+  performanceResources: PerformanceResourceRecord[];
 };
 
 function quoteDocumentTypeIdentifier(value: string): string {
@@ -58,5 +65,6 @@ export function capturePageSnapshot(
     ...readPageMetadata(source, tabUrl),
     serializedDom: serializeDocument(source),
     regionDiagnostics: inspectPageRegions(source),
+    performanceResources: collectPerformanceResources(source.defaultView?.performance ?? null),
   };
 }

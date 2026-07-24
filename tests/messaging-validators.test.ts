@@ -102,10 +102,21 @@ const pageInfo: PageInfo = {
     ],
     limitations: ['closed-shadow-roots-unobservable'],
   },
+  performanceResources: [
+    {
+      url: 'https://cdn.example.com/app.js?v=2',
+      initiatorType: 'script',
+      startTimeMs: 10,
+      durationMs: 25,
+      transferSize: 1_024,
+      encodedBodySize: 900,
+      decodedBodySize: 1_500,
+    },
+  ],
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v6 request, response, and event shape', () => {
+  it('accepts every v7 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -224,6 +235,39 @@ describe('message runtime validation', () => {
       isPageInfoResponse({
         ...createPageInfoResponse(pageInfo),
         payload: { ok: true, page: pageInfo, error: 'mixed' },
+      }),
+    ).toBe(false);
+
+    const validTiming = pageInfo.performanceResources[0];
+    expect(validTiming).toBeDefined();
+    if (!validTiming) throw new Error('Missing timing fixture.');
+
+    const invalidTimings = [
+      { ...validTiming, initiatorType: 'future-loader' },
+      { ...validTiming, url: 'https://user:password@cdn.example.com/app.js' },
+      { ...validTiming, url: `${validTiming.url}#fragment` },
+      { ...validTiming, durationMs: Number.NaN },
+      { ...validTiming, transferSize: 1.5 },
+      { ...validTiming, unexpected: true },
+    ];
+    for (const invalidTiming of invalidTimings) {
+      expect(
+        isPageInfoResponse({
+          ...createPageInfoResponse(pageInfo),
+          payload: {
+            ok: true,
+            page: { ...pageInfo, performanceResources: [invalidTiming] },
+          },
+        }),
+      ).toBe(false);
+    }
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: { ...pageInfo, performanceResources: [validTiming, { ...validTiming }] },
+        },
       }),
     ).toBe(false);
     expect(

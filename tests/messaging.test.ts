@@ -34,6 +34,7 @@ describe('page info messaging protocol', () => {
       regions: [],
       limitations: ['closed-shadow-roots-unobservable'],
     },
+    performanceResources: [],
   };
 
   it('adds the protocol version and correlation ID to requests', () => {
