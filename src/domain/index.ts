@@ -1,7 +1,9 @@
 export {
   CAPTURE_MODES,
   CAPTURE_PROFILES,
+  DEFAULT_RENDER_WAIT_MS,
   JOB_STATUSES,
+  MAX_RENDER_WAIT_MS,
   PAUSABLE_JOB_STATUSES,
   RESOURCE_DISCOVERY_SOURCES,
   RESOURCE_STATES,
@@ -10,6 +12,7 @@ export {
   type CaptureMode,
   type CaptureProfile,
   type CaptureSettings,
+  isRenderWaitMs,
   type JobCounters,
   type JobState,
   type JobStatus,

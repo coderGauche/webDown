@@ -112,6 +112,52 @@ h2 {
   padding-top: 24px;
 }
 
+.capture-setting,
+.duration-input {
+  display: flex;
+  align-items: center;
+}
+
+.capture-setting {
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  margin-top: 10px;
+  border-top: 1px solid #dce2eb;
+  border-bottom: 1px solid #dce2eb;
+  color: #182033;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.duration-input {
+  gap: 6px;
+  color: #60708b;
+  font-weight: 500;
+}
+
+.duration-input input {
+  width: 88px;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid #c9d2df;
+  border-radius: 4px;
+  color: #182033;
+  background: #fff;
+  font: inherit;
+  text-align: right;
+}
+
+.duration-input input:focus-visible {
+  border-color: #183b68;
+  outline: 2px solid #b9cce5;
+  outline-offset: 1px;
+}
+
+.duration-input input:disabled {
+  background: #edf1f6;
+}
+
 .primary-action {
   min-height: 30px;
   padding: 5px 10px;

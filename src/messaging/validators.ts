@@ -4,6 +4,7 @@ import {
   JOB_STATUSES,
   PAUSABLE_JOB_STATUSES,
   isCaptureError,
+  isRenderWaitMs,
   type CaptureJob,
   type CaptureSettings,
   type JobCounters,
@@ -156,7 +157,7 @@ export function isCaptureSettings(value: unknown): value is CaptureSettings {
 
   return (
     isNonEmptyString(value.archiveFileName) &&
-    isNonNegativeSafeInteger(value.renderWaitMs) &&
+    isRenderWaitMs(value.renderWaitMs) &&
     isPositiveSafeInteger(value.maxConcurrentRequests) &&
     typeof value.includeMedia === 'boolean' &&
     typeof value.includeScripts === 'boolean' &&
@@ -219,8 +220,9 @@ export function isPageInfoRequest(message: unknown): message is PageInfoRequest 
 
   return (
     isRecord(message.payload) &&
-    hasExactKeys(message.payload, ['tabId']) &&
-    isNonNegativeSafeInteger(message.payload.tabId)
+    hasExactKeys(message.payload, ['tabId', 'renderWaitMs']) &&
+    isNonNegativeSafeInteger(message.payload.tabId) &&
+    isRenderWaitMs(message.payload.renderWaitMs)
   );
 }
 
@@ -229,8 +231,9 @@ export function isPageInfoCollectRequest(message: unknown): message is PageInfoC
     isProtocolMessageEnvelope(message) &&
     hasMessageType(message, MESSAGE_TYPES.pageInfoCollect) &&
     isRecord(message.payload) &&
-    hasExactKeys(message.payload, ['tabUrl']) &&
-    isAbsoluteUrl(message.payload.tabUrl)
+    hasExactKeys(message.payload, ['tabUrl', 'renderWaitMs']) &&
+    isAbsoluteUrl(message.payload.tabUrl) &&
+    isRenderWaitMs(message.payload.renderWaitMs)
   );
 }
 

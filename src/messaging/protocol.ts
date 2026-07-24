@@ -1,13 +1,14 @@
-import type {
-  CaptureError,
-  CaptureJob,
-  CaptureMode,
-  CaptureProfile,
-  CaptureSettings,
+import {
+  DEFAULT_RENDER_WAIT_MS,
+  type CaptureError,
+  type CaptureJob,
+  type CaptureMode,
+  type CaptureProfile,
+  type CaptureSettings,
 } from '@sitecapsule/domain';
 import type { PageMetadata } from '@sitecapsule/page';
 
-export const MESSAGE_PROTOCOL_VERSION = 3 as const;
+export const MESSAGE_PROTOCOL_VERSION = 4 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -43,6 +44,7 @@ export type PageInfoRequest = ProtocolMessage<
   typeof MESSAGE_TYPES.pageInfoRequest,
   {
     tabId: number;
+    renderWaitMs: CaptureSettings['renderWaitMs'];
   }
 >;
 
@@ -50,6 +52,7 @@ export type PageInfoCollectRequest = ProtocolMessage<
   typeof MESSAGE_TYPES.pageInfoCollect,
   {
     tabUrl: string;
+    renderWaitMs: CaptureSettings['renderWaitMs'];
   }
 >;
 
@@ -149,16 +152,18 @@ function createMessage<TType extends MessageType, TPayload>(
 
 export function createPageInfoRequest(
   tabId: number,
+  renderWaitMs: CaptureSettings['renderWaitMs'] = DEFAULT_RENDER_WAIT_MS,
   correlationId = createCorrelationId(),
 ): PageInfoRequest {
-  return createMessage(MESSAGE_TYPES.pageInfoRequest, { tabId }, correlationId);
+  return createMessage(MESSAGE_TYPES.pageInfoRequest, { tabId, renderWaitMs }, correlationId);
 }
 
 export function createPageInfoCollectRequest(
   tabUrl: string,
+  renderWaitMs: CaptureSettings['renderWaitMs'] = DEFAULT_RENDER_WAIT_MS,
   correlationId = createCorrelationId(),
 ): PageInfoCollectRequest {
-  return createMessage(MESSAGE_TYPES.pageInfoCollect, { tabUrl }, correlationId);
+  return createMessage(MESSAGE_TYPES.pageInfoCollect, { tabUrl, renderWaitMs }, correlationId);
 }
 
 export function createPageInfoResponse(

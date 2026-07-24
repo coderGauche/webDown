@@ -118,24 +118,28 @@ macOS Finder 默认隐藏以点号开头的目录。如果选择器中看不到 
 open -a Finder "$(pwd)/.output/chrome-mv3"
 ```
 
-## 7. 验证 M1-T6 消息链路
+## 7. 验证页面读取与渲染等待
 
 使用普通 `http://` 或 `https://` 页面验证，避免从 `chrome://extensions` 页面直接验证：
 
 1. 打开一个普通网页，例如公开文档或新闻页面；
 2. 点击 Chrome 工具栏中的 SiteCapsule 扩展图标，由该图标打开 Side Panel 并授予当前标签页临时访问权；
-3. 在 `Current page` 区域点击 `Read page`；首次使用时，Chrome 会请求普通 HTTP/HTTPS 网站访问权限，确认授权；
-4. 预期看到当前页面的 `Title`、`Tab URL`、`Base URL` 和 `Final URL`。
+3. 确认 `Render wait` 默认为 `1000ms`，可配置范围为 `0-30000ms`；
+4. 在 `Current page` 区域点击 `Read page`；首次使用时，Chrome 会请求普通 HTTP/HTTPS 网站访问权限，确认授权；
+5. 等待期间预期看到 `Waiting N ms before reading...`，结束后显示当前页面的 `Title`、`Tab URL`、`Base URL` 和 `Final URL`；
+6. 使用 `3000ms` 验证延迟返回，再使用 `0ms` 验证立即返回。
 
 消息链路如下：
 
 ```text
 Side Panel
-  -> browser.runtime.sendMessage(page-info/request)
+  -> browser.runtime.sendMessage(page-info/request, renderWaitMs)
 Background
-  -> browser.tabs.sendMessage(page-info/collect)
+  -> 读取 tabs.Tab.url
+  -> browser.tabs.sendMessage(page-info/collect, renderWaitMs)
 Content Script
-  -> 返回 document.title、location.href、document.baseURI 和 document.URL
+  -> 异步等待 renderWaitMs
+  -> 返回 tabs.Tab.url、document.title、document.baseURI 和 document.URL
 Background
   -> 将响应返回 Side Panel
 ```

@@ -83,10 +83,10 @@ const pageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v3 request, response, and event shape', () => {
+  it('accepts every v4 request, response, and event shape', () => {
     const requests = [
-      createPageInfoRequest(7, 'page-request'),
-      createPageInfoCollectRequest(pageInfo.tabUrl, 'page-collect'),
+      createPageInfoRequest(7, 1_000, 'page-request'),
+      createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
       createCaptureJobCreateRequest(createInput, 'job-create'),
       createCaptureJobControlRequest(job.id, 'pause', 'job-control'),
       createCaptureJobGetRequest(job.id, 'job-get'),
@@ -115,7 +115,7 @@ describe('message runtime validation', () => {
   });
 
   it('rejects invalid protocol envelopes before inspecting payloads', () => {
-    const valid = createPageInfoRequest(7, 'request-7');
+    const valid = createPageInfoRequest(7, 1_000, 'request-7');
     const invalidEnvelopes = [
       null,
       [],
@@ -135,14 +135,19 @@ describe('message runtime validation', () => {
   it('rejects malformed or over-posted request payloads', () => {
     const invalidRequests = [
       { ...createPageInfoRequest(7), payload: { tabId: -1 } },
+      { ...createPageInfoRequest(7), payload: { tabId: 7, renderWaitMs: 30_001 } },
       { ...createPageInfoRequest(7), payload: { tabId: 7, url: 'https://attacker.test' } },
       {
         ...createPageInfoCollectRequest(pageInfo.tabUrl),
-        payload: { tabUrl: 'not-an-absolute-url' },
+        payload: { tabUrl: 'not-an-absolute-url', renderWaitMs: 1_000 },
       },
       {
         ...createPageInfoCollectRequest(pageInfo.tabUrl),
-        payload: { tabUrl: pageInfo.tabUrl, unexpected: true },
+        payload: { tabUrl: pageInfo.tabUrl, renderWaitMs: -1 },
+      },
+      {
+        ...createPageInfoCollectRequest(pageInfo.tabUrl),
+        payload: { tabUrl: pageInfo.tabUrl, renderWaitMs: 1_000, unexpected: true },
       },
       {
         ...createCaptureJobCreateRequest(createInput),

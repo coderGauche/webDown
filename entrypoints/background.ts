@@ -1,5 +1,5 @@
 import { createCaptureError, toCaptureError } from '@sitecapsule/domain';
-import type { CaptureError } from '@sitecapsule/domain';
+import type { CaptureError, CaptureSettings } from '@sitecapsule/domain';
 import { CONTENT_SCRIPT_FILE, RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
 import {
   createPageInfoCollectRequest,
@@ -11,12 +11,13 @@ import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/va
 async function sendPageInfoRequestWithCorrelation(
   tabId: number,
   tabUrl: string,
+  renderWaitMs: CaptureSettings['renderWaitMs'],
   correlationId?: string,
 ): Promise<PageInfoResponse | null> {
   try {
     const response: unknown = await browser.tabs.sendMessage(
       tabId,
-      createPageInfoCollectRequest(tabUrl, correlationId),
+      createPageInfoCollectRequest(tabUrl, renderWaitMs, correlationId),
     );
     return isPageInfoResponse(response) ? response : null;
   } catch {
@@ -27,10 +28,16 @@ async function sendPageInfoRequestWithCorrelation(
 async function waitForPageInfoResponse(
   tabId: number,
   tabUrl: string,
+  renderWaitMs: CaptureSettings['renderWaitMs'],
   correlationId: string,
 ): Promise<PageInfoResponse | null> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await sendPageInfoRequestWithCorrelation(tabId, tabUrl, correlationId);
+    const response = await sendPageInfoRequestWithCorrelation(
+      tabId,
+      tabUrl,
+      renderWaitMs,
+      correlationId,
+    );
     if (response) return response;
 
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -57,7 +64,11 @@ async function injectContentScript(tabId: number): Promise<CaptureError | null> 
   }
 }
 
-async function collectPageInfo(tabId: number, correlationId: string): Promise<PageInfoResponse> {
+async function collectPageInfo(
+  tabId: number,
+  renderWaitMs: CaptureSettings['renderWaitMs'],
+  correlationId: string,
+): Promise<PageInfoResponse> {
   const tab = await browser.tabs.get(tabId);
   if (!tab.url) {
     return createPageInfoError(
@@ -66,13 +77,23 @@ async function collectPageInfo(tabId: number, correlationId: string): Promise<Pa
     );
   }
 
-  const existingResponse = await sendPageInfoRequestWithCorrelation(tabId, tab.url, correlationId);
+  const existingResponse = await sendPageInfoRequestWithCorrelation(
+    tabId,
+    tab.url,
+    renderWaitMs,
+    correlationId,
+  );
   if (existingResponse) return existingResponse;
 
   const injectionError = await injectContentScript(tabId);
   if (injectionError) return createPageInfoError(injectionError, correlationId);
 
-  const injectedResponse = await waitForPageInfoResponse(tabId, tab.url, correlationId);
+  const injectedResponse = await waitForPageInfoResponse(
+    tabId,
+    tab.url,
+    renderWaitMs,
+    correlationId,
+  );
   return (
     injectedResponse ??
     createPageInfoError(
@@ -98,6 +119,10 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener(async (message: unknown) => {
     if (!isPageInfoRequest(message)) return;
 
-    return collectPageInfo(message.payload.tabId, message.correlationId);
+    return collectPageInfo(
+      message.payload.tabId,
+      message.payload.renderWaitMs,
+      message.correlationId,
+    );
   });
 });

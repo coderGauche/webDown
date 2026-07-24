@@ -51,6 +51,9 @@ export const RESOURCE_STATES = [
 
 export const RESOURCE_DISCOVERY_SOURCES = ['dom', 'css', 'performance', 'cdp', 'crawler'] as const;
 
+export const DEFAULT_RENDER_WAIT_MS = 1_000;
+export const MAX_RENDER_WAIT_MS = 30_000;
+
 export type CaptureMode = (typeof CAPTURE_MODES)[number];
 export type CaptureProfile = (typeof CAPTURE_PROFILES)[number];
 export type JobStatus = (typeof JOB_STATUSES)[number];
@@ -58,6 +61,12 @@ export type ResourceType = (typeof RESOURCE_TYPES)[number];
 export type ResourceState = (typeof RESOURCE_STATES)[number];
 export type ResourceDiscoverySource = (typeof RESOURCE_DISCOVERY_SOURCES)[number];
 export type PausableJobStatus = (typeof PAUSABLE_JOB_STATUSES)[number];
+
+export function isRenderWaitMs(value: unknown): value is number {
+  return (
+    Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= MAX_RENDER_WAIT_MS
+  );
+}
 
 export type JobState =
   | {

@@ -1,4 +1,9 @@
-import { createCaptureError, type CaptureJob, type CaptureSettings } from '@sitecapsule/domain';
+import {
+  DEFAULT_RENDER_WAIT_MS,
+  createCaptureError,
+  type CaptureJob,
+  type CaptureSettings,
+} from '@sitecapsule/domain';
 import {
   CAPTURE_JOB_COMMANDS,
   MESSAGE_PROTOCOL_VERSION,
@@ -26,24 +31,28 @@ describe('page info messaging protocol', () => {
   };
 
   it('adds the protocol version and correlation ID to requests', () => {
-    const request = createPageInfoRequest(42, 'request-42');
+    const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
       protocolVersion: MESSAGE_PROTOCOL_VERSION,
       correlationId: 'request-42',
       type: 'page-info/request',
-      payload: { tabId: 42 },
+      payload: { tabId: 42, renderWaitMs: 1_500 },
     });
     expect(isPageInfoRequest(request)).toBe(true);
   });
 
   it('passes the browser tab URL to content and creates unique default correlation IDs', () => {
-    expect(createPageInfoCollectRequest('https://example.com/requested', 'collect-1')).toEqual({
+    expect(
+      createPageInfoCollectRequest('https://example.com/requested', 1_500, 'collect-1'),
+    ).toEqual({
       protocolVersion: MESSAGE_PROTOCOL_VERSION,
       correlationId: 'collect-1',
       type: 'page-info/collect',
-      payload: { tabUrl: 'https://example.com/requested' },
+      payload: { tabUrl: 'https://example.com/requested', renderWaitMs: 1_500 },
     });
+
+    expect(createPageInfoRequest(42).payload.renderWaitMs).toBe(DEFAULT_RENDER_WAIT_MS);
 
     const correlationIds = Array.from({ length: 20 }, () => createCorrelationId());
     expect(correlationIds.every((correlationId) => correlationId.length > 0)).toBe(true);

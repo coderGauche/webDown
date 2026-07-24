@@ -1,4 +1,10 @@
-import { SiteCapsuleError, createCaptureError, toCaptureError } from '@sitecapsule/domain';
+import {
+  DEFAULT_RENDER_WAIT_MS,
+  MAX_RENDER_WAIT_MS,
+  SiteCapsuleError,
+  createCaptureError,
+  toCaptureError,
+} from '@sitecapsule/domain';
 import { createPageInfoRequest, type PageInfo } from '@sitecapsule/messaging/protocol';
 import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
 import { createPageAccessRequest } from '@sitecapsule/permissions';
@@ -15,6 +21,7 @@ type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
+  const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +45,7 @@ export function App() {
       }
 
       const response: unknown = await browser.runtime.sendMessage(
-        createPageInfoRequest(activeTab.id),
+        createPageInfoRequest(activeTab.id, renderWaitMs),
       );
       if (!isPageInfoResponse(response)) {
         throw new SiteCapsuleError(
@@ -63,6 +70,15 @@ export function App() {
       );
       setStatus('error');
     }
+  };
+
+  const updateRenderWait = (value: number) => {
+    if (!Number.isFinite(value)) {
+      setRenderWaitMs(DEFAULT_RENDER_WAIT_MS);
+      return;
+    }
+
+    setRenderWaitMs(Math.min(MAX_RENDER_WAIT_MS, Math.max(0, Math.round(value))));
   };
 
   return (
@@ -103,8 +119,27 @@ export function App() {
           </button>
         </div>
 
+        <div className="capture-setting">
+          <label htmlFor="render-wait">Render wait</label>
+          <div className="duration-input">
+            <input
+              id="render-wait"
+              type="number"
+              min="0"
+              max={MAX_RENDER_WAIT_MS}
+              step="100"
+              value={renderWaitMs}
+              onChange={(event) => updateRenderWait(event.currentTarget.valueAsNumber)}
+              disabled={status === 'loading'}
+            />
+            <span>ms</span>
+          </div>
+        </div>
+
         {status === 'idle' && <p className="helper-text">Ready to inspect the active tab.</p>}
-        {status === 'loading' && <p className="helper-text">Requesting page details...</p>}
+        {status === 'loading' && (
+          <p className="helper-text">Waiting {renderWaitMs} ms before reading...</p>
+        )}
         {status === 'error' && (
           <p className="error-text" role="alert">
             {error}
