@@ -250,11 +250,18 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
     return (
       hasExactKeys(message.payload, ['ok', 'page']) &&
       isRecord(message.payload.page) &&
-      hasExactKeys(message.payload.page, ['title', 'tabUrl', 'baseUrl', 'finalUrl']) &&
+      hasExactKeys(message.payload.page, [
+        'title',
+        'tabUrl',
+        'baseUrl',
+        'finalUrl',
+        'serializedDom',
+      ]) &&
       typeof message.payload.page.title === 'string' &&
       isAbsoluteUrl(message.payload.page.tabUrl) &&
       isAbsoluteUrl(message.payload.page.baseUrl) &&
-      isAbsoluteUrl(message.payload.page.finalUrl)
+      isAbsoluteUrl(message.payload.page.finalUrl) &&
+      isNonEmptyString(message.payload.page.serializedDom)
     );
   }
 

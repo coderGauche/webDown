@@ -28,6 +28,7 @@ describe('page info messaging protocol', () => {
     tabUrl: 'https://example.com/requested',
     baseUrl: 'https://cdn.example.com/assets/',
     finalUrl: 'https://example.com/final',
+    serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
   };
 
   it('adds the protocol version and correlation ID to requests', () => {

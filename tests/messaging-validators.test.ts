@@ -80,10 +80,11 @@ const pageInfo = {
   tabUrl: 'https://example.com/requested',
   baseUrl: 'https://cdn.example.com/assets/',
   finalUrl: job.startUrl,
+  serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v4 request, response, and event shape', () => {
+  it('accepts every v5 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -219,6 +220,15 @@ describe('message runtime validation', () => {
         payload: {
           ok: true,
           page: { ...pageInfo, baseUrl: './assets/' },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: { ...pageInfo, serializedDom: '' },
         },
       }),
     ).toBe(false);

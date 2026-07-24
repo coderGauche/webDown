@@ -163,6 +163,10 @@ export function App() {
               <dt>Final URL</dt>
               <dd>{pageInfo.finalUrl}</dd>
             </div>
+            <div>
+              <dt>DOM snapshot</dt>
+              <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
+            </div>
           </dl>
         )}
       </section>

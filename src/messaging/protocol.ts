@@ -6,9 +6,9 @@ import {
   type CaptureProfile,
   type CaptureSettings,
 } from '@sitecapsule/domain';
-import type { PageMetadata } from '@sitecapsule/page';
+import type { PageSnapshot } from '@sitecapsule/page';
 
-export const MESSAGE_PROTOCOL_VERSION = 4 as const;
+export const MESSAGE_PROTOCOL_VERSION = 5 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -38,7 +38,7 @@ export type ProtocolMessage<
   payload: TPayload;
 };
 
-export type PageInfo = PageMetadata;
+export type PageInfo = PageSnapshot;
 
 export type PageInfoRequest = ProtocolMessage<
   typeof MESSAGE_TYPES.pageInfoRequest,

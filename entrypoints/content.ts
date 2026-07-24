@@ -1,7 +1,7 @@
 import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
 import { createPageInfoResponse } from '@sitecapsule/messaging/protocol';
 import { isPageInfoCollectRequest } from '@sitecapsule/messaging/validators';
-import { readPageMetadata, waitForRender } from '@sitecapsule/page';
+import { capturePageSnapshot, waitForRender } from '@sitecapsule/page';
 
 export default defineContentScript({
   registration: 'runtime',
@@ -14,7 +14,7 @@ export default defineContentScript({
       await waitForRender(message.payload.renderWaitMs);
 
       return createPageInfoResponse(
-        readPageMetadata(document, message.payload.tabUrl),
+        capturePageSnapshot(document, message.payload.tabUrl),
         message.correlationId,
       );
     });
