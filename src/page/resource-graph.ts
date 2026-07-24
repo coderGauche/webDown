@@ -8,6 +8,12 @@ import {
   type ResourceDiscoveryEvidence,
 } from './resource-discovery';
 import {
+  inferResourceMetadata,
+  isResourceMetadataInference,
+  matchesResourceMetadataInference,
+  type ResourceMetadataInference,
+} from './resource-inference';
+import {
   classifyResourceUrl,
   matchesResourceUrlClassification,
   type ResourceUrlClassification,
@@ -19,6 +25,7 @@ export type ResourceGraphNode = {
   url: string;
   discoverySources: MergedResourceDiscoverySource[];
   classification: ResourceUrlClassification;
+  inference: ResourceMetadataInference;
 };
 
 export type ResourceGraphEdge = {
@@ -79,6 +86,7 @@ export function buildResourceGraph(
       url: resource.url,
       discoverySources: [...resource.discoverySources],
       classification,
+      inference: inferResourceMetadata(resource.url, resource.evidence),
     };
   });
   const edges: ResourceGraphEdge[] = [];
@@ -103,7 +111,7 @@ export function buildResourceGraph(
 export function isResourceGraphNode(value: unknown): value is ResourceGraphNode {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['ordinal', 'url', 'discoverySources', 'classification']) &&
+    hasExactKeys(value, ['ordinal', 'url', 'discoverySources', 'classification', 'inference']) &&
     isPositiveSafeInteger(value.ordinal) &&
     isNormalizedResourceUrl(value.url) &&
     Array.isArray(value.discoverySources) &&
@@ -112,7 +120,8 @@ export function isResourceGraphNode(value: unknown): value is ResourceGraphNode 
       MERGED_RESOURCE_DISCOVERY_SOURCES.includes(source as MergedResourceDiscoverySource),
     ) &&
     new Set(value.discoverySources).size === value.discoverySources.length &&
-    matchesResourceUrlClassification(value.classification, value.url)
+    matchesResourceUrlClassification(value.classification, value.url) &&
+    isResourceMetadataInference(value.inference)
   );
 }
 
@@ -179,12 +188,16 @@ export function isResourceGraph(value: unknown): value is ResourceGraph {
   }
 
   return graph.nodes.every((node) => {
-    const sources = Array.from(
-      new Set(graph.edges.filter((edge) => edge.targetUrl === node.url).map((edge) => edge.source)),
-    );
+    const nodeEdges = graph.edges.filter((edge) => edge.targetUrl === node.url);
+    const sources = Array.from(new Set(nodeEdges.map((edge) => edge.source)));
     return (
       sources.length === node.discoverySources.length &&
-      sources.every((source, index) => source === node.discoverySources[index])
+      sources.every((source, index) => source === node.discoverySources[index]) &&
+      matchesResourceMetadataInference(
+        node.inference,
+        node.url,
+        nodeEdges.map((edge) => edge.evidence),
+      )
     );
   });
 }

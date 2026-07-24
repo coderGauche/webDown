@@ -34,6 +34,18 @@ export {
 } from './resource-discovery';
 export { isNormalizedResourceUrl, normalizeResourceUrl } from './resource-url';
 export {
+  inferResourceMetadata,
+  isResourceInferenceEvidence,
+  isResourceMetadataInference,
+  matchesResourceMetadataInference,
+  RESOURCE_INFERENCE_CONFIDENCES,
+  RESOURCE_INFERENCE_SOURCES,
+  type ResourceInferenceConfidence,
+  type ResourceInferenceEvidence,
+  type ResourceInferenceSource,
+  type ResourceMetadataInference,
+} from './resource-inference';
+export {
   classifyResourceUrl,
   DATA_URL_ENCODINGS,
   isResourceUrlClassification,

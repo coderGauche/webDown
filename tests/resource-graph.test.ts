@@ -56,7 +56,14 @@ describe('resource graph', () => {
     const { graph, sharedUrl, runtimeUrl } = createGraphFixture();
 
     expect(graph.rootUrl).toBe(DOCUMENT_URL);
-    expect(graph.nodes).toEqual([
+    expect(
+      graph.nodes.map(({ ordinal, url, discoverySources, classification }) => ({
+        ordinal,
+        url,
+        discoverySources,
+        classification,
+      })),
+    ).toEqual([
       {
         ordinal: 1,
         url: sharedUrl,
@@ -206,6 +213,18 @@ describe('resource graph', () => {
           {
             ...firstNode,
             classification: { ...firstNode.classification, networkFetchEligible: false },
+          },
+          ...graph.nodes.slice(1),
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isResourceGraph({
+        ...graph,
+        nodes: [
+          {
+            ...firstNode,
+            inference: { ...firstNode.inference, resourceType: 'font' },
           },
           ...graph.nodes.slice(1),
         ],

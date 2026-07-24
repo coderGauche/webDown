@@ -167,6 +167,31 @@ describe('document snapshot', () => {
               protocol: 'https:',
               networkFetchEligible: true,
             },
+            inference: {
+              resourceType: 'script',
+              resourceTypeSource: 'performance-initiator',
+              resourceTypeConfidence: 'medium',
+              mimeTypeHint: 'text/javascript',
+              mimeTypeHintSource: 'url-extension',
+              mimeTypeHintConfidence: 'low',
+              hasConflict: false,
+              evidence: [
+                {
+                  source: 'performance-initiator',
+                  resourceType: 'script',
+                  mimeTypeHint: null,
+                  confidence: 'medium',
+                  detail: 'performance:script',
+                },
+                {
+                  source: 'url-extension',
+                  resourceType: 'script',
+                  mimeTypeHint: 'text/javascript',
+                  confidence: 'low',
+                  detail: 'extension:.js',
+                },
+              ],
+            },
           },
         ],
         edges: [

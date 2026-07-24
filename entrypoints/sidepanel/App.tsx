@@ -43,6 +43,19 @@ function summarizeResourceProtocols(pageInfo: PageInfo): string {
   return `${counts.network} network / ${counts.data} data / ${counts.blob} blob / ${counts.unsupported} unsupported`;
 }
 
+function summarizeResourceMetadata(pageInfo: PageInfo): string {
+  let typed = 0;
+  let mimeHints = 0;
+  let conflicts = 0;
+  for (const node of pageInfo.resourceGraph.nodes) {
+    if (node.inference.resourceTypeConfidence !== 'unknown') typed += 1;
+    if (node.inference.mimeTypeHint !== null) mimeHints += 1;
+    if (node.inference.hasConflict) conflicts += 1;
+  }
+  const unknown = pageInfo.resourceGraph.nodes.length - typed;
+  return `${typed} typed / ${unknown} unknown / ${mimeHints} MIME hints / ${conflicts} conflicts`;
+}
+
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
@@ -231,6 +244,10 @@ export function App() {
             <div>
               <dt>Resource protocols</dt>
               <dd>{summarizeResourceProtocols(pageInfo)}</dd>
+            </div>
+            <div>
+              <dt>Resource metadata</dt>
+              <dd>{summarizeResourceMetadata(pageInfo)}</dd>
             </div>
           </dl>
         )}
