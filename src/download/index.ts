@@ -80,3 +80,17 @@ export {
   type ResourceNetworkTargetInspection,
   type ResourceResponseNetworkPolicyResult,
 } from './resource-network-policy';
+export {
+  RESOURCE_DOWNLOAD_BATCH_STATUSES,
+  runResourceDownloadBatch,
+  type FailedResourceDownloadResult,
+  type InterruptedResourceDownloadResult,
+  type ResourceDownloadBatchCounts,
+  type ResourceDownloadBatchOptions,
+  type ResourceDownloadBatchResult,
+  type ResourceDownloadBatchStatus,
+  type ResourceDownloadResult,
+  type ResourceDownloadWorker,
+  type ResourceDownloadWorkerResult,
+  type SavedResourceDownloadResult,
+} from './resource-download-batch';
