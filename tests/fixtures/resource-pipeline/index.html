@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Complex resource pipeline fixture</title>
+    <base href="https://CDN.Example.Test:443/assets/./themes/../v1/" />
+    <style>
+      @import url('./css/../theme.css?mode=dark&mode=contrast#sheet') layer(theme);
+
+      @layer archive {
+        @font-face {
+          font-family: Archive;
+          src: url('../fonts/archive.woff2?v=1#font') format('woff2');
+        }
+
+        @media (min-width: 1px) {
+          @supports (background-image: image-set(url('image.png') 1x)) {
+            .hero {
+              background-image: image-set(
+                url('../images/hero%20large.png?width=640&width=1280#css') 1x,
+                url('./fallback\ image.png?x=%2f#css') 2x
+              );
+            }
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <picture>
+      <source
+        srcset="data:image/svg+xml,%3Csvg%3E,%3C/svg%3E 1x, ../images/hero%20large.png?width=640&amp;width=1280#mobile 640w"
+      />
+      <img
+        alt="Archive preview"
+        src="../fonts/archive.woff2?v=1#wrong-context"
+        srcset="
+          ../images/hero%20large.png?width=640&amp;width=1280#retina 2x,
+          ./fallback%20image.png?x=%2f#dom                           3x
+        "
+      />
+    </picture>
+  </body>
+</html>

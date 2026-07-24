@@ -300,6 +300,8 @@ export function discoverCssResources(
 
         if (node.type !== 'Url') return;
         if (this.atrule?.name.toLowerCase() === 'import') return;
+        if (this.atrulePrelude) return;
+        if (cssSource.source !== 'svg-presentation-attribute' && !this.declaration) return;
 
         const propertyName = this.declaration?.property.toLowerCase() ?? null;
         const isFontFace =
