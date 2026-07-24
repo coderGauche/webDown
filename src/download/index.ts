@@ -46,3 +46,16 @@ export {
   type ResourceResponseSource,
   type ResponseHeadersSource,
 } from './resource-response';
+export {
+  consumeResourceBodyWithLimits,
+  parseContentLength,
+  TaskByteBudget,
+  type ConsumedResourceBody,
+  type ConsumeResourceBodyOptions,
+  type ResourceBodyReader,
+  type ResourceBodyResponseSource,
+  type ResourceBodySink,
+  type ResourceBodySource,
+  type ResourceByteLease,
+  type TaskByteBudgetSnapshot,
+} from './resource-size-limit';
