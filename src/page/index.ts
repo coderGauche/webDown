@@ -32,6 +32,7 @@ export {
   type ResourceDiscoveryEvidence,
   type SvgResourceEvidence,
 } from './resource-discovery';
+export { isNormalizedResourceUrl, normalizeResourceUrl } from './resource-url';
 export {
   getPageCaptureTimeoutMs,
   PAGE_CAPTURE_TIMEOUT_GRACE_MS,

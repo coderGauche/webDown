@@ -1,3 +1,5 @@
+import { normalizeResourceUrl } from './resource-url';
+
 export const PERFORMANCE_RESOURCE_INITIATORS = [
   'audio',
   'beacon',
@@ -56,15 +58,14 @@ function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
-function normalizeResourceUrl(value: unknown): string | null {
+function normalizePerformanceResourceUrl(value: unknown): string | null {
   if (typeof value !== 'string' || value.trim() === '') return null;
 
   try {
     const url = new URL(value);
     if (!['http:', 'https:'].includes(url.protocol)) return null;
     if (url.username || url.password) return null;
-    url.hash = '';
-    return url.href;
+    return normalizeResourceUrl(url.href);
   } catch {
     return null;
   }
@@ -83,7 +84,7 @@ function normalizeCandidate(entry: PerformanceEntry): PerformanceResourceRecord 
   const candidate = entry as unknown as ResourceTimingCandidate;
   if (candidate.entryType !== 'resource') return null;
 
-  const url = normalizeResourceUrl(candidate.name);
+  const url = normalizePerformanceResourceUrl(candidate.name);
   if (!url) return null;
   if (
     !isNonNegativeFiniteNumber(candidate.startTime) ||

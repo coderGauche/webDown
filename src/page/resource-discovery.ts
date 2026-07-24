@@ -12,6 +12,7 @@ import {
   PERFORMANCE_RESOURCE_INITIATORS,
   type PerformanceResourceRecord,
 } from './performance-resources';
+import { isNormalizedResourceUrl, normalizeResourceUrl } from './resource-url';
 
 export const MERGED_RESOURCE_DISCOVERY_SOURCES = [
   'dom',
@@ -167,7 +168,7 @@ export function isMergedResourceCandidate(value: unknown): value is MergedResour
     !isRecord(value) ||
     !hasExactKeys(value, ['ordinal', 'url', 'discoverySources', 'evidence']) ||
     !isPositiveSafeInteger(value.ordinal) ||
-    !isCanonicalAbsoluteUrl(value.url) ||
+    !isNormalizedResourceUrl(value.url) ||
     !Array.isArray(value.evidence) ||
     value.evidence.length === 0 ||
     !value.evidence.every(isResourceDiscoveryEvidence) ||
@@ -177,7 +178,8 @@ export function isMergedResourceCandidate(value: unknown): value is MergedResour
   }
 
   const evidence = value.evidence as ResourceDiscoveryEvidence[];
-  if (!evidence.every((item) => evidenceUrl(item) === value.url)) return false;
+  if (!evidence.every((item) => normalizeResourceUrl(evidenceUrl(item)) === value.url))
+    return false;
   const evidenceKeys = evidence.map((item) => `${item.channel}:${item.sourceOrdinal}`);
   if (new Set(evidenceKeys).size !== evidenceKeys.length) return false;
 
@@ -215,7 +217,9 @@ export function mergeResourceCandidates({
 }: MergeResourceCandidatesInput): MergedResourceCandidate[] {
   const mergedByUrl = new Map<string, MergedResourceCandidate>();
 
-  const addEvidence = (url: string, evidence: ResourceDiscoveryEvidence) => {
+  const addEvidence = (observedUrl: string, evidence: ResourceDiscoveryEvidence) => {
+    const url = normalizeResourceUrl(observedUrl);
+    if (!url) return;
     let merged = mergedByUrl.get(url);
     if (!merged) {
       merged = {

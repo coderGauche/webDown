@@ -80,8 +80,9 @@ function performanceResource(url: string): PerformanceResourceRecord {
 }
 
 describe('merged resource discovery', () => {
-  it('groups exact URLs across every channel while retaining all evidence', () => {
+  it('groups normalized URLs across every channel while retaining all evidence', () => {
     const url = 'https://cdn.example.test/assets/shared.png?v=2#crop';
+    const normalizedUrl = 'https://cdn.example.test/assets/shared.png?v=2';
     const merged = mergeResourceCandidates({
       domResources: [domResource(url)],
       svgResources: [svgResource(url)],
@@ -92,7 +93,7 @@ describe('merged resource discovery', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0]).toMatchObject({
       ordinal: 1,
-      url,
+      url: normalizedUrl,
       discoverySources: ['dom', 'css', 'performance'],
     });
     expect(
@@ -127,7 +128,7 @@ describe('merged resource discovery', () => {
     expect(merged.map(({ ordinal, url }) => ({ ordinal, url }))).toEqual([
       { ordinal: 1, url: first },
       { ordinal: 2, url: second },
-      { ordinal: 3, url: third },
+      { ordinal: 3, url: 'https://cdn.example.test/c.svg' },
       { ordinal: 4, url: fourth },
     ]);
     expect(merged.map((resource) => resource.evidence.length)).toEqual([2, 2, 1, 1]);
@@ -143,6 +144,27 @@ describe('merged resource discovery', () => {
       }),
     ).toEqual([]);
     expect(isMergedResourceCandidates([])).toBe(true);
+  });
+
+  it('merges fragment variants but keeps distinct query strings', () => {
+    const base = 'https://cdn.example.test/icon.svg?theme=dark';
+    const otherQuery = 'https://cdn.example.test/icon.svg?theme=light#symbol';
+    const merged = mergeResourceCandidates({
+      domResources: [domResource(`${base}#first`), domResource(otherQuery)],
+      svgResources: [],
+      cssResources: [cssResource(`${base}#second`)],
+      performanceResources: [performanceResource(base)],
+    });
+
+    expect(merged.map(({ url, evidence }) => ({ url, evidenceCount: evidence.length }))).toEqual([
+      { url: base, evidenceCount: 3 },
+      { url: 'https://cdn.example.test/icon.svg?theme=light', evidenceCount: 1 },
+    ]);
+    expect(
+      merged[0]?.evidence.map((item) =>
+        item.source === 'performance' ? item.candidate.url : item.candidate.resolvedUrl,
+      ),
+    ).toEqual([`${base}#first`, `${base}#second`, base]);
   });
 
   it('rejects malformed, mismatched, duplicate, and unstable merged records', () => {

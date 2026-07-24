@@ -211,7 +211,7 @@ export function App() {
             <div>
               <dt>Unified resources</dt>
               <dd>
-                {pageInfo.mergedResources.length.toLocaleString()} exact URLs /{' '}
+                {pageInfo.mergedResources.length.toLocaleString()} normalized URLs /{' '}
                 {countMergedEvidence(pageInfo).toLocaleString()} discoveries
               </dd>
             </div>

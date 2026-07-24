@@ -52,6 +52,11 @@ describe('Performance Resource Timing collection', () => {
         initiatorType: 'future-css-loader',
         startTime: 20,
       }),
+      resourceEntry({
+        name: 'https://cdn.example.com/icons/%7eprint%2f.svg#symbol',
+        initiatorType: 'img',
+        startTime: 30,
+      }),
     ]);
 
     expect(collectPerformanceResources(performance)).toEqual([
@@ -68,6 +73,15 @@ describe('Performance Resource Timing collection', () => {
         url: 'https://cdn.example.com/theme.css?v=2',
         initiatorType: 'other',
         startTimeMs: 20,
+        durationMs: 25,
+        transferSize: 1_024,
+        encodedBodySize: 900,
+        decodedBodySize: 1_500,
+      },
+      {
+        url: 'https://cdn.example.com/icons/%7Eprint%2F.svg',
+        initiatorType: 'img',
+        startTimeMs: 30,
         durationMs: 25,
         transferSize: 1_024,
         encodedBodySize: 900,
