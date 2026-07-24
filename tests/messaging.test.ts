@@ -37,11 +37,11 @@ describe('page info messaging protocol', () => {
     performanceResources: [],
   };
 
-  it('adds the protocol version and correlation ID to requests', () => {
+  it('adds protocol v8 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
-      protocolVersion: MESSAGE_PROTOCOL_VERSION,
+      protocolVersion: 8,
       correlationId: 'request-42',
       type: 'page-info/request',
       payload: { tabId: 42, renderWaitMs: 1_500 },

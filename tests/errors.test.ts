@@ -81,4 +81,19 @@ describe('structured capture errors', () => {
     expect(isCaptureError({ ...valid, extra: true })).toBe(false);
     expect(isCaptureError({ ...valid, context: { jobId: '' } })).toBe(false);
   });
+
+  it('defines distinct lifecycle errors for page capture failures', () => {
+    expect(createCaptureError('page-capture-timeout')).toMatchObject({
+      retryable: true,
+      message: '页面捕获超时。',
+    });
+    expect(createCaptureError('page-navigation-changed')).toMatchObject({
+      retryable: true,
+      message: '捕获期间页面发生了跳转。',
+    });
+    expect(createCaptureError('tab-closed')).toMatchObject({
+      retryable: false,
+      message: '捕获期间标签页已关闭。',
+    });
+  });
 });

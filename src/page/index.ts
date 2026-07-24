@@ -15,6 +15,14 @@ export {
   type PerformanceResourceSource,
 } from './performance-resources';
 export {
+  getPageCaptureTimeoutMs,
+  PAGE_CAPTURE_TIMEOUT_GRACE_MS,
+  runPageCaptureSession,
+  type PageCaptureLifecycleEvent,
+  type PageCaptureSessionOptions,
+  type PageCaptureSessionResult,
+} from './page-capture-session';
+export {
   inspectPageRegions,
   PAGE_REGION_LIMITATIONS,
   type IframeRegionDiagnostic,

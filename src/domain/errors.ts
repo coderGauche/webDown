@@ -3,6 +3,9 @@ import { JOB_STATUSES, RESOURCE_TYPES, type JobStatus, type ResourceType } from 
 export const CAPTURE_ERROR_CODES = [
   'protocol-invalid-message',
   'page-unavailable',
+  'page-capture-timeout',
+  'page-navigation-changed',
+  'tab-closed',
   'content-script-injection-failed',
   'content-script-unresponsive',
   'job-not-found',
@@ -19,6 +22,7 @@ export const CAPTURE_ERROR_CODES = [
 
 export const CAPTURE_ERROR_OPERATIONS = [
   'page-info',
+  'page-capture',
   'content-script-injection',
   'content-script-response',
   'job-transition',
@@ -70,6 +74,21 @@ export const CAPTURE_ERROR_CATALOG = {
     message: '当前标签页不可用。',
     retryable: false,
     suggestion: '请切换到普通的 HTTP 或 HTTPS 网页后重试。',
+  },
+  'page-capture-timeout': {
+    message: '页面捕获超时。',
+    retryable: true,
+    suggestion: '请缩短渲染等待时间或在页面稳定后重试。',
+  },
+  'page-navigation-changed': {
+    message: '捕获期间页面发生了跳转。',
+    retryable: true,
+    suggestion: '请等待目标页面稳定后重新捕获。',
+  },
+  'tab-closed': {
+    message: '捕获期间标签页已关闭。',
+    retryable: false,
+    suggestion: '请打开需要归档的页面后创建新任务。',
   },
   'content-script-injection-failed': {
     message: '当前页面不允许注入内容脚本。',
