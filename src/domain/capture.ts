@@ -118,6 +118,16 @@ type CaptureJobDetails = {
 
 export type CaptureJob = CaptureJobDetails & JobState;
 
+export type ResourceRedirectHop = {
+  fromUrl: string;
+  toUrl: string;
+  httpStatus?: number;
+};
+
+export type ResourceRedirectTrace =
+  | { complete: true; hops: ResourceRedirectHop[] }
+  | { complete: false; hops: [ResourceRedirectHop] };
+
 export type ResourceRecord = {
   id: string;
   jobId: string;
@@ -126,6 +136,7 @@ export type ResourceRecord = {
   referrerUrl: string;
   type: ResourceType;
   discoverySources: ResourceDiscoverySource[];
+  redirectTrace?: ResourceRedirectTrace;
   mimeType?: string;
   httpStatus?: number;
   localPath?: string;

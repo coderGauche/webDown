@@ -18,6 +18,8 @@ export {
   type JobStatus,
   type PausableJobStatus,
   type ResourceDiscoverySource,
+  type ResourceRedirectHop,
+  type ResourceRedirectTrace,
   type ResourceRecord,
   type ResourceState,
   type ResourceType,

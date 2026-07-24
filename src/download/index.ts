@@ -34,3 +34,15 @@ export {
   type RequestTimeoutReason,
   type RetryDelayScheduler,
 } from './request-retry';
+export {
+  applyResourceResponseMetadata,
+  classifyResourceResponse,
+  inspectResourceResponse,
+  normalizeResponseMimeType,
+  type InspectedResourceResponse,
+  type ResourceHttpFailure,
+  type ResourceResponseMetadata,
+  type ResourceResponseInspectionOptions,
+  type ResourceResponseSource,
+  type ResponseHeadersSource,
+} from './resource-response';
