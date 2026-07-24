@@ -7,7 +7,11 @@ import {
 } from '@sitecapsule/domain';
 import { createPageInfoRequest, type PageInfo } from '@sitecapsule/messaging/protocol';
 import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
-import { createPageAccessRequest } from '@sitecapsule/permissions';
+import {
+  checkCurrentSiteAccess,
+  createPageAccessRequest,
+  type SiteAccessResult,
+} from '@sitecapsule/permissions';
 import { EXTENSION_NAME } from '@sitecapsule/shared';
 import { useState } from 'react';
 
@@ -18,6 +22,14 @@ const runtimeSurfaces = [
 ] as const;
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
+
+function summarizeSiteAccess(access: SiteAccessResult | null): string {
+  if (!access) return 'Not checked';
+  if (access.status === 'restricted') {
+    return `Restricted${access.protocol ? ` · ${access.protocol}` : ''}`;
+  }
+  return `${access.status === 'granted' ? 'Granted' : 'Not granted'} · ${access.permissionPattern}`;
+}
 
 function summarizeRegions(pageInfo: PageInfo): string {
   const counts = pageInfo.regionDiagnostics.regions.reduce(
@@ -61,24 +73,38 @@ export function App() {
   const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [siteAccess, setSiteAccess] = useState<SiteAccessResult | null>(null);
 
   const readCurrentPage = async () => {
     setStatus('loading');
     setError(null);
 
     try {
-      const accessGranted = await browser.permissions.request(createPageAccessRequest());
-      if (!accessGranted) {
-        throw new SiteCapsuleError(
-          createCaptureError('permission-denied', { operation: 'page-info' }),
-        );
-      }
-
       const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
-      if (activeTab?.id === undefined) {
+      if (activeTab?.id === undefined || !activeTab.url) {
         throw new SiteCapsuleError(
           createCaptureError('page-unavailable', { operation: 'page-info' }),
         );
+      }
+
+      let access = await checkCurrentSiteAccess(activeTab.url, (request) =>
+        browser.permissions.contains(request),
+      );
+      setSiteAccess(access);
+      if (access.status === 'restricted') {
+        throw new SiteCapsuleError(
+          createCaptureError('page-unavailable', { operation: 'page-info' }),
+        );
+      }
+      if (access.status === 'not-granted') {
+        const accessGranted = await browser.permissions.request(createPageAccessRequest(access));
+        if (!accessGranted) {
+          throw new SiteCapsuleError(
+            createCaptureError('permission-denied', { operation: 'page-info' }),
+          );
+        }
+        access = { ...access, status: 'granted' };
+        setSiteAccess(access);
       }
 
       const response: unknown = await browser.runtime.sendMessage(
@@ -171,6 +197,11 @@ export function App() {
             />
             <span>ms</span>
           </div>
+        </div>
+
+        <div className="capture-setting access-setting">
+          <span>Current site access</span>
+          <span className="access-value">{summarizeSiteAccess(siteAccess)}</span>
         </div>
 
         {status === 'idle' && <p className="helper-text">Ready to inspect the active tab.</p>}

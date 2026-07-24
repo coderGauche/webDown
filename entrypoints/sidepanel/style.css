@@ -158,6 +158,19 @@ h2 {
   background: #edf1f6;
 }
 
+.access-setting {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.access-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #60708b;
+  font-weight: 500;
+  text-align: right;
+}
+
 .primary-action {
   min-height: 30px;
   padding: 5px 10px;

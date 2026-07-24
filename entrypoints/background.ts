@@ -7,6 +7,7 @@ import {
   type PageInfoResponse,
 } from '@sitecapsule/messaging/protocol';
 import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/validators';
+import { checkCurrentSiteAccess } from '@sitecapsule/permissions';
 import {
   getPageCaptureTimeoutMs,
   runPageCaptureSession,
@@ -145,6 +146,26 @@ async function collectPageInfo(
   if (!tabUrl) {
     return createPageInfoError(
       createCaptureError('page-unavailable', { operation: 'page-info' }),
+      correlationId,
+    );
+  }
+
+  try {
+    const siteAccess = await checkCurrentSiteAccess(tabUrl, (request) =>
+      browser.permissions.contains(request),
+    );
+    if (siteAccess.status !== 'granted') {
+      return createPageInfoError(
+        createCaptureError(
+          siteAccess.status === 'restricted' ? 'page-unavailable' : 'permission-denied',
+          { operation: 'page-info' },
+        ),
+        correlationId,
+      );
+    }
+  } catch {
+    return createPageInfoError(
+      createCaptureError('permission-denied', { operation: 'page-info' }),
       correlationId,
     );
   }
