@@ -18,7 +18,17 @@ function createDocumentFixture(
   doctype: DocumentTypeSource | null = { name: 'html', publicId: '', systemId: '' },
 ): DocumentFixture {
   let markup = initialMarkup;
-  const cloneNode = vi.fn((deep?: boolean) => ({ outerHTML: markup }) as unknown as Node);
+  const cloneNode = vi.fn(
+    (deep?: boolean) =>
+      ({
+        attributes: [],
+        getAttribute: () => null,
+        outerHTML: markup,
+        querySelectorAll: () => [],
+        removeAttribute: () => undefined,
+        tagName: 'HTML',
+      }) as unknown as Node,
+  );
   const documentElement = {
     cloneNode,
     get outerHTML(): never {

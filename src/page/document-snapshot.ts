@@ -1,4 +1,5 @@
 import { readPageMetadata, type PageMetadata, type PageMetadataSource } from './page-metadata';
+import { sanitizeClonedDom } from './sanitize-cloned-dom';
 
 export type DocumentTypeSource = Pick<DocumentType, 'name' | 'publicId' | 'systemId'>;
 
@@ -36,6 +37,7 @@ export function serializeDocument(
   source: Pick<DocumentSnapshotSource, 'doctype' | 'documentElement'>,
 ): string {
   const clonedRoot = source.documentElement.cloneNode(true) as Element;
+  sanitizeClonedDom(clonedRoot);
   const doctype = serializeDocumentType(source.doctype);
 
   return doctype ? `${doctype}\n${clonedRoot.outerHTML}` : clonedRoot.outerHTML;
