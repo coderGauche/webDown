@@ -8,7 +8,7 @@ import {
 } from '@sitecapsule/domain';
 import type { PageSnapshot } from '@sitecapsule/page';
 
-export const MESSAGE_PROTOCOL_VERSION = 10 as const;
+export const MESSAGE_PROTOCOL_VERSION = 11 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',

@@ -11,6 +11,7 @@ import {
 } from '@sitecapsule/domain';
 import { PAGE_REGION_LIMITATIONS, PERFORMANCE_RESOURCE_INITIATORS } from '@sitecapsule/page';
 import {
+  isCssResourceCandidate,
   isDomResourceCandidate,
   isEmbeddedCssSource,
   isSvgResourceCandidate,
@@ -364,6 +365,7 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'serializedDom',
         'domResources',
         'cssSources',
+        'cssResources',
         'svgResources',
         'regionDiagnostics',
         'performanceResources',
@@ -377,6 +379,8 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
       message.payload.page.domResources.every(isDomResourceCandidate) &&
       Array.isArray(message.payload.page.cssSources) &&
       message.payload.page.cssSources.every(isEmbeddedCssSource) &&
+      Array.isArray(message.payload.page.cssResources) &&
+      message.payload.page.cssResources.every(isCssResourceCandidate) &&
       Array.isArray(message.payload.page.svgResources) &&
       message.payload.page.svgResources.every(isSvgResourceCandidate) &&
       isPageRegionDiagnostics(message.payload.page.regionDiagnostics) &&

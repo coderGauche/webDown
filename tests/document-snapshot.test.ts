@@ -115,6 +115,7 @@ describe('document snapshot', () => {
       serializedDom: '<!DOCTYPE html>\n<html><body><main>Rendered content</main></body></html>',
       domResources: [],
       cssSources: [],
+      cssResources: [],
       svgResources: [],
       regionDiagnostics: {
         regions: [],

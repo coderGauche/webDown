@@ -17,12 +17,14 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "css-tree": "3.2.1",
     "dexie": "4.4.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/css-tree": "2.3.11",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@wxt-dev/module-react": "1.2.2",

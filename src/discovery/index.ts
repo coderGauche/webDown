@@ -1,4 +1,13 @@
 export {
+  CSS_RESOURCE_KINDS,
+  discoverCssResources,
+  isCssResourceCandidate,
+  isCssSourceLocation,
+  type CssResourceCandidate,
+  type CssResourceKind,
+  type CssSourceLocation,
+} from './css-resources';
+export {
   discoverDomResources,
   DOM_RESOURCE_ATTRIBUTES,
   isDomResourceCandidate,

@@ -1,6 +1,8 @@
 import {
+  discoverCssResources,
   discoverDomResources,
   discoverEmbeddedResources,
+  type CssResourceCandidate,
   type DomResourceCandidate,
   type EmbeddedCssSource,
   type SvgResourceCandidate,
@@ -31,6 +33,7 @@ export type PageSnapshot = PageMetadata & {
   serializedDom: string;
   domResources: DomResourceCandidate[];
   cssSources: EmbeddedCssSource[];
+  cssResources: CssResourceCandidate[];
   svgResources: SvgResourceCandidate[];
   regionDiagnostics: PageRegionDiagnostics;
   performanceResources: PerformanceResourceRecord[];
@@ -72,12 +75,14 @@ export function capturePageSnapshot(
   tabUrl = source.URL,
 ): PageSnapshot {
   const embeddedResources = discoverEmbeddedResources(source);
+  const cssResources = discoverCssResources(embeddedResources.cssSources);
 
   return {
     ...readPageMetadata(source, tabUrl),
     serializedDom: serializeDocument(source),
     domResources: discoverDomResources(source),
     ...embeddedResources,
+    cssResources,
     regionDiagnostics: inspectPageRegions(source),
     performanceResources: collectPerformanceResources(source.defaultView?.performance ?? null),
   };

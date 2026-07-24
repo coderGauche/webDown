@@ -105,6 +105,31 @@ const pageInfo: PageInfo = {
       baseUrl: 'https://cdn.example.com/assets/',
     },
   ],
+  cssResources: [
+    {
+      source: 'css',
+      kind: 'url',
+      ordinal: 1,
+      cssSourceOrdinal: 1,
+      cssSourceType: 'style-element',
+      tagName: 'style',
+      attributeName: null,
+      propertyName: 'background-image',
+      rawUrl: './hero.png',
+      resolvedUrl: 'https://example.test/assets/hero.png',
+      fontFormat: null,
+      location: {
+        startOffset: 20,
+        endOffset: 37,
+        startLine: 1,
+        startColumn: 21,
+        endLine: 1,
+        endColumn: 38,
+      },
+      documentUrl: 'https://example.test/page',
+      baseUrl: 'https://example.test/assets/',
+    },
+  ],
   svgResources: [
     {
       source: 'svg',
@@ -152,7 +177,7 @@ const pageInfo: PageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v10 request, response, and event shape', () => {
+  it('accepts every v11 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -296,11 +321,31 @@ describe('message runtime validation', () => {
     }
 
     const validCssSource = pageInfo.cssSources[0];
+    const validCssResource = pageInfo.cssResources[0];
     const validSvgResource = pageInfo.svgResources[0];
     expect(validCssSource).toBeDefined();
+    expect(validCssResource).toBeDefined();
     expect(validSvgResource).toBeDefined();
-    if (!validCssSource || !validSvgResource) {
+    if (!validCssSource || !validCssResource || !validSvgResource) {
       throw new Error('Missing embedded resource fixtures.');
+    }
+    for (const invalidCssResource of [
+      { ...validCssResource, ordinal: 0 },
+      { ...validCssResource, resolvedUrl: './hero.png' },
+      { ...validCssResource, attributeName: 'onclick' },
+      { ...validCssResource, attributeName: 'style' },
+      { ...validCssResource, kind: 'import', propertyName: 'background-image' },
+      { ...validCssResource, unexpected: true },
+    ]) {
+      expect(
+        isPageInfoResponse({
+          ...createPageInfoResponse(pageInfo),
+          payload: {
+            ok: true,
+            page: { ...pageInfo, cssResources: [invalidCssResource] },
+          },
+        }),
+      ).toBe(false);
     }
     for (const invalidCssSource of [
       { ...validCssSource, cssText: '   ' },

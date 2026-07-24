@@ -200,6 +200,10 @@ export function App() {
                 {pageInfo.svgResources.length.toLocaleString()} SVG
               </dd>
             </div>
+            <div>
+              <dt>CSS references</dt>
+              <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
+            </div>
           </dl>
         )}
       </section>
