@@ -10,7 +10,10 @@ import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
 import {
   checkCurrentSiteAccess,
   createPageAccessRequest,
+  createThirdPartyAccessRequest,
+  summarizeThirdPartySiteAccess,
   type SiteAccessResult,
+  type ThirdPartySiteAccessSummary,
 } from '@sitecapsule/permissions';
 import { EXTENSION_NAME } from '@sitecapsule/shared';
 import { useState } from 'react';
@@ -22,6 +25,11 @@ const runtimeSurfaces = [
 ] as const;
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
+type ThirdPartyGrantStatus = 'idle' | 'requesting';
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown permission error.';
+}
 
 function summarizeSiteAccess(access: SiteAccessResult | null): string {
   if (!access) return 'Not checked';
@@ -74,10 +82,20 @@ export function App() {
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [siteAccess, setSiteAccess] = useState<SiteAccessResult | null>(null);
+  const [thirdPartyAccess, setThirdPartyAccess] = useState<ThirdPartySiteAccessSummary[]>([]);
+  const [selectedThirdParties, setSelectedThirdParties] = useState<string[]>([]);
+  const [thirdPartyGrantStatus, setThirdPartyGrantStatus] = useState<ThirdPartyGrantStatus>('idle');
+  const [thirdPartyError, setThirdPartyError] = useState<string | null>(null);
+  const pendingThirdPartyCount = thirdPartyAccess.filter(
+    (access) => access.status === 'not-granted',
+  ).length;
 
   const readCurrentPage = async () => {
     setStatus('loading');
     setError(null);
+    setThirdPartyAccess([]);
+    setSelectedThirdParties([]);
+    setThirdPartyError(null);
 
     try {
       const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -119,8 +137,19 @@ export function App() {
         throw new SiteCapsuleError(response.payload.error);
       }
 
-      setPageInfo(response.payload.page);
+      const capturedPage = response.payload.page;
+      setPageInfo(capturedPage);
       setStatus('success');
+
+      try {
+        setThirdPartyAccess(
+          await summarizeThirdPartySiteAccess(capturedPage.resourceGraph, (request) =>
+            browser.permissions.contains(request),
+          ),
+        );
+      } catch (permissionError) {
+        setThirdPartyError(`Unable to check third-party access. ${errorMessage(permissionError)}`);
+      }
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'page-info',
@@ -132,6 +161,40 @@ export function App() {
           .join(' '),
       );
       setStatus('error');
+    }
+  };
+
+  const toggleThirdParty = (permissionPattern: string, selected: boolean) => {
+    setSelectedThirdParties((current) =>
+      selected
+        ? Array.from(new Set([...current, permissionPattern]))
+        : current.filter((pattern) => pattern !== permissionPattern),
+    );
+  };
+
+  const grantSelectedThirdParties = async () => {
+    const request = createThirdPartyAccessRequest(thirdPartyAccess, selectedThirdParties);
+    if (!request || !pageInfo) return;
+
+    setThirdPartyGrantStatus('requesting');
+    setThirdPartyError(null);
+    try {
+      const granted = await browser.permissions.request(request);
+      if (!granted) {
+        setThirdPartyError('Third-party access was not granted.');
+        return;
+      }
+
+      const refreshed = await summarizeThirdPartySiteAccess(
+        pageInfo.resourceGraph,
+        (permissionRequest) => browser.permissions.contains(permissionRequest),
+      );
+      setThirdPartyAccess(refreshed);
+      setSelectedThirdParties([]);
+    } catch (permissionError) {
+      setThirdPartyError(`Unable to grant third-party access. ${errorMessage(permissionError)}`);
+    } finally {
+      setThirdPartyGrantStatus('idle');
     }
   };
 
@@ -214,73 +277,143 @@ export function App() {
           </p>
         )}
         {status === 'success' && pageInfo && (
-          <dl className="page-info">
-            <div>
-              <dt>Title</dt>
-              <dd>{pageInfo.title || 'Untitled page'}</dd>
-            </div>
-            <div>
-              <dt>Tab URL</dt>
-              <dd>{pageInfo.tabUrl}</dd>
-            </div>
-            <div>
-              <dt>Base URL</dt>
-              <dd>{pageInfo.baseUrl}</dd>
-            </div>
-            <div>
-              <dt>Final URL</dt>
-              <dd>{pageInfo.finalUrl}</dd>
-            </div>
-            <div>
-              <dt>DOM snapshot</dt>
-              <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
-            </div>
-            <div>
-              <dt>Special regions</dt>
-              <dd>{summarizeRegions(pageInfo)}</dd>
-            </div>
-            <div>
-              <dt>Runtime resources</dt>
-              <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
-            </div>
-            <div>
-              <dt>DOM resources</dt>
-              <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
-            </div>
-            <div>
-              <dt>Embedded sources</dt>
-              <dd>
-                {pageInfo.cssSources.length.toLocaleString()} CSS /{' '}
-                {pageInfo.svgResources.length.toLocaleString()} SVG
-              </dd>
-            </div>
-            <div>
-              <dt>CSS references</dt>
-              <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
-            </div>
-            <div>
-              <dt>Unified resources</dt>
-              <dd>
-                {pageInfo.mergedResources.length.toLocaleString()} normalized URLs /{' '}
-                {countMergedEvidence(pageInfo).toLocaleString()} discoveries
-              </dd>
-            </div>
-            <div>
-              <dt>Resource graph</dt>
-              <dd>
-                {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
-                {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
-              </dd>
-            </div>
-            <div>
-              <dt>Resource protocols</dt>
-              <dd>{summarizeResourceProtocols(pageInfo)}</dd>
-            </div>
-            <div>
-              <dt>Resource metadata</dt>
-              <dd>{summarizeResourceMetadata(pageInfo)}</dd>
-            </div>
-          </dl>
+          <>
+            <dl className="page-info">
+              <div>
+                <dt>Title</dt>
+                <dd>{pageInfo.title || 'Untitled page'}</dd>
+              </div>
+              <div>
+                <dt>Tab URL</dt>
+                <dd>{pageInfo.tabUrl}</dd>
+              </div>
+              <div>
+                <dt>Base URL</dt>
+                <dd>{pageInfo.baseUrl}</dd>
+              </div>
+              <div>
+                <dt>Final URL</dt>
+                <dd>{pageInfo.finalUrl}</dd>
+              </div>
+              <div>
+                <dt>DOM snapshot</dt>
+                <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
+              </div>
+              <div>
+                <dt>Special regions</dt>
+                <dd>{summarizeRegions(pageInfo)}</dd>
+              </div>
+              <div>
+                <dt>Runtime resources</dt>
+                <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
+              </div>
+              <div>
+                <dt>DOM resources</dt>
+                <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
+              </div>
+              <div>
+                <dt>Embedded sources</dt>
+                <dd>
+                  {pageInfo.cssSources.length.toLocaleString()} CSS /{' '}
+                  {pageInfo.svgResources.length.toLocaleString()} SVG
+                </dd>
+              </div>
+              <div>
+                <dt>CSS references</dt>
+                <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
+              </div>
+              <div>
+                <dt>Unified resources</dt>
+                <dd>
+                  {pageInfo.mergedResources.length.toLocaleString()} normalized URLs /{' '}
+                  {countMergedEvidence(pageInfo).toLocaleString()} discoveries
+                </dd>
+              </div>
+              <div>
+                <dt>Resource graph</dt>
+                <dd>
+                  {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
+                  {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
+                </dd>
+              </div>
+              <div>
+                <dt>Resource protocols</dt>
+                <dd>{summarizeResourceProtocols(pageInfo)}</dd>
+              </div>
+              <div>
+                <dt>Resource metadata</dt>
+                <dd>{summarizeResourceMetadata(pageInfo)}</dd>
+              </div>
+            </dl>
+
+            <section className="third-party-section" aria-labelledby="third-party-title">
+              <div className="third-party-heading">
+                <div>
+                  <h3 id="third-party-title">Third-party access</h3>
+                  <p>Optional network hosts discovered on this page.</p>
+                </div>
+                {pendingThirdPartyCount > 0 ? (
+                  <button
+                    className="secondary-action"
+                    type="button"
+                    onClick={grantSelectedThirdParties}
+                    disabled={
+                      selectedThirdParties.length === 0 || thirdPartyGrantStatus === 'requesting'
+                    }
+                  >
+                    {thirdPartyGrantStatus === 'requesting' ? 'Granting...' : 'Grant selected'}
+                  </button>
+                ) : (
+                  <span className="access-summary">
+                    {thirdPartyAccess.length > 0 ? 'All granted' : 'None required'}
+                  </span>
+                )}
+              </div>
+
+              {thirdPartyAccess.length === 0 ? (
+                <p className="helper-text">No third-party network hosts discovered.</p>
+              ) : (
+                <ul className="third-party-list">
+                  {thirdPartyAccess.map((access) => (
+                    <li key={access.permissionPattern}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={
+                            access.status === 'granted' ||
+                            selectedThirdParties.includes(access.permissionPattern)
+                          }
+                          disabled={
+                            access.status === 'granted' || thirdPartyGrantStatus === 'requesting'
+                          }
+                          onChange={(event) =>
+                            toggleThirdParty(access.permissionPattern, event.currentTarget.checked)
+                          }
+                        />
+                        <span className="third-party-details">
+                          <span className="third-party-pattern">{access.permissionPattern}</span>
+                          <span>
+                            {access.resourceCount.toLocaleString()} resources ·{' '}
+                            {access.provenanceCount.toLocaleString()} discoveries ·{' '}
+                            {access.discoverySources.join(', ')} · {access.resourceTypes.join(', ')}
+                          </span>
+                        </span>
+                        <span className={`access-state ${access.status}`}>
+                          {access.status === 'granted' ? 'Granted' : 'Pending'}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {thirdPartyError && (
+                <p className="error-text" role="alert">
+                  {thirdPartyError}
+                </p>
+              )}
+            </section>
+          </>
         )}
       </section>
     </main>

@@ -4,6 +4,7 @@ export {
   SITE_ACCESS_STATUSES,
   checkCurrentSiteAccess,
   createPageAccessRequest,
+  resolveSiteAccessTarget,
   type PageAccessContains,
   type PageAccessRequest,
   type SiteAccessGrantableResult,
@@ -11,4 +12,11 @@ export {
   type SiteAccessRestrictionReason,
   type SiteAccessResult,
   type SiteAccessStatus,
+  type SiteAccessTarget,
 } from './page-access';
+export {
+  createThirdPartyAccessRequest,
+  summarizeThirdPartySiteAccess,
+  type ThirdPartySiteAccessStatus,
+  type ThirdPartySiteAccessSummary,
+} from './third-party-access';

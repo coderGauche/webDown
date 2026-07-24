@@ -30,6 +30,7 @@ export type SiteAccessRestrictedResult = {
 };
 
 export type SiteAccessResult = SiteAccessGrantableResult | SiteAccessRestrictedResult;
+export type SiteAccessTarget = Omit<SiteAccessGrantableResult, 'status'>;
 export type PageAccessContains = (request: PageAccessRequest) => Promise<boolean>;
 
 function restrictedResult(
@@ -47,9 +48,9 @@ function restrictedResult(
   };
 }
 
-function resolveSiteAccessTarget(
+export function resolveSiteAccessTarget(
   pageUrl: unknown,
-): Omit<SiteAccessGrantableResult, 'status'> | SiteAccessRestrictedResult {
+): SiteAccessTarget | SiteAccessRestrictedResult {
   if (typeof pageUrl !== 'string' || pageUrl.trim() === '') {
     return restrictedResult(null, 'missing-url');
   }
