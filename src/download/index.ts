@@ -14,3 +14,23 @@ export {
   type QueueInterruptionKind,
   type RejectedQueueItem,
 } from './concurrent-queue';
+export {
+  DEFAULT_MAX_REQUEST_RETRIES,
+  DEFAULT_MAX_RETRY_DELAY_MS,
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  DEFAULT_RETRY_BASE_DELAY_MS,
+  MAX_REQUEST_RETRIES,
+  MAX_TIMER_DELAY_MS,
+  RETRYABLE_HTTP_STATUSES,
+  calculateRetryDelayMs,
+  isRetryableHttpStatus,
+  parseRetryAfterMs,
+  runRequestWithRetry,
+  type RequestAttemptContext,
+  type RequestAttemptResult,
+  type RequestOperation,
+  type RequestRetryOptions,
+  type RequestRetryResult,
+  type RequestTimeoutReason,
+  type RetryDelayScheduler,
+} from './request-retry';
