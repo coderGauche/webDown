@@ -29,7 +29,7 @@ import {
   isSiteCapsuleRequest,
   isSiteCapsuleResponse,
 } from '@sitecapsule/messaging/validators';
-import { mergeResourceCandidates } from '@sitecapsule/page';
+import { buildResourceGraph, mergeResourceCandidates } from '@sitecapsule/page';
 import { describe, expect, it } from 'vitest';
 
 const settings: CaptureSettings = {
@@ -175,15 +175,17 @@ const pageInfoWithoutMerged = {
       decodedBodySize: 1_500,
     },
   ],
-} satisfies Omit<PageInfo, 'mergedResources'>;
+} satisfies Omit<PageInfo, 'mergedResources' | 'resourceGraph'>;
 
+const mergedResources = mergeResourceCandidates(pageInfoWithoutMerged);
 const pageInfo: PageInfo = {
   ...pageInfoWithoutMerged,
-  mergedResources: mergeResourceCandidates(pageInfoWithoutMerged),
+  mergedResources,
+  resourceGraph: buildResourceGraph(pageInfoWithoutMerged.finalUrl, mergedResources),
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v13 request, response, and event shape', () => {
+  it('accepts every v14 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -390,6 +392,41 @@ describe('message runtime validation', () => {
         payload: {
           ok: true,
           page: { ...pageInfo, mergedResources: [] },
+        },
+      }),
+    ).toBe(false);
+
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: {
+            ...pageInfo,
+            resourceGraph: { ...pageInfo.resourceGraph, nodes: [] },
+          },
+        },
+      }),
+    ).toBe(false);
+
+    const firstGraphEdge = pageInfo.resourceGraph.edges[0];
+    expect(firstGraphEdge).toBeDefined();
+    if (!firstGraphEdge) throw new Error('Missing resource graph edge fixture.');
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: {
+            ...pageInfo,
+            resourceGraph: {
+              ...pageInfo.resourceGraph,
+              edges: [
+                { ...firstGraphEdge, sourceOrdinal: firstGraphEdge.sourceOrdinal + 1 },
+                ...pageInfo.resourceGraph.edges.slice(1),
+              ],
+            },
+          },
         },
       }),
     ).toBe(false);

@@ -155,6 +155,40 @@ describe('document snapshot', () => {
           ],
         },
       ],
+      resourceGraph: {
+        rootUrl: 'https://example.com/final',
+        nodes: [
+          {
+            ordinal: 1,
+            url: 'https://cdn.example.com/rendered.js',
+            discoverySources: ['performance'],
+          },
+        ],
+        edges: [
+          {
+            ordinal: 1,
+            sourceUrl: 'https://example.com/final',
+            targetUrl: 'https://cdn.example.com/rendered.js',
+            source: 'performance',
+            channel: 'performance',
+            sourceOrdinal: 1,
+            evidence: {
+              source: 'performance',
+              channel: 'performance',
+              sourceOrdinal: 1,
+              candidate: {
+                url: 'https://cdn.example.com/rendered.js',
+                initiatorType: 'script',
+                startTimeMs: 15,
+                durationMs: 30,
+                transferSize: 1_200,
+                encodedBodySize: 1_000,
+                decodedBodySize: 2_000,
+              },
+            },
+          },
+        ],
+      },
     });
     expect(fixture.cloneNode).toHaveBeenCalledTimes(1);
     expect(fixture.cloneNode).toHaveBeenCalledWith(true);

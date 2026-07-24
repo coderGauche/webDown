@@ -40,13 +40,18 @@ describe('page info messaging protocol', () => {
     },
     performanceResources: [],
     mergedResources: [],
+    resourceGraph: {
+      rootUrl: 'https://example.com/final',
+      nodes: [],
+      edges: [],
+    },
   };
 
-  it('adds protocol v13 and a correlation ID to requests', () => {
+  it('adds protocol v14 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
-      protocolVersion: 13,
+      protocolVersion: 14,
       correlationId: 'request-42',
       type: 'page-info/request',
       payload: { tabId: 42, renderWaitMs: 1_500 },

@@ -34,6 +34,16 @@ export {
 } from './resource-discovery';
 export { isNormalizedResourceUrl, normalizeResourceUrl } from './resource-url';
 export {
+  buildResourceGraph,
+  isResourceGraph,
+  isResourceGraphEdge,
+  isResourceGraphNode,
+  matchesResourceGraph,
+  type ResourceGraph,
+  type ResourceGraphEdge,
+  type ResourceGraphNode,
+} from './resource-graph';
+export {
   getPageCaptureTimeoutMs,
   PAGE_CAPTURE_TIMEOUT_GRACE_MS,
   runPageCaptureSession,

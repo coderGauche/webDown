@@ -215,6 +215,13 @@ export function App() {
                 {countMergedEvidence(pageInfo).toLocaleString()} discoveries
               </dd>
             </div>
+            <div>
+              <dt>Resource graph</dt>
+              <dd>
+                {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
+                {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
+              </dd>
+            </div>
           </dl>
         )}
       </section>

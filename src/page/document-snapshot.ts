@@ -19,6 +19,7 @@ import {
   type PageRegionSource,
 } from './page-regions';
 import { mergeResourceCandidates, type MergedResourceCandidate } from './resource-discovery';
+import { buildResourceGraph, type ResourceGraph } from './resource-graph';
 import { sanitizeClonedDom } from './sanitize-cloned-dom';
 
 export type DocumentTypeSource = Pick<DocumentType, 'name' | 'publicId' | 'systemId'>;
@@ -39,6 +40,7 @@ export type PageSnapshot = PageMetadata & {
   regionDiagnostics: PageRegionDiagnostics;
   performanceResources: PerformanceResourceRecord[];
   mergedResources: MergedResourceCandidate[];
+  resourceGraph: ResourceGraph;
 };
 
 function quoteDocumentTypeIdentifier(value: string): string {
@@ -86,9 +88,10 @@ export function capturePageSnapshot(
     cssResources,
     performanceResources,
   });
+  const metadata = readPageMetadata(source, tabUrl);
 
   return {
-    ...readPageMetadata(source, tabUrl),
+    ...metadata,
     serializedDom: serializeDocument(source),
     domResources,
     ...embeddedResources,
@@ -96,5 +99,6 @@ export function capturePageSnapshot(
     regionDiagnostics: inspectPageRegions(source),
     performanceResources,
     mergedResources,
+    resourceGraph: buildResourceGraph(metadata.finalUrl, mergedResources),
   };
 }

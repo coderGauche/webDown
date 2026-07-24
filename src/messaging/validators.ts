@@ -11,6 +11,7 @@ import {
 } from '@sitecapsule/domain';
 import {
   matchesMergedResourceCandidates,
+  matchesResourceGraph,
   PAGE_REGION_LIMITATIONS,
   PERFORMANCE_RESOURCE_INITIATORS,
   type PerformanceResourceRecord,
@@ -256,12 +257,18 @@ function isPageResourceDiscovery(page: UnknownRecord): boolean {
     return false;
   }
 
-  return matchesMergedResourceCandidates(page.mergedResources, {
+  const input = {
     domResources: page.domResources as DomResourceCandidate[],
     cssResources: page.cssResources as CssResourceCandidate[],
     svgResources: page.svgResources as SvgResourceCandidate[],
     performanceResources: page.performanceResources as PerformanceResourceRecord[],
-  });
+  };
+  if (!matchesMergedResourceCandidates(page.mergedResources, input)) return false;
+
+  return (
+    typeof page.finalUrl === 'string' &&
+    matchesResourceGraph(page.resourceGraph, page.finalUrl, page.mergedResources)
+  );
 }
 
 function hasMessageType<TType extends MessageType>(
@@ -399,6 +406,7 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'regionDiagnostics',
         'performanceResources',
         'mergedResources',
+        'resourceGraph',
       ]) &&
       typeof message.payload.page.title === 'string' &&
       isAbsoluteUrl(message.payload.page.tabUrl) &&
