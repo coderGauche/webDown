@@ -1,8 +1,16 @@
 export {
+  QUEUE_INTERRUPTION_KINDS,
+  cancelConcurrentQueue,
+  interruptConcurrentQueue,
   isConcurrencyLimit,
+  pauseConcurrentQueue,
   runConcurrentQueue,
+  type AbortedQueueItem,
   type ConcurrentQueueItemResult,
+  type ConcurrentQueueOptions,
   type ConcurrentQueueWorker,
   type FulfilledQueueItem,
+  type NotStartedQueueItem,
+  type QueueInterruptionKind,
   type RejectedQueueItem,
 } from './concurrent-queue';

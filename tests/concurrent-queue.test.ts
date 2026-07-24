@@ -1,5 +1,8 @@
 import {
+  cancelConcurrentQueue,
+  interruptConcurrentQueue,
   isConcurrencyLimit,
+  pauseConcurrentQueue,
   runConcurrentQueue,
   type ConcurrentQueueItemResult,
 } from '@sitecapsule/download';
@@ -16,6 +19,16 @@ function deferred<T>(): Deferred<T> {
     resolve = resolvePromise;
   });
   return { promise, resolve };
+}
+
+function rejectWhenAborted(signal: AbortSignal): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  });
 }
 
 describe('controlled concurrent queue', () => {
@@ -106,6 +119,163 @@ describe('controlled concurrent queue', () => {
       { status: 'fulfilled', index: 0, input: 1, value: 1 },
       { status: 'fulfilled', index: 1, input: 2, value: 2 },
     ]);
+  });
+
+  it('does not start any item when the queue is already paused', async () => {
+    const controller = new AbortController();
+    expect(pauseConcurrentQueue(controller)).toBe(true);
+    const worker = vi.fn(async (input: number) => input);
+
+    const results = await runConcurrentQueue([1, 2], 2, worker, {
+      signal: controller.signal,
+    });
+
+    expect(worker).not.toHaveBeenCalled();
+    expect(results).toEqual([
+      {
+        status: 'not-started',
+        index: 0,
+        input: 1,
+        interruption: 'pause',
+        reason: controller.signal.reason,
+      },
+      {
+        status: 'not-started',
+        index: 1,
+        input: 2,
+        interruption: 'pause',
+        reason: controller.signal.reason,
+      },
+    ]);
+  });
+
+  it('aborts active work and leaves queued inputs unstarted when cancelled', async () => {
+    const controller = new AbortController();
+    const starts: number[] = [];
+    const execution = runConcurrentQueue(
+      ['active-1', 'active-2', 'queued-1', 'queued-2'],
+      2,
+      (_input, index, signal) => {
+        expect(signal).toBe(controller.signal);
+        starts.push(index);
+        return rejectWhenAborted(signal);
+      },
+      { signal: controller.signal },
+    );
+
+    expect(starts).toEqual([0, 1]);
+    expect(cancelConcurrentQueue(controller)).toBe(true);
+    const results = await execution;
+
+    expect(starts).toEqual([0, 1]);
+    expect(results.map(({ status }) => status)).toEqual([
+      'aborted',
+      'aborted',
+      'not-started',
+      'not-started',
+    ]);
+    expect(
+      results.every(
+        (result) =>
+          (result.status !== 'aborted' && result.status !== 'not-started') ||
+          result.interruption === 'cancel',
+      ),
+    ).toBe(true);
+  });
+
+  it('preserves completed work while pausing active and unstarted items', async () => {
+    const controller = new AbortController();
+    const firstResult = deferred<string>();
+    const secondStarted = deferred<void>();
+    const starts: number[] = [];
+    const execution = runConcurrentQueue(
+      ['completed', 'active', 'queued'],
+      1,
+      (_input, index, signal) => {
+        starts.push(index);
+        if (index === 0) return firstResult.promise;
+        secondStarted.resolve(undefined);
+        return rejectWhenAborted(signal);
+      },
+      { signal: controller.signal },
+    );
+
+    firstResult.resolve('saved');
+    await secondStarted.promise;
+    expect(pauseConcurrentQueue(controller)).toBe(true);
+
+    const results = await execution;
+    expect(starts).toEqual([0, 1]);
+    expect(results).toEqual([
+      { status: 'fulfilled', index: 0, input: 'completed', value: 'saved' },
+      {
+        status: 'aborted',
+        index: 1,
+        input: 'active',
+        interruption: 'pause',
+        reason: controller.signal.reason,
+      },
+      {
+        status: 'not-started',
+        index: 2,
+        input: 'queued',
+        interruption: 'pause',
+        reason: controller.signal.reason,
+      },
+    ]);
+  });
+
+  it('keeps a late successful side effect fulfilled while stopping subsequent work', async () => {
+    const controller = new AbortController();
+    const lateSuccess = deferred<string>();
+    const starts: number[] = [];
+    const execution = runConcurrentQueue(
+      ['active', 'queued'],
+      1,
+      (_input, index) => {
+        starts.push(index);
+        return lateSuccess.promise;
+      },
+      { signal: controller.signal },
+    );
+
+    expect(cancelConcurrentQueue(controller)).toBe(true);
+    lateSuccess.resolve('saved despite cancellation');
+
+    await expect(execution).resolves.toEqual([
+      {
+        status: 'fulfilled',
+        index: 0,
+        input: 'active',
+        value: 'saved despite cancellation',
+      },
+      {
+        status: 'not-started',
+        index: 1,
+        input: 'queued',
+        interruption: 'cancel',
+        reason: controller.signal.reason,
+      },
+    ]);
+    expect(starts).toEqual([0]);
+  });
+
+  it('treats a raw AbortController abort as cancellation and keeps interruption idempotent', async () => {
+    const rawController = new AbortController();
+    rawController.abort();
+    const [rawResult] = await runConcurrentQueue([1], 1, async (input) => input, {
+      signal: rawController.signal,
+    });
+    expect(rawResult).toMatchObject({ status: 'not-started', interruption: 'cancel' });
+
+    const controlled = new AbortController();
+    expect(pauseConcurrentQueue(controlled)).toBe(true);
+    expect(cancelConcurrentQueue(controlled)).toBe(false);
+    expect(controlled.signal.reason).toMatchObject({ kind: 'pause' });
+    expect(Object.isFrozen(controlled.signal.reason)).toBe(true);
+    expect(() => interruptConcurrentQueue(new AbortController(), 'invalid' as never)).toThrow(
+      TypeError,
+    );
   });
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
