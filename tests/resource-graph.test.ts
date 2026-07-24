@@ -57,8 +57,26 @@ describe('resource graph', () => {
 
     expect(graph.rootUrl).toBe(DOCUMENT_URL);
     expect(graph.nodes).toEqual([
-      { ordinal: 1, url: sharedUrl, discoverySources: ['dom', 'performance'] },
-      { ordinal: 2, url: runtimeUrl, discoverySources: ['performance'] },
+      {
+        ordinal: 1,
+        url: sharedUrl,
+        discoverySources: ['dom', 'performance'],
+        classification: {
+          kind: 'network',
+          protocol: 'https:',
+          networkFetchEligible: true,
+        },
+      },
+      {
+        ordinal: 2,
+        url: runtimeUrl,
+        discoverySources: ['performance'],
+        classification: {
+          kind: 'network',
+          protocol: 'https:',
+          networkFetchEligible: true,
+        },
+      },
     ]);
     expect(
       graph.edges.map(({ ordinal, sourceUrl, targetUrl, source, channel, sourceOrdinal }) => ({
@@ -110,6 +128,52 @@ describe('resource graph', () => {
     expect(graph.edges.every(isResourceGraphEdge)).toBe(true);
   });
 
+  it('attaches non-network classifications to graph nodes without dropping provenance', () => {
+    const resources = mergeResourceCandidates({
+      domResources: [
+        domResource('data:image/png;base64,AAAA'),
+        domResource('blob:https://example.test/runtime-id'),
+        domResource('chrome-extension://abcdefghijklmnop/icon.png'),
+        domResource('data:text/plain'),
+      ],
+      svgResources: [],
+      cssResources: [],
+      performanceResources: [],
+    });
+
+    const graph = buildResourceGraph(DOCUMENT_URL, resources);
+    expect(graph.nodes.map((node) => node.classification)).toEqual([
+      {
+        kind: 'data',
+        protocol: 'data:',
+        networkFetchEligible: false,
+        header: 'image/png;base64',
+        encoding: 'base64',
+      },
+      {
+        kind: 'blob',
+        protocol: 'blob:',
+        networkFetchEligible: false,
+        limitation: 'document-session-bound',
+      },
+      {
+        kind: 'unsupported',
+        protocol: 'chrome-extension:',
+        networkFetchEligible: false,
+        reason: 'unsupported-protocol',
+      },
+      {
+        kind: 'unsupported',
+        protocol: 'data:',
+        networkFetchEligible: false,
+        reason: 'malformed-data-url',
+      },
+    ]);
+    expect(graph.edges).toHaveLength(4);
+    expect(graph.nodes.every((node) => !node.classification.networkFetchEligible)).toBe(true);
+    expect(isResourceGraph(graph)).toBe(true);
+  });
+
   it('supports a valid empty graph and rejects an invalid root URL', () => {
     const graph = buildResourceGraph(DOCUMENT_URL, []);
 
@@ -135,6 +199,18 @@ describe('resource graph', () => {
     if (!firstNode || !firstEdge) throw new Error('Missing resource graph fixture data.');
 
     expect(isResourceGraph({ ...graph, nodes: [...graph.nodes, firstNode] })).toBe(false);
+    expect(
+      isResourceGraph({
+        ...graph,
+        nodes: [
+          {
+            ...firstNode,
+            classification: { ...firstNode.classification, networkFetchEligible: false },
+          },
+          ...graph.nodes.slice(1),
+        ],
+      }),
+    ).toBe(false);
     expect(
       isResourceGraph({
         ...graph,

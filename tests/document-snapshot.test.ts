@@ -162,6 +162,11 @@ describe('document snapshot', () => {
             ordinal: 1,
             url: 'https://cdn.example.com/rendered.js',
             discoverySources: ['performance'],
+            classification: {
+              kind: 'network',
+              protocol: 'https:',
+              networkFetchEligible: true,
+            },
           },
         ],
         edges: [

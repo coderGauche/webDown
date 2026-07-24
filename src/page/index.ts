@@ -34,6 +34,22 @@ export {
 } from './resource-discovery';
 export { isNormalizedResourceUrl, normalizeResourceUrl } from './resource-url';
 export {
+  classifyResourceUrl,
+  DATA_URL_ENCODINGS,
+  isResourceUrlClassification,
+  matchesResourceUrlClassification,
+  RESOURCE_URL_KINDS,
+  UNSUPPORTED_RESOURCE_REASONS,
+  type BlobResourceUrlClassification,
+  type DataResourceUrlClassification,
+  type DataUrlEncoding,
+  type NetworkResourceUrlClassification,
+  type ResourceUrlClassification,
+  type ResourceUrlKind,
+  type UnsupportedResourceReason,
+  type UnsupportedResourceUrlClassification,
+} from './resource-protocol';
+export {
   buildResourceGraph,
   isResourceGraph,
   isResourceGraphEdge,

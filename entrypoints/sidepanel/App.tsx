@@ -37,6 +37,12 @@ function countMergedEvidence(pageInfo: PageInfo): number {
   return pageInfo.mergedResources.reduce((total, resource) => total + resource.evidence.length, 0);
 }
 
+function summarizeResourceProtocols(pageInfo: PageInfo): string {
+  const counts = { network: 0, data: 0, blob: 0, unsupported: 0 };
+  for (const node of pageInfo.resourceGraph.nodes) counts[node.classification.kind] += 1;
+  return `${counts.network} network / ${counts.data} data / ${counts.blob} blob / ${counts.unsupported} unsupported`;
+}
+
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
@@ -221,6 +227,10 @@ export function App() {
                 {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
                 {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
               </dd>
+            </div>
+            <div>
+              <dt>Resource protocols</dt>
+              <dd>{summarizeResourceProtocols(pageInfo)}</dd>
             </div>
           </dl>
         )}

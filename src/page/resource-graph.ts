@@ -7,12 +7,18 @@ import {
   type ResourceDiscoveryChannel,
   type ResourceDiscoveryEvidence,
 } from './resource-discovery';
+import {
+  classifyResourceUrl,
+  matchesResourceUrlClassification,
+  type ResourceUrlClassification,
+} from './resource-protocol';
 import { isNormalizedResourceUrl, normalizeResourceUrl } from './resource-url';
 
 export type ResourceGraphNode = {
   ordinal: number;
   url: string;
   discoverySources: MergedResourceDiscoverySource[];
+  classification: ResourceUrlClassification;
 };
 
 export type ResourceGraphEdge = {
@@ -65,11 +71,16 @@ export function buildResourceGraph(
     throw new TypeError('Resource graph input must contain valid merged resources.');
   }
 
-  const nodes: ResourceGraphNode[] = resources.map((resource, index) => ({
-    ordinal: index + 1,
-    url: resource.url,
-    discoverySources: [...resource.discoverySources],
-  }));
+  const nodes: ResourceGraphNode[] = resources.map((resource, index) => {
+    const classification = classifyResourceUrl(resource.url);
+    if (!classification) throw new TypeError('Resource graph node URL cannot be classified.');
+    return {
+      ordinal: index + 1,
+      url: resource.url,
+      discoverySources: [...resource.discoverySources],
+      classification,
+    };
+  });
   const edges: ResourceGraphEdge[] = [];
 
   for (const resource of resources) {
@@ -92,7 +103,7 @@ export function buildResourceGraph(
 export function isResourceGraphNode(value: unknown): value is ResourceGraphNode {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['ordinal', 'url', 'discoverySources']) &&
+    hasExactKeys(value, ['ordinal', 'url', 'discoverySources', 'classification']) &&
     isPositiveSafeInteger(value.ordinal) &&
     isNormalizedResourceUrl(value.url) &&
     Array.isArray(value.discoverySources) &&
@@ -100,7 +111,8 @@ export function isResourceGraphNode(value: unknown): value is ResourceGraphNode 
     value.discoverySources.every((source) =>
       MERGED_RESOURCE_DISCOVERY_SOURCES.includes(source as MergedResourceDiscoverySource),
     ) &&
-    new Set(value.discoverySources).size === value.discoverySources.length
+    new Set(value.discoverySources).size === value.discoverySources.length &&
+    matchesResourceUrlClassification(value.classification, value.url)
   );
 }
 
