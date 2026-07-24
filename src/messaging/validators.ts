@@ -9,6 +9,7 @@ import {
   type CaptureSettings,
   type JobCounters,
 } from '@sitecapsule/domain';
+import { PAGE_REGION_LIMITATIONS } from '@sitecapsule/page';
 import {
   CAPTURE_JOB_COMMANDS,
   MESSAGE_PROTOCOL_VERSION,
@@ -104,6 +105,18 @@ function isAbsoluteUrl(value: unknown): value is string {
   }
 }
 
+function isNullableOrigin(value: unknown): value is string | null {
+  if (value === null) return true;
+  if (!isNonEmptyString(value)) return false;
+
+  try {
+    const url = new URL(value);
+    return url.origin !== 'null' && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+
 function isNonNegativeSafeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }
@@ -126,6 +139,43 @@ function isTimestamp(value: unknown): value is string {
 
 function isMessageType(value: unknown): value is MessageType {
   return typeof value === 'string' && MESSAGE_TYPE_VALUES.includes(value as MessageType);
+}
+
+function isPageRegionDiagnostic(value: unknown): boolean {
+  if (!isRecord(value) || !isPositiveSafeInteger(value.ordinal)) return false;
+  if (!isNonNegativeSafeInteger(value.depth)) return false;
+
+  if (value.kind === 'shadow-root') {
+    return (
+      hasExactKeys(value, ['kind', 'ordinal', 'depth', 'access', 'reason']) &&
+      value.access === 'accessible' &&
+      value.reason === 'open-shadow-root'
+    );
+  }
+
+  if (value.kind !== 'iframe') return false;
+  if (!hasExactKeys(value, ['kind', 'ordinal', 'depth', 'access', 'reason', 'sourceOrigin'])) {
+    return false;
+  }
+  if (!isNullableOrigin(value.sourceOrigin)) return false;
+
+  return value.reason === 'same-origin'
+    ? value.access === 'accessible'
+    : ['cross-origin', 'sandboxed', 'unavailable', 'access-denied'].includes(
+        value.reason as string,
+      ) && value.access === 'inaccessible';
+}
+
+function isPageRegionDiagnostics(value: unknown): boolean {
+  if (!isRecord(value) || !hasExactKeys(value, ['regions', 'limitations'])) return false;
+  if (!Array.isArray(value.regions) || !value.regions.every(isPageRegionDiagnostic)) return false;
+  if (!Array.isArray(value.limitations)) return false;
+  const limitations = value.limitations;
+
+  return (
+    limitations.length === PAGE_REGION_LIMITATIONS.length &&
+    PAGE_REGION_LIMITATIONS.every((limitation) => limitations.includes(limitation))
+  );
 }
 
 function hasMessageType<TType extends MessageType>(
@@ -256,12 +306,14 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'baseUrl',
         'finalUrl',
         'serializedDom',
+        'regionDiagnostics',
       ]) &&
       typeof message.payload.page.title === 'string' &&
       isAbsoluteUrl(message.payload.page.tabUrl) &&
       isAbsoluteUrl(message.payload.page.baseUrl) &&
       isAbsoluteUrl(message.payload.page.finalUrl) &&
-      isNonEmptyString(message.payload.page.serializedDom)
+      isNonEmptyString(message.payload.page.serializedDom) &&
+      isPageRegionDiagnostics(message.payload.page.regionDiagnostics)
     );
   }
 

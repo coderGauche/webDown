@@ -41,6 +41,7 @@ function createDocumentFixture(
     URL: 'https://example.com/final',
     doctype,
     documentElement,
+    querySelectorAll: () => [],
   };
 
   return {
@@ -90,6 +91,10 @@ describe('document snapshot', () => {
       baseUrl: 'https://cdn.example.com/assets/',
       finalUrl: 'https://example.com/final',
       serializedDom: '<!DOCTYPE html>\n<html><body><main>Rendered content</main></body></html>',
+      regionDiagnostics: {
+        regions: [],
+        limitations: ['closed-shadow-roots-unobservable'],
+      },
     });
     expect(fixture.cloneNode).toHaveBeenCalledTimes(1);
     expect(fixture.cloneNode).toHaveBeenCalledWith(true);

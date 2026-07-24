@@ -11,6 +11,7 @@ import {
   createPageInfoError,
   createPageInfoRequest,
   createPageInfoResponse,
+  type PageInfo,
 } from '@sitecapsule/messaging/protocol';
 import {
   isCaptureJob,
@@ -75,16 +76,36 @@ const createInput = {
   settings,
 };
 
-const pageInfo = {
+const pageInfo: PageInfo = {
   title: 'Example',
   tabUrl: 'https://example.com/requested',
   baseUrl: 'https://cdn.example.com/assets/',
   finalUrl: job.startUrl,
   serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
+  regionDiagnostics: {
+    regions: [
+      {
+        kind: 'iframe',
+        ordinal: 1,
+        depth: 0,
+        access: 'accessible',
+        reason: 'same-origin',
+        sourceOrigin: 'https://example.com',
+      },
+      {
+        kind: 'shadow-root',
+        ordinal: 1,
+        depth: 0,
+        access: 'accessible',
+        reason: 'open-shadow-root',
+      },
+    ],
+    limitations: ['closed-shadow-roots-unobservable'],
+  },
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v5 request, response, and event shape', () => {
+  it('accepts every v6 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -203,6 +224,69 @@ describe('message runtime validation', () => {
       isPageInfoResponse({
         ...createPageInfoResponse(pageInfo),
         payload: { ok: true, page: pageInfo, error: 'mixed' },
+      }),
+    ).toBe(false);
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: {
+            ...pageInfo,
+            regionDiagnostics: {
+              ...pageInfo.regionDiagnostics,
+              regions: [
+                {
+                  kind: 'iframe',
+                  ordinal: 1,
+                  depth: 0,
+                  access: 'inaccessible',
+                  reason: 'cross-origin',
+                  sourceOrigin: 'https://frame.example.com/path?token=private',
+                },
+              ],
+            },
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: {
+            ...pageInfo,
+            regionDiagnostics: {
+              ...pageInfo.regionDiagnostics,
+              limitations: [],
+            },
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isPageInfoResponse({
+        ...createPageInfoResponse(pageInfo),
+        payload: {
+          ok: true,
+          page: {
+            ...pageInfo,
+            regionDiagnostics: {
+              regions: [
+                {
+                  kind: 'iframe',
+                  ordinal: 1,
+                  depth: 0,
+                  access: 'accessible',
+                  reason: 'cross-origin',
+                  sourceOrigin: 'https://frame.example.com',
+                },
+              ],
+              limitations: ['closed-shadow-roots-unobservable'],
+            },
+          },
+        },
       }),
     ).toBe(false);
     expect(

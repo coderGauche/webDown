@@ -18,17 +18,22 @@ import {
   createPageInfoError,
   createPageInfoRequest,
   createPageInfoResponse,
+  type PageInfo,
 } from '@sitecapsule/messaging/protocol';
 import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/validators';
 import { describe, expect, it } from 'vitest';
 
 describe('page info messaging protocol', () => {
-  const page = {
+  const page: PageInfo = {
     title: 'Example',
     tabUrl: 'https://example.com/requested',
     baseUrl: 'https://cdn.example.com/assets/',
     finalUrl: 'https://example.com/final',
     serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
+    regionDiagnostics: {
+      regions: [],
+      limitations: ['closed-shadow-roots-unobservable'],
+    },
   };
 
   it('adds the protocol version and correlation ID to requests', () => {

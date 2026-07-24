@@ -1,15 +1,22 @@
 import { readPageMetadata, type PageMetadata, type PageMetadataSource } from './page-metadata';
+import {
+  inspectPageRegions,
+  type PageRegionDiagnostics,
+  type PageRegionSource,
+} from './page-regions';
 import { sanitizeClonedDom } from './sanitize-cloned-dom';
 
 export type DocumentTypeSource = Pick<DocumentType, 'name' | 'publicId' | 'systemId'>;
 
-export type DocumentSnapshotSource = PageMetadataSource & {
-  doctype: DocumentTypeSource | null;
-  documentElement: Pick<Document['documentElement'], 'cloneNode'>;
-};
+export type DocumentSnapshotSource = PageMetadataSource &
+  PageRegionSource & {
+    doctype: DocumentTypeSource | null;
+    documentElement: Pick<Document['documentElement'], 'cloneNode'>;
+  };
 
 export type PageSnapshot = PageMetadata & {
   serializedDom: string;
+  regionDiagnostics: PageRegionDiagnostics;
 };
 
 function quoteDocumentTypeIdentifier(value: string): string {
@@ -50,5 +57,6 @@ export function capturePageSnapshot(
   return {
     ...readPageMetadata(source, tabUrl),
     serializedDom: serializeDocument(source),
+    regionDiagnostics: inspectPageRegions(source),
   };
 }

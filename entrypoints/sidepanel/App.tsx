@@ -19,6 +19,20 @@ const runtimeSurfaces = [
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 
+function summarizeRegions(pageInfo: PageInfo): string {
+  const counts = pageInfo.regionDiagnostics.regions.reduce(
+    (summary, region) => {
+      if (region.kind === 'iframe') summary.iframes += 1;
+      if (region.kind === 'shadow-root') summary.shadowRoots += 1;
+      if (region.access === 'inaccessible') summary.inaccessible += 1;
+      return summary;
+    },
+    { iframes: 0, shadowRoots: 0, inaccessible: 0 },
+  );
+
+  return `${counts.iframes} iframe / ${counts.shadowRoots} shadow / ${counts.inaccessible} inaccessible`;
+}
+
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
@@ -166,6 +180,10 @@ export function App() {
             <div>
               <dt>DOM snapshot</dt>
               <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
+            </div>
+            <div>
+              <dt>Special regions</dt>
+              <dd>{summarizeRegions(pageInfo)}</dd>
             </div>
           </dl>
         )}
