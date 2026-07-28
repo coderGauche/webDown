@@ -65,3 +65,18 @@ export {
   type UncapturedDependencyReport,
   type UncapturedDependencySource,
 } from './uncaptured-dependencies';
+export {
+  SERVICE_WORKER_BLOCK_FUNCTION,
+  SERVICE_WORKER_POLICY_ATTRIBUTE,
+  SERVICE_WORKER_POLICY_LIMITATIONS,
+  SERVICE_WORKER_POLICY_VALUE,
+  SERVICE_WORKER_SCRIPT_KINDS,
+  SERVICE_WORKER_SCRIPT_STATUSES,
+  applyServiceWorkerSafetyPolicy,
+  type ServiceWorkerPolicyLimitation,
+  type ServiceWorkerRegistrationChange,
+  type ServiceWorkerSafetyResult,
+  type ServiceWorkerScriptKind,
+  type ServiceWorkerScriptResult,
+  type ServiceWorkerScriptStatus,
+} from './service-worker-safety';

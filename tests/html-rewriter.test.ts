@@ -314,6 +314,36 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(rewritten.querySelector('style')?.textContent).toContain('#regular');
   });
 
+  it('applies the Service Worker safety policy before serializing offline HTML', () => {
+    const result = rewriteHtmlResource({
+      html: `<html><head><script src="app.js"></script></head><body><script>
+        navigator.serviceWorker.register('/sw.js');
+      </script></body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: [],
+    });
+    const rewritten = parseResult(result.html);
+
+    expect(result.serviceWorkerSafety).toMatchObject({
+      guardInserted: true,
+      guardPosition: 'head-first',
+      directRegistrationsRewritten: 1,
+      externalScriptsGuarded: 1,
+      parseErrors: 0,
+    });
+    expect(
+      rewritten.head.firstElementChild?.getAttribute('data-sitecapsule-service-worker-policy'),
+    ).toBe('block-registration-v1');
+    expect(rewritten.body.querySelector('script')?.textContent).toContain(
+      '__sitecapsuleBlockServiceWorkerRegistration_v1__()',
+    );
+    expect(rewritten.body.querySelector('script')?.textContent).not.toContain(
+      "serviceWorker.register('/sw.js')",
+    );
+  });
+
   it('rejects unsafe paths, non-network document context, and ambiguous saved mappings', async () => {
     const [mapping] = await savedMappings([
       { url: 'https://cdn.example.test/assets/image.png', resourceType: 'image' },

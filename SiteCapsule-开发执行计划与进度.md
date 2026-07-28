@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M6 路径映射与内容改写
-> 当前状态：M6-T7 已完成，等待开始 M6-T8
-> 下一任务：M6-T8 禁用原站 Service Worker 注册的安全策略
+> 当前状态：M6-T8 已完成，等待开始 M6-T9
+> 下一任务：M6-T9 记录 CSP 调整和所有内容变更
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -296,7 +296,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M6-T5** 使用 CSSTree 改写 CSS URL；
 - [x] **M6-T6** 处理 `srcset`、`picture`、媒体和字体；
 - [x] **M6-T7** 记录未捕获的线上依赖；
-- [ ] **M6-T8** 禁用原站 Service Worker 注册的安全策略；
+- [x] **M6-T8** 禁用原站 Service Worker 注册的安全策略；
 - [ ] **M6-T9** 记录 CSP 调整和所有内容变更；
 - [ ] **M6-T10** 编写路径稳定性和离线引用测试。
 
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M6 路径映射与内容改写 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M6-T7 记录未捕获的线上依赖 |
-| 下一任务 | M6-T8 禁用原站 Service Worker 注册的安全策略 |
+| 最近完成 | M6-T8 禁用原站 Service Worker 注册的安全策略 |
+| 下一任务 | M6-T9 记录 CSP 调整和所有内容变更 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -532,6 +532,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M6-T5 | 完成 | 新增 `src/archive/css-rewriter.ts` 及归档模块导出，使用 CSSTree AST 按 stylesheet、declaration list 和 value 三种上下文改写真实 `url()`、`@import` 与 `@font-face src`，支持嵌套 at-rule、自定义属性、`<style>`、style attribute 和 SVG 表现属性；抽取 `src/archive/rewrite-support.ts` 共享安全路径、网络 URL、已保存映射及相对引用生成逻辑，HTML 与 CSS 一致地只将已保存的唯一 `ResourcePathMapping` 转为本地路径，按独立 CSS 文件或宿主 HTML 归档路径计算相对基准，query 继续由 M6-T3 哈希文件名表达并恢复 fragment；data、Blob、文档内 fragment、非网络协议、缺失映射和无效 URL 保持原文并结构化记录；零改写或解析失败时完整保留原 CSS 格式，额外检查 AST 源位置以防止容错恢复的未闭合 URL/字符串被误改；不将 `@supports` 能力查询 URL 视为资源，未提前实现 M6-T6 `srcset`/picture/媒体编排；4 个相关测试文件共 30 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（39 个文件、423 项测试）、`pnpm build`（MV3 总计 503.31 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T6 | 完成 | 新增 `src/archive/srcset-rewriter.ts` 及归档模块导出，结构化遍历 `img`/`source` 的 `srcset` 候选，仅将已保存映射对应的 URL 源区间替换为本地归档相对路径，不重新序列化整个属性，因此保留候选顺序、原空白/逗号及密度/宽度 descriptor；Discovery 的既有状态扫描扩展为可导出的精确 URL span，原 `parseSrcsetCandidates` 输出和发现顺序不变；每个候选记录 rewritten/unmapped/unsupported/fragment/invalid 诊断，data、Blob、纯 fragment、无效 URL、非法/零 descriptor 和缺失映射均保持原值；HTML 改写结果新增 `srcset` 候选统计，`picture`、video/audio/source/track/poster 和字体 preload 复用 M6-T4 直接属性映射，`@font-face` 复用 M6-T5 CSS 映射，同一归档内不重复命名；未提前实现 M6-T7 未捕获依赖汇总；4 个相关测试文件共 25 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（40 个文件、430 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T7 | 完成 | 新增 `src/archive/uncaptured-dependencies.ts` 及归档模块导出，将 HTML 直接属性、CSSTree 与 `srcset` 改写结果中状态为 unmapped 的有效 HTTP/HTTPS 引用按规范 URL 稳定去重，记录出现次数、html-attribute/css-ast/srcset 来源通道及元素、属性、CSS 上下文/类型、候选 descriptor 和原值等逐条来源；可选 `ResourceRecord` 同时以 original/final URL 关联下载结果，failed 优先归因为 `download-failed`，skipped 归因为 `resource-skipped`，其余为 `missing-mapping`，并保留状态和结构化错误码；data、Blob、fragment、其他不支持协议、无效引用和 CSS 解析失败只进入独立保留项计数，不被误报为线上依赖；依赖、来源通道、资源状态、错误码和来源均按固定规则排序，顶层输入顺序不改变报告；未提前实现 M6-T8 Service Worker 安全策略；4 个相关测试文件共 24 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（41 个文件、435 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M6-T8 | 完成 | 新增并锁定 `acorn@8.17.0`，新增 `src/archive/service-worker-safety.ts` 及归档模块导出；以 Acorn AST 解析 classic/module inline script，精确改写 `navigator.serviceWorker.register`、受支持的全局限定路径、静态计算属性和可选链直接调用，不触碰字符串、注释或非 JavaScript script；在序列化 HTML 的 `head` 首位注入确定性运行时守卫，同时覆盖 ServiceWorkerContainer 实例与原型的 `register`，外部脚本、动态/别名引用和无法解析的 inline script 保留逐脚本状态、偏移、改写及限制诊断；已有策略标记会先移除再生成可信唯一守卫；CSP 调整和全量内容变更报告明确留给 M6-T9；`tests/service-worker-safety.test.ts` 与 HTML 集成测试共 13 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（42 个文件、441 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -603,6 +604,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-050 | 2026-07-29 | CSS 使用 CSSTree AST 按语法上下文改写，仅已保存映射可生成本地 URL，零改写时保留原文 | CSS 中的转义、引号、data URL、嵌套规则和容错语法使字符串/正则替换不可靠；AST 生成器即使未改写也可能重排格式，容错 parser 还可能恢复残缺节点 | stylesheet、style attribute 和 SVG value 使用对应 parser context；排除 `@supports` 等非加载 prelude；对资源节点复查原始位置边界；未映射/不支持/无效引用只记录不改写；仅至少一项真实改写时才生成新 CSS 文本 |
 | D-051 | 2026-07-29 | `srcset` 使用候选 URL 源区间局部替换，媒体与字体复用 HTML/CSS 已保存映射 | 重新拼接 `srcset` 容易改变 data URL 逗号、空白和 descriptor，进而影响浏览器候选选择；为 picture、音视频和字体另建命名系统会破坏 M6-T3 的唯一路径身份 | 发现扫描同时返回 URL 起止偏移，改写只覆盖该区间；descriptor 必须是正宽度或正像素密度；未映射或不可本地化候选保持原文；source/track/poster/font 仍使用 M6-T4/M6-T5 改写器和 M6-T3 路径 |
 | D-052 | 2026-07-29 | 未捕获线上依赖只来自 unmapped 的规范 HTTP/HTTPS 引用，并与资源下载结果分层关联 | 未改写不等于仍需联网；data、Blob、文档 fragment、无效语法和不支持协议若与线上缺失混在一起，报告无法指导重试或客户交付 | 依赖以无 fragment 但保留 query 的规范 URL 去重；failed/skipped 记录优先于缺失映射归因；非网络保留项只计数不进入依赖列表；所有集合按预定义顺序输出，同一 URL 保留全部来源而不丢失重复证据 |
+| D-053 | 2026-07-29 | Service Worker 安全采用 Acorn AST 静态改写直接注册调用，并在归档 HTML 的 `head` 首位注入运行时 `register` 守卫 | 宽泛字符串替换会误伤注释、字符串和非 JavaScript 数据；仅静态改写无法覆盖外部脚本、别名、动态属性和解析失败脚本，而离线归档不应注册原站 Service Worker | 直接调用按 AST 源偏移局部替换且保留审计记录；运行时同时锁定 container 实例和原型方法作为外部/动态代码兜底；未知别名形态仍作为显式限制记录；CSP 对注入守卫的影响及全部内容变更汇总由 M6-T9 统一处理 |
 
 ---
 
@@ -623,11 +625,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M6-T8：禁用原站 Service Worker 注册的安全策略**。
+下一步严格只执行 **M6-T9：记录 CSP 调整和所有内容变更**。
 
-M6-T8 完成后必须：
+M6-T9 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 结构化识别归档 HTML 中可能注册原站 Service Worker 的脚本语句，不使用宽泛文本替换误伤无关内容；
-3. 输出离线安全策略必须阻止原站 Service Worker 注册和控制离线页，同时保留可审计的变更记录；
-4. 对外部脚本、inline module、动态/别名调用和无法安全改写的形态明确记录限制，不提前实现 M6-T9 CSP 调整和全量内容变更报告。
+2. 明确分析归档 HTML 中 CSP 对本地资源、内联安全守卫和离线运行的影响，只做可解释且范围受控的调整；
+3. 将 HTML、CSS、`srcset`、base URL、Service Worker 与 CSP 等所有归档内容变更汇总为确定性、可审计的结构化报告；
+4. 保留原策略、调整原因、变更位置和已知限制，不提前实现 M6-T10 路径稳定性与离线引用综合测试。

@@ -20,6 +20,10 @@ import {
   validateNetworkUrl,
 } from './rewrite-support';
 import { rewriteSrcsetResource, type SrcsetRewriteResult } from './srcset-rewriter';
+import {
+  applyServiceWorkerSafetyPolicy,
+  type ServiceWorkerSafetyResult,
+} from './service-worker-safety';
 
 const DIRECT_HTML_RESOURCE_ATTRIBUTES = [
   'src',
@@ -80,6 +84,7 @@ export type HtmlRewriteResult = {
   cssRewrites: HtmlCssRewriteResult[];
   srcsetRewrittenCount: number;
   srcsetRewrites: HtmlSrcsetRewriteResult[];
+  serviceWorkerSafety: ServiceWorkerSafetyResult;
 };
 
 export type HtmlCssRewriteResult = {
@@ -321,6 +326,8 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     }
   }
 
+  const serviceWorkerSafety = applyServiceWorkerSafetyPolicy(document, elementOrdinals);
+
   return {
     html: serializeHtmlDocument(document),
     documentPath: options.documentPath,
@@ -337,5 +344,6 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
       0,
     ),
     srcsetRewrites,
+    serviceWorkerSafety,
   };
 }
