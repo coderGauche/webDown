@@ -18,9 +18,14 @@ export type DomResourceSource = Pick<Document, 'URL' | 'baseURI'> & {
   querySelectorAll(selectors: string): NodeListOf<Element> | readonly Element[];
 };
 
-type SrcsetCandidate = {
+export type SrcsetCandidate = {
   rawUrl: string;
   descriptor?: string;
+};
+
+export type SrcsetCandidateSegment = SrcsetCandidate & {
+  urlStart: number;
+  urlEnd: number;
 };
 
 const SRC_TAGS = new Set([
@@ -120,8 +125,8 @@ function isAsciiWhitespace(character: string): boolean {
   );
 }
 
-export function parseSrcsetCandidates(value: string): SrcsetCandidate[] {
-  const candidates: SrcsetCandidate[] = [];
+export function parseSrcsetCandidateSegments(value: string): SrcsetCandidateSegment[] {
+  const candidates: SrcsetCandidateSegment[] = [];
   let position = 0;
 
   while (position < value.length) {
@@ -139,7 +144,9 @@ export function parseSrcsetCandidates(value: string): SrcsetCandidate[] {
 
     if (rawUrl.endsWith(',')) {
       rawUrl = rawUrl.replace(/,+$/, '');
-      if (rawUrl) candidates.push({ rawUrl });
+      if (rawUrl) {
+        candidates.push({ rawUrl, urlStart, urlEnd: urlStart + rawUrl.length });
+      }
       continue;
     }
 
@@ -157,10 +164,24 @@ export function parseSrcsetCandidates(value: string): SrcsetCandidate[] {
 
     const descriptor = value.slice(descriptorStart, position).trim();
     if (position < value.length && value[position] === ',') position += 1;
-    if (rawUrl) candidates.push({ rawUrl, ...(descriptor ? { descriptor } : {}) });
+    if (rawUrl) {
+      candidates.push({
+        rawUrl,
+        ...(descriptor ? { descriptor } : {}),
+        urlStart,
+        urlEnd: urlStart + rawUrl.length,
+      });
+    }
   }
 
   return candidates;
+}
+
+export function parseSrcsetCandidates(value: string): SrcsetCandidate[] {
+  return parseSrcsetCandidateSegments(value).map(({ rawUrl, descriptor }) => ({
+    rawUrl,
+    ...(descriptor ? { descriptor } : {}),
+  }));
 }
 
 function isResourceLink(element: Element): boolean {

@@ -248,6 +248,72 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(rewritten.querySelector('#local-filter')?.getAttribute('filter')).toBe('url(#local)');
   });
 
+  it('coordinates picture, media fallbacks, tracks, posters, and font references', async () => {
+    const resources: ResourcePathInput[] = [
+      { url: `${BASE_URL}images/small.webp`, resourceType: 'image' },
+      { url: `${BASE_URL}images/large.webp?v=2`, resourceType: 'image' },
+      { url: `${BASE_URL}images/fallback.jpg`, resourceType: 'image' },
+      { url: `${BASE_URL}media/poster.jpg`, resourceType: 'image' },
+      { url: `${BASE_URL}media/movie.mp4`, resourceType: 'video' },
+      { url: `${BASE_URL}media/movie.webm`, resourceType: 'video' },
+      { url: `${BASE_URL}media/audio.mp3`, resourceType: 'audio' },
+      { url: `${BASE_URL}media/audio.ogg`, resourceType: 'audio' },
+      { url: `${BASE_URL}captions/en.vtt`, resourceType: 'data' },
+      { url: `${BASE_URL}fonts/preload.woff2`, resourceType: 'font' },
+      { url: `${BASE_URL}fonts/archive.woff2`, resourceType: 'font' },
+    ];
+    const mappings = await savedMappings(resources);
+    const result = rewriteHtmlResource({
+      html: `<!doctype html><html><head>
+        <link rel="preload" as="font" href="fonts/preload.woff2" crossorigin>
+        <style>@font-face { font-family: Archive; src: url(fonts/archive.woff2#regular) format("woff2"); }</style>
+      </head><body>
+        <picture>
+          <source type="image/webp" srcset="images/small.webp 1x, images/large.webp?v=2#wide 2x">
+          <img id="preview" src="images/fallback.jpg" srcset="images/small.webp 640w">
+        </picture>
+        <video id="movie" src="media/movie.mp4" poster="media/poster.jpg">
+          <source id="movie-fallback" src="media/movie.webm" type="video/webm">
+          <track id="captions" src="captions/en.vtt" kind="captions">
+        </video>
+        <audio id="audio" src="media/audio.mp3">
+          <source id="audio-fallback" src="media/audio.ogg" type="audio/ogg">
+        </audio>
+      </body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: mappings,
+    });
+    const rewritten = parseResult(result.html);
+
+    expect(result.rewrittenCount).toBe(8);
+    expect(result.references).toHaveLength(8);
+    expect(result.references.every((reference) => reference.status === 'rewritten')).toBe(true);
+    expect(result.srcsetRewrittenCount).toBe(3);
+    expect(result.srcsetRewrites).toHaveLength(2);
+    expect(result.cssRewrittenCount).toBe(1);
+    expect(result.cssRewrites[0]?.result.references[0]).toMatchObject({
+      kind: 'font-face',
+      status: 'rewritten',
+    });
+
+    const pictureSrcset = rewritten.querySelector('picture source')?.getAttribute('srcset');
+    expect(pictureSrcset).toContain(' 1x, ');
+    expect(pictureSrcset).toContain('--q-');
+    expect(pictureSrcset).toContain('#wide 2x');
+    expect(rewritten.querySelector('#preview')?.getAttribute('srcset')).toContain(' 640w');
+    expect(rewritten.querySelector('#movie')?.getAttribute('src')).toContain('/media/');
+    expect(rewritten.querySelector('#movie')?.getAttribute('poster')).toContain('/images/');
+    expect(rewritten.querySelector('#movie-fallback')?.getAttribute('src')).toContain('/media/');
+    expect(rewritten.querySelector('#captions')?.getAttribute('src')).toContain('/data/');
+    expect(rewritten.querySelector('#audio')?.getAttribute('src')).toContain('/media/');
+    expect(rewritten.querySelector('#audio-fallback')?.getAttribute('src')).toContain('/media/');
+    expect(rewritten.querySelector('link[as="font"]')?.getAttribute('href')).toContain('/fonts/');
+    expect(rewritten.querySelector('style')?.textContent).toContain('/fonts/');
+    expect(rewritten.querySelector('style')?.textContent).toContain('#regular');
+  });
+
   it('rejects unsafe paths, non-network document context, and ambiguous saved mappings', async () => {
     const [mapping] = await savedMappings([
       { url: 'https://cdn.example.test/assets/image.png', resourceType: 'image' },

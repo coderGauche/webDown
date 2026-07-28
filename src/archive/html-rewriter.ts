@@ -19,6 +19,7 @@ import {
   validateArchivePath,
   validateNetworkUrl,
 } from './rewrite-support';
+import { rewriteSrcsetResource, type SrcsetRewriteResult } from './srcset-rewriter';
 
 const DIRECT_HTML_RESOURCE_ATTRIBUTES = [
   'src',
@@ -77,6 +78,8 @@ export type HtmlRewriteResult = {
   baseHrefRemovals: HtmlBaseHrefRemoval[];
   cssRewrittenCount: number;
   cssRewrites: HtmlCssRewriteResult[];
+  srcsetRewrittenCount: number;
+  srcsetRewrites: HtmlSrcsetRewriteResult[];
 };
 
 export type HtmlCssRewriteResult = {
@@ -85,6 +88,14 @@ export type HtmlCssRewriteResult = {
   sourceType: EmbeddedCssSourceType;
   attributeName: 'style' | (typeof SVG_PRESENTATION_ATTRIBUTES)[number] | null;
   result: CssRewriteResult;
+};
+
+export type HtmlSrcsetRewriteResult = {
+  elementOrdinal: number;
+  tagName: 'img' | 'source';
+  attributeName: 'srcset';
+  originalValue: string;
+  result: SrcsetRewriteResult;
 };
 
 export type RewriteHtmlResourceOptions = {
@@ -225,6 +236,28 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     }
   }
 
+  const srcsetRewrites: HtmlSrcsetRewriteResult[] = [];
+  for (const element of elements) {
+    if (!isDomResourceAttribute(element, 'srcset')) continue;
+    const originalValue = element.getAttribute('srcset');
+    if (originalValue === null || originalValue.trim() === '') continue;
+
+    const result = rewriteSrcsetResource({
+      srcset: originalValue,
+      baseUrl,
+      sourcePath: options.documentPath,
+      savedResourceMappings: options.savedResourceMappings,
+    });
+    if (result.rewrittenCount > 0) element.setAttribute('srcset', result.srcset);
+    srcsetRewrites.push({
+      elementOrdinal: elementOrdinals.get(element) ?? 0,
+      tagName: element.tagName.toLowerCase() as 'img' | 'source',
+      attributeName: 'srcset',
+      originalValue,
+      result,
+    });
+  }
+
   const cssRewrites: HtmlCssRewriteResult[] = [];
   for (const element of elements) {
     const common = {
@@ -299,5 +332,10 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
       0,
     ),
     cssRewrites,
+    srcsetRewrittenCount: srcsetRewrites.reduce(
+      (total, rewrite) => total + rewrite.result.rewrittenCount,
+      0,
+    ),
+    srcsetRewrites,
   };
 }

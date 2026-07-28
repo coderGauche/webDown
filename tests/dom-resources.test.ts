@@ -3,6 +3,7 @@
 import {
   discoverDomResources,
   isDomResourceCandidate,
+  parseSrcsetCandidateSegments,
   parseSrcsetCandidates,
   type DomResourceSource,
 } from '@sitecapsule/discovery';
@@ -173,6 +174,20 @@ describe('DOM resource discovery', () => {
       { rawUrl: 'images/hero@2x.png', descriptor: '2x' },
       { rawUrl: 'images/wide.png', descriptor: '1200w' },
     ]);
+  });
+
+  it('reports exact srcset URL spans without including delimiters or descriptors', () => {
+    const source = 'one.png,  data:image/png;base64,AAAA 1x, two.png 640w';
+    const segments = parseSrcsetCandidateSegments(source);
+
+    expect(segments.map(({ rawUrl, descriptor }) => ({ rawUrl, descriptor }))).toEqual([
+      { rawUrl: 'one.png', descriptor: undefined },
+      { rawUrl: 'data:image/png;base64,AAAA', descriptor: '1x' },
+      { rawUrl: 'two.png', descriptor: '640w' },
+    ]);
+    expect(segments.map((segment) => source.slice(segment.urlStart, segment.urlEnd))).toEqual(
+      segments.map((segment) => segment.rawUrl),
+    );
   });
 
   it('rejects over-posted and structurally invalid serialized candidates', () => {

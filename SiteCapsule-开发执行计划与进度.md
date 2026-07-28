@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M6 路径映射与内容改写
-> 当前状态：M6-T5 已完成，等待开始 M6-T6
-> 下一任务：M6-T6 处理 `srcset`、`picture`、媒体和字体
+> 当前状态：M6-T6 已完成，等待开始 M6-T7
+> 下一任务：M6-T7 记录未捕获的线上依赖
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -294,7 +294,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M6-T3** 实现 query 哈希和路径冲突处理；
 - [x] **M6-T4** 使用 DOMParser 改写 HTML 资源；
 - [x] **M6-T5** 使用 CSSTree 改写 CSS URL；
-- [ ] **M6-T6** 处理 `srcset`、`picture`、媒体和字体；
+- [x] **M6-T6** 处理 `srcset`、`picture`、媒体和字体；
 - [ ] **M6-T7** 记录未捕获的线上依赖；
 - [ ] **M6-T8** 禁用原站 Service Worker 注册的安全策略；
 - [ ] **M6-T9** 记录 CSP 调整和所有内容变更；
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M6 路径映射与内容改写 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M6-T5 使用 CSSTree 改写 CSS URL |
-| 下一任务 | M6-T6 处理 `srcset`、`picture`、媒体和字体 |
+| 最近完成 | M6-T6 处理 `srcset`、`picture`、媒体和字体 |
+| 下一任务 | M6-T7 记录未捕获的线上依赖 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -530,6 +530,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M6-T3 | 完成 | 新增 `src/archive/resource-path-mapping.ts` 与归档模块导出，使用 Web Crypto SHA-256 建立稳定路径身份；非空 query 仅以 12 位十六进制 `--q-{hash}` 后缀进入文件名，不泄露参数正文且保留 query 顺序和值差异；批量分配先按规范化 URL + 资源类型去重并保存排序后的全部原始 URL 别名，再按身份排序，与输入和下载完成顺序无关；同目录内以 NFC + 小写路径键检测路径叶扁平化、非法字符清理、大小写、截断及共享类型目录冲突，冲突组所有成员统一加 `--c-{hash}`，若短哈希仍冲突则每轮扩展 4 位直至完整 SHA-256，无法安全消解时显式失败而不覆盖；新增 `appendArchiveFileNameSuffix`，后缀始终插入扩展名前并继续遵守 240 UTF-8 字节限制；输出保留 normalized URL、original URLs、类型、目录、基础名、query/collision hash、文件名和唯一相对路径；未提前实现 M6-T4 HTML 改写；3 个归档路径测试文件共 84 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（37 个文件、410 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T4 | 完成 | 新增 `src/archive/html-rewriter.ts` 与归档模块导出，使用 DOMParser 将已清理 HTML 快照解析为文档树，复用 M4 的 DOM/SVG 资源属性判定，只改写资源语义明确的 `src`、`href`、`poster` 和 SVG `xlink:href`；改写仅消费调用方提供的已保存 `ResourcePathMapping`，按 HTML 文件目录计算 POSIX 相对路径，对每个本地路径段执行 URI 编码以保护空格、`#`、`%` 和 Unicode，并在目标文件名后恢复原 fragment；捕获时的 base URL 用于解析原引用，输出前移除所有 `<base href>` 以免离线相对路径重新指向线上；导航链接、canonical、inline CSS、`srcset` 和 SVG 文档内 symbol 保持不变；结果记录 rewritten/unmapped/unsupported/invalid 四类引用、元素序号、目标路径和 base href 变更，重复引用逐项可追踪；保存映射 URL 歧义、非规范 URL、危险归档路径和非 HTTP/HTTPS 上下文会显式拒绝；Discovery 仅导出既有属性判定函数，发现行为不变；未提前实现 M6-T5 CSS 或 M6-T6 `srcset`/picture 改写；4 个相关测试文件共 27 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（38 个文件、415 项测试）、`pnpm build`（MV3 总计 503.31 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T5 | 完成 | 新增 `src/archive/css-rewriter.ts` 及归档模块导出，使用 CSSTree AST 按 stylesheet、declaration list 和 value 三种上下文改写真实 `url()`、`@import` 与 `@font-face src`，支持嵌套 at-rule、自定义属性、`<style>`、style attribute 和 SVG 表现属性；抽取 `src/archive/rewrite-support.ts` 共享安全路径、网络 URL、已保存映射及相对引用生成逻辑，HTML 与 CSS 一致地只将已保存的唯一 `ResourcePathMapping` 转为本地路径，按独立 CSS 文件或宿主 HTML 归档路径计算相对基准，query 继续由 M6-T3 哈希文件名表达并恢复 fragment；data、Blob、文档内 fragment、非网络协议、缺失映射和无效 URL 保持原文并结构化记录；零改写或解析失败时完整保留原 CSS 格式，额外检查 AST 源位置以防止容错恢复的未闭合 URL/字符串被误改；不将 `@supports` 能力查询 URL 视为资源，未提前实现 M6-T6 `srcset`/picture/媒体编排；4 个相关测试文件共 30 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（39 个文件、423 项测试）、`pnpm build`（MV3 总计 503.31 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M6-T6 | 完成 | 新增 `src/archive/srcset-rewriter.ts` 及归档模块导出，结构化遍历 `img`/`source` 的 `srcset` 候选，仅将已保存映射对应的 URL 源区间替换为本地归档相对路径，不重新序列化整个属性，因此保留候选顺序、原空白/逗号及密度/宽度 descriptor；Discovery 的既有状态扫描扩展为可导出的精确 URL span，原 `parseSrcsetCandidates` 输出和发现顺序不变；每个候选记录 rewritten/unmapped/unsupported/fragment/invalid 诊断，data、Blob、纯 fragment、无效 URL、非法/零 descriptor 和缺失映射均保持原值；HTML 改写结果新增 `srcset` 候选统计，`picture`、video/audio/source/track/poster 和字体 preload 复用 M6-T4 直接属性映射，`@font-face` 复用 M6-T5 CSS 映射，同一归档内不重复命名；未提前实现 M6-T7 未捕获依赖汇总；4 个相关测试文件共 25 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（40 个文件、430 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -599,6 +600,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-048 | 2026-07-29 | query 与路径冲突使用 SHA-256 身份后缀，路径由完整输入集合批量确定性分配 | 逐项抢占裸文件名会让发现顺序和并发完成顺序改变归档内容；原始 query 进入文件名会泄露 Token/参数并产生非法或超长名称；仅比较大小写敏感字符串会在常见本地文件系统上覆盖 | 非空 query 固定使用 12 位短哈希；冲突键按 NFC + 小写相对路径计算，组内所有成员均改名，短碰撞时逐步扩展哈希；相同规范化 URL + 类型合并但保留原始别名；后续 HTML/CSS 改写只消费已完成的唯一映射，不自行重新命名 |
 | D-049 | 2026-07-29 | HTML 使用 DOMParser 结构化改写，并在解析原引用后移除 `<base href>`；只有已保存的唯一映射可转成本地引用 | 字符串替换会误改文本、脚本和相似 URL；保留线上 base href 会使看似正确的相对路径仍请求原站；将未下载资源改成本地路径会制造离线假成功 | HTML 改写必须在 DOM-capable/offscreen 上下文执行；资源属性判定与发现阶段共用规则；本地路径逐段 URL 编码并保留 fragment；未映射、非法和不支持协议保持原值并进入结构化诊断；CSS、srcset 和安全策略由后续任务处理 |
 | D-050 | 2026-07-29 | CSS 使用 CSSTree AST 按语法上下文改写，仅已保存映射可生成本地 URL，零改写时保留原文 | CSS 中的转义、引号、data URL、嵌套规则和容错语法使字符串/正则替换不可靠；AST 生成器即使未改写也可能重排格式，容错 parser 还可能恢复残缺节点 | stylesheet、style attribute 和 SVG value 使用对应 parser context；排除 `@supports` 等非加载 prelude；对资源节点复查原始位置边界；未映射/不支持/无效引用只记录不改写；仅至少一项真实改写时才生成新 CSS 文本 |
+| D-051 | 2026-07-29 | `srcset` 使用候选 URL 源区间局部替换，媒体与字体复用 HTML/CSS 已保存映射 | 重新拼接 `srcset` 容易改变 data URL 逗号、空白和 descriptor，进而影响浏览器候选选择；为 picture、音视频和字体另建命名系统会破坏 M6-T3 的唯一路径身份 | 发现扫描同时返回 URL 起止偏移，改写只覆盖该区间；descriptor 必须是正宽度或正像素密度；未映射或不可本地化候选保持原文；source/track/poster/font 仍使用 M6-T4/M6-T5 改写器和 M6-T3 路径 |
 
 ---
 
@@ -619,11 +621,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M6-T6：处理 `srcset`、`picture`、媒体和字体**。
+下一步严格只执行 **M6-T7：记录未捕获的线上依赖**。
 
-M6-T6 完成后必须：
+M6-T7 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 结构化改写 `img`/`source` 的 `srcset`，保留候选顺序、密度或宽度 descriptor，只将已保存映射转为本地引用；
-3. 覆盖 `picture`、audio/video/source/track/poster 以及页面字体引用的离线路径联动，复用 M6-T4/M6-T5 改写能力而不重复命名；
-4. 未保存、data/Blob、纯 fragment、无效候选和不支持协议必须保留原值并记录诊断，不提前实现 M6-T7 未捕获依赖汇总。
+2. 将 HTML、CSS 和 `srcset` 改写结果中仍需线上访问的引用汇总为稳定、去重且可追踪的未捕获依赖；
+3. 区分下载失败/缺失映射、不支持协议、无效引用和本地 fragment/data 等不需网络的保留项，不将所有未改写引用笼统标记为线上依赖；
+4. 记录规范 URL、来源通道、出现次数和原因，保持输出顺序可确定，不提前实现 M6-T8 Service Worker 安全策略。

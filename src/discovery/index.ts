@@ -12,10 +12,13 @@ export {
   DOM_RESOURCE_ATTRIBUTES,
   isDomResourceAttribute,
   isDomResourceCandidate,
+  parseSrcsetCandidateSegments,
   parseSrcsetCandidates,
   type DomResourceAttribute,
   type DomResourceCandidate,
   type DomResourceSource,
+  type SrcsetCandidate,
+  type SrcsetCandidateSegment,
 } from './dom-resources';
 export {
   discoverEmbeddedResources,

@@ -31,6 +31,7 @@ export {
   type HtmlDomParser,
   type HtmlReferenceResult,
   type HtmlRewriteResult,
+  type HtmlSrcsetRewriteResult,
   type RewriteHtmlResourceOptions,
 } from './html-rewriter';
 export { createLocalArchiveReference, createRelativeArchivePath } from './rewrite-support';
@@ -43,3 +44,9 @@ export {
   type CssRewriteResult,
   type RewriteCssResourceOptions,
 } from './css-rewriter';
+export {
+  rewriteSrcsetResource,
+  type RewriteSrcsetResourceOptions,
+  type SrcsetReferenceResult,
+  type SrcsetRewriteResult,
+} from './srcset-rewriter';
