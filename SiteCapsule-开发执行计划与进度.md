@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M6 路径映射与内容改写
-> 当前状态：M5 已完成，等待开始 M6-T1
-> 下一任务：M6-T1 实现确定性域名目录和文件类型目录
+> 当前状态：M6-T1 已完成，等待开始 M6-T2
+> 下一任务：M6-T2 实现非法文件名清理
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -121,7 +121,7 @@
 | M3 | 当前页面 DOM 快照 | 3-4 工程日 | 已完成 |
 | M4 | 资源发现与资源图 | 4-6 工程日 | 已完成 |
 | M5 | 下载引擎与权限策略 | 4-6 工程日 | 已完成 |
-| M6 | 路径映射与内容改写 | 4-6 工程日 | 待开始 |
+| M6 | 路径映射与内容改写 | 4-6 工程日 | 进行中 |
 | M7 | ZIP、清单与归档报告 | 3-4 工程日 | 待开始 |
 | M8 | Side Panel 完整工作流 | 4-6 工程日 | 待开始 |
 | M9 | 稳定性、安全与自动化测试 | 5-7 工程日 | 待开始 |
@@ -289,7 +289,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 目标：将线上资源稳定映射到 ZIP，并恢复本地引用关系。
 
-- [ ] **M6-T1** 实现确定性域名目录和文件类型目录；
+- [x] **M6-T1** 实现确定性域名目录和文件类型目录；
 - [ ] **M6-T2** 实现非法文件名清理；
 - [ ] **M6-T3** 实现 query 哈希和路径冲突处理；
 - [ ] **M6-T4** 使用 DOMParser 改写 HTML 资源；
@@ -464,12 +464,12 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M6 路径映射与内容改写 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M5-T10 使用多域 fixture 做集成测试 |
-| 下一任务 | M6-T1 实现确定性域名目录和文件类型目录 |
+| 最近完成 | M6-T1 实现确定性域名目录和文件类型目录 |
+| 下一任务 | M6-T2 实现非法文件名清理 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
-| 最近验证日期 | 2026-07-25 |
+| 最近验证日期 | 2026-07-28 |
 
 ---
 
@@ -525,6 +525,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-24 | M5-T8 | 完成 | 新增 `src/download/resource-network-policy.ts` 及下载模块导出，使用 WHATWG URL 规范化请求目标并仅允许无嵌入凭据的 HTTP/HTTPS；拒绝 localhost、本地域名后缀、单标签主机，以及未指定、回环、私有、共享、链路本地、基准测试、组播和保留 IPv4/IPv6 地址，覆盖缩写、整数、十六进制和 IPv4 映射 IPv6 表示；每个公共目标按 scheme + 精确 hostname 生成 Chrome 权限模式，协议和子域互不继承；原始 URL、完整观测链的每个跳转目标和 final URL 使用同一策略复查，并缓存同一模式的权限结果；安全 Fetch 配置固定为省略 credentials、无 referrer、不使用缓存并保留 AbortSignal；标准 Fetch 无法在请求前解析 DNS 或公开未知中间跳转，未授权目标仍由 Chrome 精确 host permission 阻断，响应元数据用于事后复核；未实现 M5-T9 失败聚合；`tests/resource-network-policy.test.ts` 56 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（32 个文件、312 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
 | 2026-07-25 | M5-T9 | 完成 | 新增 `src/download/resource-download-batch.ts` 及下载模块导出，在 M5-T3/M5-T4 队列之上建立稳定的资源批次结果层；worker 可返回 saved/failed 结构化结果，同步异常、异步拒绝和非法 worker 输出均被隔离到对应资源并归一化为脱敏 `CaptureError`，次要资源失败不会停止后续项；调用方显式提供 `primaryResourceId`，仅该主文档失败生成 `fatalError` 和批次 `failed`，避免将站点抓取中的所有 document 误判为致命；批次状态区分 completed、completed-with-errors、failed、paused 和 cancelled，暂停/取消的 aborted/not-started 保留原资源状态且不计入失败；输出稳定输入顺序、逐资源结果、saved/failed/aborted/not-started/bytes 计数和可直接合并的 `JobCounters` 增量；校验唯一资源 ID、单任务归属、主资源存在、worker 返回身份及安全整数总字节；未实现 M5-T10 fixture 集成；`tests/resource-download-batch.test.ts` 11 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（33 个文件、323 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
 | 2026-07-25 | M5-T10 | 完成 | 新增无公网依赖的 `tests/fixtures/multi-origin-http.ts` 内存多 origin HTTP fixture 和 `tests/download-engine.integration.test.ts`；以 `.test` 公共形态域名模拟主站、已授权 CDN、未授权第三方、跨 origin 302、429 + Retry-After、503、404、单文件超限、本地 IP 和 data URL，将精确权限、安全策略、受控并发、重试、响应/重定向/MIME 元数据、流式体积限制及批次聚合贯穿同一流程；主场景 10 个资源得到 5 saved/5 failed、19 bytes，部分失败不阻断且资源记录与内存 sink 一致；共享预算场景并发提交严格停在 7 bytes；取消场景中活动请求中止且后续资源从未触达 fixture；M5 六项验收门禁全部满足；fixture 不解析真实 DNS、不替代 Chrome host permission 和真实浏览器跨域行为，相关限制继续由 D-043 管理；未实现 M6 路径映射/改写；3 项集成测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（34 个文件、326 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
+| 2026-07-28 | M6-T1 | 完成 | 新增 `src/archive/resource-directory.ts` 与归档模块导出，从规范化 HTTP/HTTPS URL 和 `ResourceType` 生成固定层级 `assets/origins/{scheme}/{host-kind-hostname}/{default\|port-N}/{type-directory}`；DNS、IPv4 和 IPv6 使用可区分的安全前缀，scheme、hostname 与非默认端口分别参与 origin 身份，13 种资源类型稳定映射到 documents/css/images/fonts/js/media/wasm/manifests/models/textures/data/other 目录；同输入、乱序和重复计算结果一致，默认端口、大小写、path/query/fragment 均不会改变 origin 目录；拒绝非 HTTP/HTTPS、凭据 URL、非法 URL 和非法资源类型；未提前实现 M6-T2 文件名清理、M6-T3 query 哈希或冲突处理；`tests/resource-directory.test.ts` 27 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（35 个文件、353 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -589,6 +590,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-043 | 2026-07-24 | 资源请求采用 URL 字面地址安全分类、精确 Chrome host permission 和响应 URL 复查三层策略 | 标准扩展 Fetch 不提供请求前 DNS 解析结果，也不保证公开自动跳转的全部中间响应；仅检查原始 URL 会留下凭据、私网字面地址、跨协议或跨 hostname 跳转风险 | 请求前只接受无凭据 HTTP/HTTPS 并拒绝已知本地/非公网主机表示；每个目标要求 scheme + 精确 hostname 授权，Chrome 权限作为未知跨域跳转的前置执行边界；已观测跳转链和 final URL 再次使用同一策略；DNS 重绑定和完整网络链审计留给后续深度模式/CDP 能力评估 |
 | D-044 | 2026-07-25 | 下载批次将资源失败、任务致命失败和用户中断建模为三个独立维度 | 次要图片、字体或脚本失败不应让整个离线包丢失，但主文档失败后任务没有可交付入口；暂停/取消若写成 failed 会破坏恢复语义和失败统计 | 只有显式 `primaryResourceId` 对应资源失败产生 fatalError；其他失败持久化到各自 ResourceRecord 后批次继续；pause/cancel 保留 aborted/not-started 和原资源状态；聚合结果按输入顺序输出稳定计数，实际仓储写回由后续下载编排层执行 |
 | D-045 | 2026-07-25 | M5 集成使用可注入的内存多 origin HTTP fixture，不监听 localhost 端口或访问公网 | localhost 会被 M5-T8 正确拒绝，公网测试又会引入 DNS、证书、服务可用性和限流的不确定性；测试绕过策略会让安全验收失真 | fixture 使用 `.test` URL 并仍通过真实权限/网络策略，只替换最终 I/O；可确定性控制响应、重试、跳转、流和中止；Chrome 权限执行、DNS 重绑定和浏览器网络栈差异保留为真实浏览器/M9 安全测试范围 |
+| D-046 | 2026-07-28 | 资源 origin 使用 scheme、主机类型/主机名、端口三个固定目录层级表达，不压缩为单个拼接目录名 | 单段字符串容易因分隔符、IPv6 冒号/方括号和自定义端口产生非法文件名或碰撞，也不利于人工检查归档来源 | 目录结构可读且各身份字段互不混淆；DNS、IPv4、IPv6 分别使用 `dns-`、`ipv4-`、`ipv6-` 前缀，IPv6 冒号安全转换；叶文件名、长度、query 哈希和路径冲突分别留给 M6-T2/M6-T3 |
 
 ---
 
@@ -609,11 +611,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M6-T1：实现确定性域名目录和文件类型目录**。
+下一步严格只执行 **M6-T2：实现非法文件名清理**。
 
-M6-T1 完成后必须：
+M6-T2 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 从规范化 HTTP/HTTPS URL 和资源类型生成确定性的 origin 目录与文件类型目录，不依赖发现顺序或下载完成顺序；
-3. 明确 scheme、hostname、非默认端口和资源类型的目录映射，保证同输入重复计算结果一致且不同 origin 不碰撞；
-4. 覆盖默认端口、自定义端口、IPv4/IPv6、大小写和未知资源类型，不提前实现 M6-T2 文件名清理、M6-T3 query 哈希或冲突处理。
+2. 将 URL 路径叶名称和必要的回退名称清理为 Windows、macOS、Linux 与 ZIP 均可接受的可移植文件名；
+3. 明确处理控制字符、路径分隔符、`.`/`..`、尾随点/空格、Windows 保留设备名、空名称、Unicode 和长度上限，同时保持确定性与资源扩展名；
+4. 为边界输入和重复计算编写测试，不提前实现 M6-T3 query 哈希、冲突消解或完整本地路径分配。
