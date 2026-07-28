@@ -22,6 +22,16 @@ export {
   type ArchiveMetadataPath,
 } from './archive-layout';
 export {
+  ARCHIVE_MANIFEST_FORMAT_VERSION,
+  ARCHIVE_MANIFEST_PRODUCT,
+  ARCHIVE_MANIFEST_REDACTED_VALUE,
+  buildArchiveManifest,
+  createArchiveManifestBytes,
+  createArchiveManifestEntry,
+  type ArchiveManifest,
+  type ArchiveManifestInput,
+} from './archive-manifest';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,
