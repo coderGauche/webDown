@@ -93,6 +93,16 @@ function truncateFileName(value: string): string {
   return truncateUtf8(value, PORTABLE_FILE_NAME_MAX_BYTES).replace(/[ .]+$/g, '');
 }
 
+function splitPortableExtension(value: string): { stem: string; extension: string } {
+  const dotIndex = value.lastIndexOf('.');
+  if (dotIndex <= 0) return { stem: value, extension: '' };
+
+  const extension = value.slice(dotIndex);
+  return utf8ByteLength(extension) <= PORTABLE_FILE_EXTENSION_MAX_BYTES
+    ? { stem: value.slice(0, dotIndex), extension }
+    : { stem: value, extension: '' };
+}
+
 export function sanitizeArchiveFileName(value: string, fallback = 'resource'): string {
   if (typeof value !== 'string' || typeof fallback !== 'string') {
     throw new TypeError('Archive file name and fallback must be strings.');
@@ -101,6 +111,31 @@ export function sanitizeArchiveFileName(value: string, fallback = 'resource'): s
   const cleanedFallback = protectWindowsDeviceName(cleanFileName(fallback)) || 'resource';
   const cleanedName = protectWindowsDeviceName(cleanFileName(value)) || cleanedFallback;
   return truncateFileName(cleanedName) || truncateFileName(cleanedFallback) || 'resource';
+}
+
+export function appendArchiveFileNameSuffix(value: string, suffix: string): string {
+  if (typeof suffix !== 'string' || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(suffix)) {
+    throw new TypeError(
+      'Archive file name suffix must contain lowercase letters, digits, or hyphens.',
+    );
+  }
+
+  const marker = `--${suffix}`;
+  const markerBytes = utf8ByteLength(marker);
+  if (markerBytes >= PORTABLE_FILE_NAME_MAX_BYTES) {
+    throw new RangeError('Archive file name suffix is too long.');
+  }
+
+  const fileName = sanitizeArchiveFileName(value);
+  const { stem, extension } = splitPortableExtension(fileName);
+  const extensionBytes = utf8ByteLength(extension);
+  const stemBudget = PORTABLE_FILE_NAME_MAX_BYTES - markerBytes - extensionBytes;
+  if (stemBudget < 1) throw new RangeError('Archive file name suffix is too long.');
+
+  const truncatedStem =
+    truncateUtf8(stem, stemBudget).replace(/[ .]+$/g, '') || truncateUtf8('resource', stemBudget);
+
+  return `${truncatedStem}${marker}${extension}`;
 }
 
 function decodePathSegment(value: string): string {
