@@ -10,6 +10,7 @@ export {
 export {
   discoverDomResources,
   DOM_RESOURCE_ATTRIBUTES,
+  isDomResourceAttribute,
   isDomResourceCandidate,
   parseSrcsetCandidates,
   type DomResourceAttribute,
@@ -23,6 +24,7 @@ export {
   isSvgResourceCandidate,
   SVG_PRESENTATION_ATTRIBUTES,
   SVG_RESOURCE_ATTRIBUTES,
+  isSvgResourceAttribute,
   type EmbeddedCssSource,
   type EmbeddedCssSourceType,
   type EmbeddedResourceDiscovery,

@@ -68,6 +68,17 @@ const SVG_RESOURCE_TAGS = new Set([
   'use',
 ]);
 
+export function isSvgResourceAttribute(
+  element: Element,
+  attributeName: SvgResourceAttribute,
+): boolean {
+  return (
+    element.namespaceURI === SVG_NAMESPACE &&
+    SVG_RESOURCE_TAGS.has(element.tagName.toLowerCase()) &&
+    SVG_RESOURCE_ATTRIBUTES.includes(attributeName)
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -248,6 +259,7 @@ export function discoverEmbeddedResources(
 
     if (element.namespaceURI !== SVG_NAMESPACE || !SVG_RESOURCE_TAGS.has(tagName)) continue;
     for (const attributeName of SVG_RESOURCE_ATTRIBUTES) {
+      if (!isSvgResourceAttribute(element, attributeName)) continue;
       const attributeValue = element.getAttribute(attributeName);
       if (attributeValue === null) continue;
       const candidate = createSvgCandidate(

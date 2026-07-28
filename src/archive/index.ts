@@ -24,3 +24,12 @@ export {
   type ResourcePathInput,
   type ResourcePathMapping,
 } from './resource-path-mapping';
+export {
+  createRelativeArchivePath,
+  rewriteHtmlResource,
+  type HtmlBaseHrefRemoval,
+  type HtmlDomParser,
+  type HtmlReferenceResult,
+  type HtmlRewriteResult,
+  type RewriteHtmlResourceOptions,
+} from './html-rewriter';

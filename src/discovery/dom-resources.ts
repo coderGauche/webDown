@@ -169,7 +169,10 @@ function isResourceLink(element: Element): boolean {
   return relations.some((relation) => LINK_RESOURCE_RELATIONS.has(relation));
 }
 
-function isResourceAttribute(element: Element, attributeName: DomResourceAttribute): boolean {
+export function isDomResourceAttribute(
+  element: Element,
+  attributeName: DomResourceAttribute,
+): boolean {
   const tagName = element.tagName.toLowerCase();
   if (!supportsAttribute(tagName, attributeName)) return false;
   if (attributeName === 'href') return isResourceLink(element);
@@ -215,7 +218,7 @@ export function discoverDomResources(source: DomResourceSource): DomResourceCand
 
   for (const element of Array.from(source.querySelectorAll('*'))) {
     for (const attributeName of DOM_RESOURCE_ATTRIBUTES) {
-      if (!isResourceAttribute(element, attributeName)) continue;
+      if (!isDomResourceAttribute(element, attributeName)) continue;
       const attributeValue = element.getAttribute(attributeName);
       if (attributeValue === null || attributeValue.trim() === '') continue;
 

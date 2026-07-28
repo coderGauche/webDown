@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M6 路径映射与内容改写
-> 当前状态：M6-T3 已完成，等待开始 M6-T4
-> 下一任务：M6-T4 使用 DOMParser 改写 HTML 资源
+> 当前状态：M6-T4 已完成，等待开始 M6-T5
+> 下一任务：M6-T5 使用 CSSTree 改写 CSS URL
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -292,7 +292,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M6-T1** 实现确定性域名目录和文件类型目录；
 - [x] **M6-T2** 实现非法文件名清理；
 - [x] **M6-T3** 实现 query 哈希和路径冲突处理；
-- [ ] **M6-T4** 使用 DOMParser 改写 HTML 资源；
+- [x] **M6-T4** 使用 DOMParser 改写 HTML 资源；
 - [ ] **M6-T5** 使用 CSSTree 改写 CSS URL；
 - [ ] **M6-T6** 处理 `srcset`、`picture`、媒体和字体；
 - [ ] **M6-T7** 记录未捕获的线上依赖；
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M6 路径映射与内容改写 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M6-T3 实现 query 哈希和路径冲突处理 |
-| 下一任务 | M6-T4 使用 DOMParser 改写 HTML 资源 |
+| 最近完成 | M6-T4 使用 DOMParser 改写 HTML 资源 |
+| 下一任务 | M6-T5 使用 CSSTree 改写 CSS URL |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -528,6 +528,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-28 | M6-T1 | 完成 | 新增 `src/archive/resource-directory.ts` 与归档模块导出，从规范化 HTTP/HTTPS URL 和 `ResourceType` 生成固定层级 `assets/origins/{scheme}/{host-kind-hostname}/{default\|port-N}/{type-directory}`；DNS、IPv4 和 IPv6 使用可区分的安全前缀，scheme、hostname 与非默认端口分别参与 origin 身份，13 种资源类型稳定映射到 documents/css/images/fonts/js/media/wasm/manifests/models/textures/data/other 目录；同输入、乱序和重复计算结果一致，默认端口、大小写、path/query/fragment 均不会改变 origin 目录；拒绝非 HTTP/HTTPS、凭据 URL、非法 URL 和非法资源类型；未提前实现 M6-T2 文件名清理、M6-T3 query 哈希或冲突处理；`tests/resource-directory.test.ts` 27 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（35 个文件、353 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
 | 2026-07-28 | M6-T2 | 完成 | 新增 `src/archive/resource-file-name.ts` 与归档模块导出，提供独立 `sanitizeArchiveFileName` 和从规范化 URL 路径叶生成名称的 `createResourceFileName`；文件名使用 NFC Unicode，替换 C0/C1 控制字符及 Windows 禁用字符，清除首部空格和尾随空格/点，为 `CON`/`PRN`/`AUX`/`NUL`、COM/LPT 数字与上标数字别名、`CLOCK$`、`CONIN$`、`CONOUT$` 增加保护前缀，并处理空名、`.`/`..`、非法回退名和孤立 UTF-16 surrogate；名称限制为 240 UTF-8 字节，截断不拆分码点且优先保留最多 32 字节的扩展名；目录 URL 按 13 种资源类型使用稳定回退名，percent 编码路径叶先安全解码；query/fragment 不参与当前文件名，未提前实现 M6-T3 哈希和冲突消解；`tests/resource-file-name.test.ts` 与 M6-T1 回归合计 71 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（36 个文件、397 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T3 | 完成 | 新增 `src/archive/resource-path-mapping.ts` 与归档模块导出，使用 Web Crypto SHA-256 建立稳定路径身份；非空 query 仅以 12 位十六进制 `--q-{hash}` 后缀进入文件名，不泄露参数正文且保留 query 顺序和值差异；批量分配先按规范化 URL + 资源类型去重并保存排序后的全部原始 URL 别名，再按身份排序，与输入和下载完成顺序无关；同目录内以 NFC + 小写路径键检测路径叶扁平化、非法字符清理、大小写、截断及共享类型目录冲突，冲突组所有成员统一加 `--c-{hash}`，若短哈希仍冲突则每轮扩展 4 位直至完整 SHA-256，无法安全消解时显式失败而不覆盖；新增 `appendArchiveFileNameSuffix`，后缀始终插入扩展名前并继续遵守 240 UTF-8 字节限制；输出保留 normalized URL、original URLs、类型、目录、基础名、query/collision hash、文件名和唯一相对路径；未提前实现 M6-T4 HTML 改写；3 个归档路径测试文件共 84 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（37 个文件、410 项测试）、`pnpm build`（MV3 总计 503.19 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M6-T4 | 完成 | 新增 `src/archive/html-rewriter.ts` 与归档模块导出，使用 DOMParser 将已清理 HTML 快照解析为文档树，复用 M4 的 DOM/SVG 资源属性判定，只改写资源语义明确的 `src`、`href`、`poster` 和 SVG `xlink:href`；改写仅消费调用方提供的已保存 `ResourcePathMapping`，按 HTML 文件目录计算 POSIX 相对路径，对每个本地路径段执行 URI 编码以保护空格、`#`、`%` 和 Unicode，并在目标文件名后恢复原 fragment；捕获时的 base URL 用于解析原引用，输出前移除所有 `<base href>` 以免离线相对路径重新指向线上；导航链接、canonical、inline CSS、`srcset` 和 SVG 文档内 symbol 保持不变；结果记录 rewritten/unmapped/unsupported/invalid 四类引用、元素序号、目标路径和 base href 变更，重复引用逐项可追踪；保存映射 URL 歧义、非规范 URL、危险归档路径和非 HTTP/HTTPS 上下文会显式拒绝；Discovery 仅导出既有属性判定函数，发现行为不变；未提前实现 M6-T5 CSS 或 M6-T6 `srcset`/picture 改写；4 个相关测试文件共 27 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（38 个文件、415 项测试）、`pnpm build`（MV3 总计 503.31 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -595,6 +596,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-046 | 2026-07-28 | 资源 origin 使用 scheme、主机类型/主机名、端口三个固定目录层级表达，不压缩为单个拼接目录名 | 单段字符串容易因分隔符、IPv6 冒号/方括号和自定义端口产生非法文件名或碰撞，也不利于人工检查归档来源 | 目录结构可读且各身份字段互不混淆；DNS、IPv4、IPv6 分别使用 `dns-`、`ipv4-`、`ipv6-` 前缀，IPv6 冒号安全转换；叶文件名、长度、query 哈希和路径冲突分别留给 M6-T2/M6-T3 |
 | D-047 | 2026-07-28 | ZIP 文件名采用 NFC、240 UTF-8 字节上限和跨平台禁用名称规则，并为普通扩展名保留 32 字节预算 | ZIP 支持 Unicode，但 Windows、macOS 和 Linux 对控制字符、设备名、尾随字符和单组件长度的约束不同；按 UTF-16 长度截断还可能破坏 Unicode | 相同输入得到相同可移植名称，常见扩展名在长文件名截断时保留；替换导致的同名、大小写碰撞、query 差异和后续哈希后缀统一由 M6-T3 解决 |
 | D-048 | 2026-07-29 | query 与路径冲突使用 SHA-256 身份后缀，路径由完整输入集合批量确定性分配 | 逐项抢占裸文件名会让发现顺序和并发完成顺序改变归档内容；原始 query 进入文件名会泄露 Token/参数并产生非法或超长名称；仅比较大小写敏感字符串会在常见本地文件系统上覆盖 | 非空 query 固定使用 12 位短哈希；冲突键按 NFC + 小写相对路径计算，组内所有成员均改名，短碰撞时逐步扩展哈希；相同规范化 URL + 类型合并但保留原始别名；后续 HTML/CSS 改写只消费已完成的唯一映射，不自行重新命名 |
+| D-049 | 2026-07-29 | HTML 使用 DOMParser 结构化改写，并在解析原引用后移除 `<base href>`；只有已保存的唯一映射可转成本地引用 | 字符串替换会误改文本、脚本和相似 URL；保留线上 base href 会使看似正确的相对路径仍请求原站；将未下载资源改成本地路径会制造离线假成功 | HTML 改写必须在 DOM-capable/offscreen 上下文执行；资源属性判定与发现阶段共用规则；本地路径逐段 URL 编码并保留 fragment；未映射、非法和不支持协议保持原值并进入结构化诊断；CSS、srcset 和安全策略由后续任务处理 |
 
 ---
 
@@ -615,11 +617,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M6-T4：使用 DOMParser 改写 HTML 资源**。
+下一步严格只执行 **M6-T5：使用 CSSTree 改写 CSS URL**。
 
-M6-T4 完成后必须：
+M6-T5 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 使用 DOMParser 解析已清理的 HTML 快照，只依据 M6-T3 的已保存资源映射改写可直接表达的 `src`、`href` 和 `poster` 引用，不使用字符串全局替换；
-3. 从 HTML 文件所在目录计算 POSIX 相对路径，保留文档内 fragment 语义，并让未保存、非资源导航和不支持协议保持可解释状态；
-4. 覆盖 base URL、相对/绝对 URL、query/fragment、重复引用和缺失映射，不提前实现 M6-T5 CSS URL 或 M6-T6 `srcset`/`picture` 改写。
+2. 使用 CSSTree AST 改写 stylesheet、style element、style attribute 和 SVG 表现属性中的真实 `url()` 与 `@import` 引用，不使用正则或全局字符串替换；
+3. 只依据已保存资源映射生成相对 CSS URL，按 CSS 文件或宿主 HTML 的归档路径计算基准，保留 fragment，并正确转义引号、反斜杠和特殊字符；
+4. 覆盖嵌套规则、`@font-face`、data/fragment、query、重复引用、缺失映射和容错语法，不提前实现 M6-T6 `srcset`/picture/媒体编排。
