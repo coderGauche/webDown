@@ -2,12 +2,23 @@ import {
   isDomResourceAttribute,
   isSvgResourceAttribute,
   SVG_RESOURCE_ATTRIBUTES,
+  SVG_PRESENTATION_ATTRIBUTES,
+  type EmbeddedCssSourceType,
   type DomResourceAttribute,
   type SvgResourceAttribute,
 } from '@sitecapsule/discovery';
 import { normalizeResourceUrl, serializeDocumentType } from '@sitecapsule/page';
 
 import type { ResourcePathMapping } from './resource-path-mapping';
+import { rewriteCssResource, type CssRewriteResult } from './css-rewriter';
+import {
+  buildSavedResourceLookup,
+  createLocalArchiveReference,
+  createRelativeArchivePath,
+  isNetworkProtocol,
+  validateArchivePath,
+  validateNetworkUrl,
+} from './rewrite-support';
 
 const DIRECT_HTML_RESOURCE_ATTRIBUTES = [
   'src',
@@ -18,7 +29,6 @@ const DIRECT_HTML_RESOURCE_ATTRIBUTE_SET = new Set<DomResourceAttribute>(
   DIRECT_HTML_RESOURCE_ATTRIBUTES,
 );
 const DIRECT_RESOURCE_ATTRIBUTES = ['src', 'href', 'poster', 'xlink:href'] as const;
-const NETWORK_PROTOCOLS = new Set(['http:', 'https:']);
 
 export type HtmlDomParser = {
   parseFromString(input: string, mimeType: 'text/html'): Document;
@@ -65,6 +75,16 @@ export type HtmlRewriteResult = {
   rewrittenCount: number;
   references: HtmlReferenceResult[];
   baseHrefRemovals: HtmlBaseHrefRemoval[];
+  cssRewrittenCount: number;
+  cssRewrites: HtmlCssRewriteResult[];
+};
+
+export type HtmlCssRewriteResult = {
+  elementOrdinal: number;
+  tagName: string;
+  sourceType: EmbeddedCssSourceType;
+  attributeName: 'style' | (typeof SVG_PRESENTATION_ATTRIBUTES)[number] | null;
+  result: CssRewriteResult;
 };
 
 export type RewriteHtmlResourceOptions = {
@@ -76,88 +96,12 @@ export type RewriteHtmlResourceOptions = {
   parser?: HtmlDomParser;
 };
 
-function validateArchivePath(value: string, label: string): string[] {
-  if (typeof value !== 'string' || value === '' || value.startsWith('/') || value.includes('\\')) {
-    throw new TypeError(`${label} must be a relative POSIX archive path.`);
-  }
-
-  const segments = value.split('/');
-  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    throw new TypeError(`${label} must not contain empty or dot path segments.`);
-  }
-  return segments;
-}
-
-export function createRelativeArchivePath(fromFile: string, toFile: string): string {
-  const fromSegments = validateArchivePath(fromFile, 'Source archive path');
-  const toSegments = validateArchivePath(toFile, 'Target archive path');
-  const fromDirectory = fromSegments.slice(0, -1);
-  let commonLength = 0;
-
-  while (
-    commonLength < fromDirectory.length &&
-    commonLength < toSegments.length &&
-    fromDirectory[commonLength] === toSegments[commonLength]
-  ) {
-    commonLength += 1;
-  }
-
-  return [
-    ...Array.from({ length: fromDirectory.length - commonLength }, () => '..'),
-    ...toSegments.slice(commonLength),
-  ].join('/');
-}
-
-function encodeRelativeArchiveReference(relativePath: string): string {
-  return relativePath
-    .split('/')
-    .map((segment) => (segment === '..' ? segment : encodeURIComponent(segment)))
-    .join('/');
-}
-
 function createParser(parser?: HtmlDomParser): HtmlDomParser {
   if (parser) return parser;
   if (typeof DOMParser === 'undefined') {
     throw new Error('DOMParser is unavailable; HTML rewriting must run in a DOM-capable context.');
   }
   return new DOMParser();
-}
-
-function validateNetworkUrl(value: string, label: string): string {
-  const normalized = normalizeResourceUrl(value);
-  if (normalized === null) throw new TypeError(`${label} must be an absolute URL.`);
-
-  const url = new URL(normalized);
-  if (!NETWORK_PROTOCOLS.has(url.protocol)) {
-    throw new RangeError(`${label} must use HTTP or HTTPS.`);
-  }
-  if (url.username || url.password) throw new RangeError(`${label} must not contain credentials.`);
-  return normalized;
-}
-
-function buildSavedResourceLookup(
-  mappings: readonly ResourcePathMapping[],
-): Map<string, ResourcePathMapping> {
-  if (!Array.isArray(mappings)) throw new TypeError('Saved resource mappings must be an array.');
-
-  const lookup = new Map<string, ResourcePathMapping>();
-  for (const mapping of mappings) {
-    if (!mapping || typeof mapping !== 'object') {
-      throw new TypeError('Saved resource mapping must be an object.');
-    }
-    validateArchivePath(mapping.relativePath, 'Saved resource path');
-    const normalizedUrl = validateNetworkUrl(mapping.normalizedUrl, 'Saved resource URL');
-    if (normalizedUrl !== mapping.normalizedUrl) {
-      throw new TypeError('Saved resource URL must be normalized.');
-    }
-
-    const existing = lookup.get(normalizedUrl);
-    if (existing && existing.relativePath !== mapping.relativePath) {
-      throw new Error('Saved resource URL has ambiguous archive paths.');
-    }
-    lookup.set(normalizedUrl, mapping);
-  }
-  return lookup;
 }
 
 function isDirectResourceAttribute(
@@ -237,7 +181,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         continue;
       }
 
-      if (!NETWORK_PROTOCOLS.has(resolved.protocol)) {
+      if (!isNetworkProtocol(resolved.protocol)) {
         references.push({
           ...common,
           status: 'unsupported',
@@ -264,8 +208,11 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         continue;
       }
 
-      const relativePath = createRelativeArchivePath(options.documentPath, mapping.relativePath);
-      const rewrittenValue = `${encodeRelativeArchiveReference(relativePath)}${fragment}`;
+      const rewrittenValue = createLocalArchiveReference(
+        options.documentPath,
+        mapping.relativePath,
+        fragment,
+      );
       element.setAttribute(attributeName, rewrittenValue);
       references.push({
         ...common,
@@ -278,11 +225,79 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     }
   }
 
+  const cssRewrites: HtmlCssRewriteResult[] = [];
+  for (const element of elements) {
+    const common = {
+      elementOrdinal: elementOrdinals.get(element) ?? 0,
+      tagName: element.tagName.toLowerCase(),
+    };
+
+    if (element.tagName.toLowerCase() === 'style' && element.textContent?.trim()) {
+      const result = rewriteCssResource({
+        cssText: element.textContent,
+        context: 'stylesheet',
+        baseUrl,
+        sourcePath: options.documentPath,
+        savedResourceMappings: options.savedResourceMappings,
+      });
+      if (result.rewrittenCount > 0) element.textContent = result.cssText;
+      cssRewrites.push({
+        ...common,
+        sourceType: 'style-element',
+        attributeName: null,
+        result,
+      });
+    }
+
+    const style = element.getAttribute('style');
+    if (style?.trim()) {
+      const result = rewriteCssResource({
+        cssText: style,
+        context: 'declaration-list',
+        baseUrl,
+        sourcePath: options.documentPath,
+        savedResourceMappings: options.savedResourceMappings,
+      });
+      if (result.rewrittenCount > 0) element.setAttribute('style', result.cssText);
+      cssRewrites.push({
+        ...common,
+        sourceType: 'style-attribute',
+        attributeName: 'style',
+        result,
+      });
+    }
+
+    if (element.namespaceURI !== 'http://www.w3.org/2000/svg') continue;
+    for (const attributeName of SVG_PRESENTATION_ATTRIBUTES) {
+      const value = element.getAttribute(attributeName);
+      if (!value?.trim()) continue;
+      const result = rewriteCssResource({
+        cssText: value,
+        context: 'value',
+        baseUrl,
+        sourcePath: options.documentPath,
+        savedResourceMappings: options.savedResourceMappings,
+      });
+      if (result.rewrittenCount > 0) element.setAttribute(attributeName, result.cssText);
+      cssRewrites.push({
+        ...common,
+        sourceType: 'svg-presentation-attribute',
+        attributeName,
+        result,
+      });
+    }
+  }
+
   return {
     html: serializeHtmlDocument(document),
     documentPath: options.documentPath,
     rewrittenCount: references.filter((reference) => reference.status === 'rewritten').length,
     references,
     baseHrefRemovals,
+    cssRewrittenCount: cssRewrites.reduce(
+      (total, rewrite) => total + rewrite.result.rewrittenCount,
+      0,
+    ),
+    cssRewrites,
   };
 }

@@ -25,11 +25,21 @@ export {
   type ResourcePathMapping,
 } from './resource-path-mapping';
 export {
-  createRelativeArchivePath,
   rewriteHtmlResource,
   type HtmlBaseHrefRemoval,
+  type HtmlCssRewriteResult,
   type HtmlDomParser,
   type HtmlReferenceResult,
   type HtmlRewriteResult,
   type RewriteHtmlResourceOptions,
 } from './html-rewriter';
+export { createLocalArchiveReference, createRelativeArchivePath } from './rewrite-support';
+export {
+  CSS_REWRITE_CONTEXTS,
+  rewriteCssResource,
+  type CssReferenceResult,
+  type CssRewriteContext,
+  type CssRewriteKind,
+  type CssRewriteResult,
+  type RewriteCssResourceOptions,
+} from './css-rewriter';

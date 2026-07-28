@@ -203,6 +203,51 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(parseResult(result.html).querySelectorAll('base[href]')).toHaveLength(0);
   });
 
+  it('rewrites style elements, style attributes, and SVG presentation attributes with CSSTree', async () => {
+    const themeUrl = 'https://cdn.example.test/assets/theme.css';
+    const imageUrl = 'https://cdn.example.test/assets/image.png';
+    const maskUrl = 'https://cdn.example.test/assets/mask.svg';
+    const filterUrl = 'https://cdn.example.test/assets/filter.svg';
+    const mappings = await savedMappings([
+      { url: themeUrl, resourceType: 'stylesheet' },
+      { url: imageUrl, resourceType: 'image' },
+      { url: maskUrl, resourceType: 'image' },
+      { url: filterUrl, resourceType: 'image' },
+    ]);
+    const result = rewriteHtmlResource({
+      html: `<html><head><style>
+        @import "theme.css";
+        .hero { background: url(image.png#hero); }
+      </style></head><body>
+        <main id="styled" style="mask-image: url(mask.svg#mask)"></main>
+        <svg xmlns="http://www.w3.org/2000/svg">
+          <rect id="filtered" filter="url(filter.svg#soften)"></rect>
+          <rect id="local-filter" filter="url(#local)"></rect>
+        </svg>
+      </body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: mappings,
+    });
+    const rewritten = parseResult(result.html);
+
+    expect(result.cssRewrittenCount).toBe(4);
+    expect(result.cssRewrites).toHaveLength(4);
+    expect(result.cssRewrites.map((rewrite) => rewrite.sourceType)).toEqual([
+      'style-element',
+      'style-attribute',
+      'svg-presentation-attribute',
+      'svg-presentation-attribute',
+    ]);
+    expect(result.cssRewrites.at(-1)?.result.references[0]?.status).toBe('fragment');
+    expect(rewritten.querySelector('style')?.textContent).not.toContain('@import "theme.css"');
+    expect(rewritten.querySelector('style')?.textContent).toContain('#hero');
+    expect(rewritten.querySelector('#styled')?.getAttribute('style')).toContain('#mask');
+    expect(rewritten.querySelector('#filtered')?.getAttribute('filter')).toContain('#soften');
+    expect(rewritten.querySelector('#local-filter')?.getAttribute('filter')).toBe('url(#local)');
+  });
+
   it('rejects unsafe paths, non-network document context, and ambiguous saved mappings', async () => {
     const [mapping] = await savedMappings([
       { url: 'https://cdn.example.test/assets/image.png', resourceType: 'image' },
