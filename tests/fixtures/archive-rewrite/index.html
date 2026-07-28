@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'"
+    />
+    <base href="https://CDN.Archive.Test:443/assets/site/" />
+    <link rel="stylesheet" href="../css/site.css?theme=dark" />
+    <link rel="preload" as="font" href="../fonts/Caf%C3%A9.woff2" crossorigin />
+    <style>
+      .hero {
+        background-image: url('../images/Hero%20Image.png?width=640#inline');
+      }
+
+      .missing-inline {
+        background-image: url('../images/missing-inline.png');
+      }
+    </style>
+  </head>
+  <body>
+    <picture>
+      <source
+        srcset="
+          ../images/Hero%20Image.png?width=640#small  1x,
+          ../images/Hero%20Image.png?width=1280#large 2x
+        "
+      />
+      <img
+        id="hero"
+        src="../images/Hero%20Image.png?width=640#hero"
+        srcset="../images/Hero%20Image.png?width=1280#retina 2x, ../images/missing-srcset.png 3x"
+        alt="Archive fixture"
+      />
+    </picture>
+    <video id="demo" src="../media/demo.mp4" poster="../images/poster.jpg">
+      <track src="../captions/en.vtt" kind="captions" srclang="en" />
+    </video>
+    <script src="../js/app.js?v=1"></script>
+    <script type="module">
+      navigator.serviceWorker.register('/archive-worker.js');
+    </script>
+    <img id="missing" src="../images/missing-html.png" alt="Missing fixture" />
+  </body>
+</html>

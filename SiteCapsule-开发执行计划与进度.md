@@ -3,9 +3,9 @@
 > 文档类型：Implementation Plan + Progress Tracker  
 > 版本：v0.1  
 > 建立日期：2026-07-22  
-> 当前阶段：M6 路径映射与内容改写
-> 当前状态：M6-T9 已完成，等待开始 M6-T10
-> 下一任务：M6-T10 编写路径稳定性和离线引用测试
+> 当前阶段：M7 ZIP、清单与归档报告
+> 当前状态：M6 已完成，等待开始 M7-T1
+> 下一任务：M7-T1 集成 fflate
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -121,8 +121,8 @@
 | M3 | 当前页面 DOM 快照 | 3-4 工程日 | 已完成 |
 | M4 | 资源发现与资源图 | 4-6 工程日 | 已完成 |
 | M5 | 下载引擎与权限策略 | 4-6 工程日 | 已完成 |
-| M6 | 路径映射与内容改写 | 4-6 工程日 | 进行中 |
-| M7 | ZIP、清单与归档报告 | 3-4 工程日 | 待开始 |
+| M6 | 路径映射与内容改写 | 4-6 工程日 | 已完成 |
+| M7 | ZIP、清单与归档报告 | 3-4 工程日 | 进行中 |
 | M8 | Side Panel 完整工作流 | 4-6 工程日 | 待开始 |
 | M9 | 稳定性、安全与自动化测试 | 5-7 工程日 | 待开始 |
 | M10 | MVP 综合验收与发布包 | 3-5 工程日 | 待开始 |
@@ -298,7 +298,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M6-T7** 记录未捕获的线上依赖；
 - [x] **M6-T8** 禁用原站 Service Worker 注册的安全策略；
 - [x] **M6-T9** 记录 CSP 调整和所有内容变更；
-- [ ] **M6-T10** 编写路径稳定性和离线引用测试。
+- [x] **M6-T10** 编写路径稳定性和离线引用测试。
 
 验收门禁：
 
@@ -462,10 +462,10 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 | 项目 | 当前值 |
 |---|---|
-| 当前里程碑 | M6 路径映射与内容改写 |
+| 当前里程碑 | M7 ZIP、清单与归档报告 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M6-T9 记录 CSP 调整和所有内容变更 |
-| 下一任务 | M6-T10 编写路径稳定性和离线引用测试 |
+| 最近完成 | M6-T10 编写路径稳定性和离线引用测试；M6 里程碑通过 |
+| 下一任务 | M7-T1 集成 fflate |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -534,6 +534,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M6-T7 | 完成 | 新增 `src/archive/uncaptured-dependencies.ts` 及归档模块导出，将 HTML 直接属性、CSSTree 与 `srcset` 改写结果中状态为 unmapped 的有效 HTTP/HTTPS 引用按规范 URL 稳定去重，记录出现次数、html-attribute/css-ast/srcset 来源通道及元素、属性、CSS 上下文/类型、候选 descriptor 和原值等逐条来源；可选 `ResourceRecord` 同时以 original/final URL 关联下载结果，failed 优先归因为 `download-failed`，skipped 归因为 `resource-skipped`，其余为 `missing-mapping`，并保留状态和结构化错误码；data、Blob、fragment、其他不支持协议、无效引用和 CSS 解析失败只进入独立保留项计数，不被误报为线上依赖；依赖、来源通道、资源状态、错误码和来源均按固定规则排序，顶层输入顺序不改变报告；未提前实现 M6-T8 Service Worker 安全策略；4 个相关测试文件共 24 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（41 个文件、435 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T8 | 完成 | 新增并锁定 `acorn@8.17.0`，新增 `src/archive/service-worker-safety.ts` 及归档模块导出；以 Acorn AST 解析 classic/module inline script，精确改写 `navigator.serviceWorker.register`、受支持的全局限定路径、静态计算属性和可选链直接调用，不触碰字符串、注释或非 JavaScript script；在序列化 HTML 的 `head` 首位注入确定性运行时守卫，同时覆盖 ServiceWorkerContainer 实例与原型的 `register`，外部脚本、动态/别名引用和无法解析的 inline script 保留逐脚本状态、偏移、改写及限制诊断；已有策略标记会先移除再生成可信唯一守卫；CSP 调整和全量内容变更报告明确留给 M6-T9；`tests/service-worker-safety.test.ts` 与 HTML 集成测试共 13 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（42 个文件、441 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T9 | 完成 | 新增 `src/archive/csp-policy.ts`，依据 CSP3 的有效指令回退链逐条调整 HTML meta CSP；只对实际已改写的本地资源类型在对应生效指令加入 `'self'`，为 M6-T8 内联守卫加入与 UTF-8 源码测试绑定的精确 SHA-256 hash，移除与新增来源冲突的 `'none'`，不使用 `'unsafe-inline'`、不为无限制页面凭空新增策略；多 enforcing policy 独立调整，重复指令、Report-Only meta、head 外策略、meta 不支持指令及不可观测 HTTP Header CSP 均显式记录；新增 `src/archive/content-change-report.ts`，按稳定顺序汇总 base、HTML 属性、srcset、内嵌/独立 CSS、Service Worker 调用/守卫和 CSP 的位置、修改前后值、原因、计数与限制，支持跨文件确定性合并并拒绝重复归档路径；CSS 结果保留原始全文，Service Worker AST 变更保留原始调用；未提前实现 M6-T10 综合稳定性测试；新增 2 个测试文件，6 个相关测试文件共 33 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（44 个文件、449 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M6-T10 | 完成 | 新增无公网依赖的 `tests/fixtures/archive-rewrite/` HTML/CSS 综合 fixture 与 `tests/archive-rewrite.integration.test.ts`；以包含乱序、精确重复、规范 URL 别名、query 差异、大小写/非法字符、NFC Unicode 和嵌套同名叶的同一资源集合验证四种输入排列得到完全相同映射，14 个规范资源生成大小写不敏感唯一相对路径，query、Unicode、可移植文件名和扁平化冲突均不覆盖；从原始 URL + 类型到映射及从相对路径到映射双向查询一致；完整串联 HTML、独立 CSS、srcset、picture、媒体、字幕、字体、脚本、Service Worker、CSP、未捕获依赖和内容变更报告，每个 rewritten 引用按宿主文件目录反解后都命中已保存路径集合，4 个故意缺失资源保持 missing-mapping 且没有伪造本地文件；M6 相同输入路径稳定、已保存引用离线化、query 不覆盖、未保存不伪装及双向查询五项门禁全部满足；fixture 不替代 M7 ZIP 文件存在/CRC/解压验证和后续真实本地 HTTP 浏览器加载；2 项综合测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（45 个文件、451 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -607,6 +608,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-052 | 2026-07-29 | 未捕获线上依赖只来自 unmapped 的规范 HTTP/HTTPS 引用，并与资源下载结果分层关联 | 未改写不等于仍需联网；data、Blob、文档 fragment、无效语法和不支持协议若与线上缺失混在一起，报告无法指导重试或客户交付 | 依赖以无 fragment 但保留 query 的规范 URL 去重；failed/skipped 记录优先于缺失映射归因；非网络保留项只计数不进入依赖列表；所有集合按预定义顺序输出，同一 URL 保留全部来源而不丢失重复证据 |
 | D-053 | 2026-07-29 | Service Worker 安全采用 Acorn AST 静态改写直接注册调用，并在归档 HTML 的 `head` 首位注入运行时 `register` 守卫 | 宽泛字符串替换会误伤注释、字符串和非 JavaScript 数据；仅静态改写无法覆盖外部脚本、别名、动态属性和解析失败脚本，而离线归档不应注册原站 Service Worker | 直接调用按 AST 源偏移局部替换且保留审计记录；运行时同时锁定 container 实例和原型方法作为外部/动态代码兜底；未知别名形态仍作为显式限制记录；CSP 对注入守卫的影响及全部内容变更汇总由 M6-T9 统一处理 |
 | D-054 | 2026-07-29 | meta CSP 按实际改写资源类型最小放宽，内联安全守卫使用固定源码 SHA-256 hash；所有有意内容修改统一生成结构化审计报告 | 删除全部 CSP 会扩大归档脚本权限，加入 `'unsafe-inline'` 会放行任意内联脚本；只改一条 policy 会被其他并行策略继续阻断；零散改写结果也无法形成可交付审计证据 | 每条 enforcing meta policy 独立沿 CSP3 回退链调整，只有存在有效限制才修改；`'self'` 仅服务已本地化类型，hash 测试与守卫源码绑定；HTTP Header CSP、meta 位置语义和 DOMParser/CSSTree 序列化限制显式记录；HTML 与独立 CSS 报告可按唯一归档路径稳定合并，M6-T10 再验证端到端路径及离线引用不变量 |
+| D-055 | 2026-07-29 | M6 综合验收使用同一确定性资源集合驱动路径映射、HTML/CSS 改写、依赖报告和变更审计，并以已保存路径集合验证每个本地引用 | 分模块测试都通过仍可能在组合时使用不同 base、路径身份或引用编码，导致本地 URL 指向不存在文件；只检查文本中不含线上域名也无法证明目标文件存在 | fixture 对 rewritten 引用按源文件目录和 URI 编码规则反解后必须命中映射路径；未保存 HTTP/HTTPS 只能进入明确依赖报告；输入排列不影响路径或跨文件审计；ZIP 条目、CRC、解压和真实本地 HTTP 行为不在 M6 伪造，交由 M7/M9 验证 |
 
 ---
 
@@ -627,11 +629,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M6-T10：编写路径稳定性和离线引用测试**。
+下一步严格只执行 **M7-T1：集成 fflate**。
 
-M6-T10 完成后必须：
+M7-T1 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 使用乱序、重复、query、大小写、Unicode、冲突和嵌套目录输入验证相同资源集合始终生成相同唯一路径；
-3. 对 HTML、CSS、srcset、媒体、字体、Service Worker 和 CSP 建立综合离线引用 fixture，验证已保存资源只指向存在的本地路径，未保存资源仍被明确报告；
-4. 验证 M6 全部门禁并记录残余限制，不提前实现 M7 ZIP、清单和归档报告。
+2. 以固定版本将 fflate 作为运行时依赖接入归档模块，并确认 Chrome MV3 构建不使用远程代码或 Node 专属压缩 API；
+3. 建立最小 ZIP 压缩/解压往返封装和测试，明确二进制输入输出、错误传播与确定性时间戳策略；
+4. 不提前实现 M7-T2 完整目录结构、清单、报告或 Downloads API 导出。

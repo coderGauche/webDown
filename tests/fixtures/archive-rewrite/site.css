@@ -1,0 +1,16 @@
+@import url('./reset.css?layer=base#reset') layer(reset);
+
+@font-face {
+  font-family: 'Archive Fixture';
+  src: url('../fonts/Cafe%CC%81.woff2#regular') format('woff2');
+}
+
+@media (min-width: 1px) {
+  .hero {
+    background-image: url('../images/Hero%20Image.png?width=1280#css');
+  }
+
+  .missing-css {
+    mask-image: url('../images/missing-css.png');
+  }
+}
