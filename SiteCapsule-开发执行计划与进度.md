@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M7 ZIP、清单与归档报告
-> 当前状态：M7-T1 已完成，等待开始 M7-T2
-> 下一任务：M7-T2 实现规定的 ZIP 目录结构
+> 当前状态：M7-T2 已完成，等待开始 M7-T3
+> 下一任务：M7-T3 生成 archive.json
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -315,7 +315,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 目标：生成结构正确、可检查、可交付的离线归档。
 
 - [x] **M7-T1** 集成 fflate；
-- [ ] **M7-T2** 实现规定的 ZIP 目录结构；
+- [x] **M7-T2** 实现规定的 ZIP 目录结构；
 - [ ] **M7-T3** 生成 `archive.json`；
 - [ ] **M7-T4** 生成 `resources.json` 和 `failures.json`；
 - [ ] **M7-T5** 生成 `report.html` 和 `README_OFFLINE.md`；
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M7 ZIP、清单与归档报告 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M7-T1 集成 fflate |
-| 下一任务 | M7-T2 实现规定的 ZIP 目录结构 |
+| 最近完成 | M7-T2 实现规定的 ZIP 目录结构 |
+| 下一任务 | M7-T3 生成 `archive.json` |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -536,6 +536,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M6-T9 | 完成 | 新增 `src/archive/csp-policy.ts`，依据 CSP3 的有效指令回退链逐条调整 HTML meta CSP；只对实际已改写的本地资源类型在对应生效指令加入 `'self'`，为 M6-T8 内联守卫加入与 UTF-8 源码测试绑定的精确 SHA-256 hash，移除与新增来源冲突的 `'none'`，不使用 `'unsafe-inline'`、不为无限制页面凭空新增策略；多 enforcing policy 独立调整，重复指令、Report-Only meta、head 外策略、meta 不支持指令及不可观测 HTTP Header CSP 均显式记录；新增 `src/archive/content-change-report.ts`，按稳定顺序汇总 base、HTML 属性、srcset、内嵌/独立 CSS、Service Worker 调用/守卫和 CSP 的位置、修改前后值、原因、计数与限制，支持跨文件确定性合并并拒绝重复归档路径；CSS 结果保留原始全文，Service Worker AST 变更保留原始调用；未提前实现 M6-T10 综合稳定性测试；新增 2 个测试文件，6 个相关测试文件共 33 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（44 个文件、449 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M6-T10 | 完成 | 新增无公网依赖的 `tests/fixtures/archive-rewrite/` HTML/CSS 综合 fixture 与 `tests/archive-rewrite.integration.test.ts`；以包含乱序、精确重复、规范 URL 别名、query 差异、大小写/非法字符、NFC Unicode 和嵌套同名叶的同一资源集合验证四种输入排列得到完全相同映射，14 个规范资源生成大小写不敏感唯一相对路径，query、Unicode、可移植文件名和扁平化冲突均不覆盖；从原始 URL + 类型到映射及从相对路径到映射双向查询一致；完整串联 HTML、独立 CSS、srcset、picture、媒体、字幕、字体、脚本、Service Worker、CSP、未捕获依赖和内容变更报告，每个 rewritten 引用按宿主文件目录反解后都命中已保存路径集合，4 个故意缺失资源保持 missing-mapping 且没有伪造本地文件；M6 相同输入路径稳定、已保存引用离线化、query 不覆盖、未保存不伪装及双向查询五项门禁全部满足；fixture 不替代 M7 ZIP 文件存在/CRC/解压验证和后续真实本地 HTTP 浏览器加载；2 项综合测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（45 个文件、451 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M7-T1 | 完成 | 以固定版本新增运行时依赖 `fflate@0.8.3`，归档模块新增 `src/archive/zip-codec.ts`，只从包入口导入浏览器可打包的 `zipSync`/`unzipSync` 和类型，不使用远程脚本或 Node 压缩 API；封装明确以 `Uint8Array` 输入输出，条目按安全相对 POSIX 路径排序、拒绝重复/逃逸路径并复制调用方字节，压缩等级限制为 0-9；所有文件时间固定为 ZIP 可表示的本地日历 `1980-01-01 00:00:00`，相同内容和不同输入顺序生成完全相同字节；解压仅用于读取 SiteCapsule 可信输出，底层错误以带 encode/decode 操作和 cause 的 `ZipCodecError` 传播，不将同步 eager 解压冒充不可信 ZIP 沙箱；未提前实现 M7-T2 目录结构、清单、报告或 Downloads 导出；`tests/zip-codec.test.ts` 7 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（46 个文件、458 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M7-T2 | 完成 | 新增 `src/archive/archive-layout.ts` 与归档模块导出，在 M7-T1 ZIP 边界上定义必需根 `index.html`、`pages/`、M6 `assets/`、`_sitecapsule/` 和可选 `screenshots/` 五个区域；`_sitecapsule` 只保留方案规定的 archive/resources/failures/original-urls/report/README 六个路径，本任务不生成其内容；调用方按区域提交完整归档路径和 `Uint8Array`，装配层复制字节、稳定排序并返回 pages/assets/metadata/screenshots/total 分类计数，支持直接生成确定性 ZIP；路径复用安全相对 POSIX 校验，每个组件必须经过既有可移植文件名规则且保持不变，跨全部区域按 NFC + 小写键拒绝精确、大小写和规范化碰撞，区域串用、未知 metadata、逃逸、Windows 设备名和非二进制输入显式失败；ZIP 目录由文件路径自然形成，不写无内容的合成目录条目，除 `index.html` 外各区域在当前阶段可缺省；未提前实现 M7-T3 清单正文、报告、哈希或 Downloads 导出；`tests/archive-layout.test.ts` 15 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（47 个文件、473 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -611,6 +612,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-054 | 2026-07-29 | meta CSP 按实际改写资源类型最小放宽，内联安全守卫使用固定源码 SHA-256 hash；所有有意内容修改统一生成结构化审计报告 | 删除全部 CSP 会扩大归档脚本权限，加入 `'unsafe-inline'` 会放行任意内联脚本；只改一条 policy 会被其他并行策略继续阻断；零散改写结果也无法形成可交付审计证据 | 每条 enforcing meta policy 独立沿 CSP3 回退链调整，只有存在有效限制才修改；`'self'` 仅服务已本地化类型，hash 测试与守卫源码绑定；HTTP Header CSP、meta 位置语义和 DOMParser/CSSTree 序列化限制显式记录；HTML 与独立 CSS 报告可按唯一归档路径稳定合并，M6-T10 再验证端到端路径及离线引用不变量 |
 | D-055 | 2026-07-29 | M6 综合验收使用同一确定性资源集合驱动路径映射、HTML/CSS 改写、依赖报告和变更审计，并以已保存路径集合验证每个本地引用 | 分模块测试都通过仍可能在组合时使用不同 base、路径身份或引用编码，导致本地 URL 指向不存在文件；只检查文本中不含线上域名也无法证明目标文件存在 | fixture 对 rewritten 引用按源文件目录和 URI 编码规则反解后必须命中映射路径；未保存 HTTP/HTTPS 只能进入明确依赖报告；输入排列不影响路径或跨文件审计；ZIP 条目、CRC、解压和真实本地 HTTP 行为不在 M6 伪造，交由 M7/M9 验证 |
 | D-056 | 2026-07-29 | ZIP 基础能力固定使用 `fflate@0.8.3` 浏览器 ESM，并以排序条目、固定 1980 时间戳和纯 `Uint8Array` 建立确定性同步边界 | 浏览器扩展不能依赖 Node 压缩模块或远程执行代码；fflate 默认使用当前时间会让相同归档产生不同字节；隐式同步压缩大文件还会掩盖主线程阻塞风险 | 当前 API 名显式包含 `Sync`，只承担受控体积归档和可信输出往返验证；调用方输入不被重排或复用；大归档的异步 Worker/流式写入在形成完整装配链并有性能基线后升级，解压 API 不作为处理任意第三方 ZIP 的安全边界 |
+| D-057 | 2026-07-29 | ZIP 布局以区域化文件条目装配，不生成空目录记录；主入口必需，其他区域按当前可用产物增量加入 | ZIP 目录本质由条目路径表达，额外目录记录会增加清单计数歧义；让调用方提交任意全路径又会绕过 M6 路径约束、污染保留元数据区或在大小写不敏感文件系统覆盖 | `index.html` 由独立二进制输入建立且不能被覆盖；pages/assets/metadata/screenshots 分别校验固定根，metadata 仅接受六个保留路径；所有条目稳定排序并按 NFC + 小写拒绝可移植碰撞；最终必须存在的清单及报告内容由 M7-T3 至 M7-T5 逐项生成，完整文件数与 CRC 由 M7-T8 验证 |
 
 ---
 
@@ -631,11 +633,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M7-T2：实现规定的 ZIP 目录结构**。
+下一步严格只执行 **M7-T3：生成 `archive.json`**。
 
-M7-T2 完成后必须：
+M7-T3 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 在 M7-T1 二进制 ZIP 边界上建立确定性条目装配，明确根 `index.html`、`pages/`、M6 的 `assets/`、`_sitecapsule/` 与可选 `screenshots/` 区域；
-3. 校验必需入口、唯一安全相对路径、目录归属和稳定条目顺序，并为合法/非法布局编写测试；
-4. 不提前实现 M7-T3 清单内容、M7-T5 报告正文、哈希或 Downloads API 导出。
+2. 生成带固定格式版本的 `_sitecapsule/archive.json`，覆盖产品、捕获时间、起止 URL、模式、配置档、页面/资源/失败计数、本地 HTTP 要求和线上依赖摘要；
+3. 对输入做运行时校验并使用稳定 UTF-8 JSON 序列化，相同业务输入必须得到相同字节，清单条目可直接交给 M7-T2 布局；
+4. 不提前实现 M7-T4 的逐资源/失败清单、M7-T5 报告正文、哈希或 Downloads API 导出。

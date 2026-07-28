@@ -9,6 +9,19 @@ export {
   type ResourceTypeDirectory,
 } from './resource-directory';
 export {
+  ARCHIVE_INDEX_PATH,
+  ARCHIVE_METADATA_PATHS,
+  ARCHIVE_METADATA_ROOT,
+  ARCHIVE_PAGES_ROOT,
+  ARCHIVE_SCREENSHOTS_ROOT,
+  buildArchiveLayout,
+  createArchiveLayoutZipSync,
+  type ArchiveLayout,
+  type ArchiveLayoutCounts,
+  type ArchiveLayoutInput,
+  type ArchiveMetadataPath,
+} from './archive-layout';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,
