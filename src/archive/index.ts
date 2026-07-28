@@ -50,3 +50,18 @@ export {
   type SrcsetReferenceResult,
   type SrcsetRewriteResult,
 } from './srcset-rewriter';
+export {
+  UNCAPTURED_DEPENDENCY_CHANNELS,
+  UNCAPTURED_DEPENDENCY_REASONS,
+  collectUncapturedDependencies,
+  type CollectUncapturedDependenciesOptions,
+  type CssDependencySource,
+  type HtmlDependencySource,
+  type RetainedReferenceCounts,
+  type SrcsetDependencySource,
+  type UncapturedDependency,
+  type UncapturedDependencyChannel,
+  type UncapturedDependencyReason,
+  type UncapturedDependencyReport,
+  type UncapturedDependencySource,
+} from './uncaptured-dependencies';
