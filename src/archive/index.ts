@@ -112,3 +112,13 @@ export {
   type ServiceWorkerScriptResult,
   type ServiceWorkerScriptStatus,
 } from './service-worker-safety';
+export {
+  ZIP_DEFAULT_COMPRESSION_LEVEL,
+  ZipCodecError,
+  createZipArchiveSync,
+  extractZipArchiveSync,
+  type CreateZipArchiveOptions,
+  type ZipArchiveEntry,
+  type ZipCodecOperation,
+  type ZipCompressionLevel,
+} from './zip-codec';
