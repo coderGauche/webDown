@@ -7,8 +7,11 @@ import {
   type DomResourceAttribute,
   type SvgResourceAttribute,
 } from '@sitecapsule/discovery';
+import { RESOURCE_TYPES, type ResourceType } from '@sitecapsule/domain';
 import { normalizeResourceUrl, serializeDocumentType } from '@sitecapsule/page';
 
+import { buildContentChangeReport, type ContentChangeReport } from './content-change-report';
+import { adjustContentSecurityPolicies, type CspAdjustmentResult } from './csp-policy';
 import type { ResourcePathMapping } from './resource-path-mapping';
 import { rewriteCssResource, type CssRewriteResult } from './css-rewriter';
 import {
@@ -85,6 +88,8 @@ export type HtmlRewriteResult = {
   srcsetRewrittenCount: number;
   srcsetRewrites: HtmlSrcsetRewriteResult[];
   serviceWorkerSafety: ServiceWorkerSafetyResult;
+  cspAdjustment: CspAdjustmentResult;
+  contentChanges: ContentChangeReport;
 };
 
 export type HtmlCssRewriteResult = {
@@ -92,6 +97,7 @@ export type HtmlCssRewriteResult = {
   tagName: string;
   sourceType: EmbeddedCssSourceType;
   attributeName: 'style' | (typeof SVG_PRESENTATION_ATTRIBUTES)[number] | null;
+  originalValue: string;
   result: CssRewriteResult;
 };
 
@@ -271,8 +277,9 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     };
 
     if (element.tagName.toLowerCase() === 'style' && element.textContent?.trim()) {
+      const originalValue = element.textContent;
       const result = rewriteCssResource({
-        cssText: element.textContent,
+        cssText: originalValue,
         context: 'stylesheet',
         baseUrl,
         sourcePath: options.documentPath,
@@ -283,6 +290,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         ...common,
         sourceType: 'style-element',
         attributeName: null,
+        originalValue,
         result,
       });
     }
@@ -301,6 +309,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         ...common,
         sourceType: 'style-attribute',
         attributeName: 'style',
+        originalValue: style,
         result,
       });
     }
@@ -321,12 +330,46 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         ...common,
         sourceType: 'svg-presentation-attribute',
         attributeName,
+        originalValue: value,
         result,
       });
     }
   }
 
   const serviceWorkerSafety = applyServiceWorkerSafetyPolicy(document, elementOrdinals);
+  const rewrittenNormalizedUrls = new Set<string>();
+  for (const reference of references) {
+    if (reference.status === 'rewritten') rewrittenNormalizedUrls.add(reference.normalizedUrl);
+  }
+  for (const rewrite of srcsetRewrites) {
+    for (const reference of rewrite.result.references) {
+      if (reference.status === 'rewritten') rewrittenNormalizedUrls.add(reference.normalizedUrl);
+    }
+  }
+  for (const rewrite of cssRewrites) {
+    for (const reference of rewrite.result.references) {
+      if (reference.status === 'rewritten') rewrittenNormalizedUrls.add(reference.normalizedUrl);
+    }
+  }
+  const rewrittenResourceTypes = new Set<ResourceType>();
+  for (const normalizedUrl of rewrittenNormalizedUrls) {
+    const mapping = savedResources.get(normalizedUrl);
+    if (mapping) rewrittenResourceTypes.add(mapping.resourceType);
+  }
+  const cspAdjustment = adjustContentSecurityPolicies(
+    document,
+    RESOURCE_TYPES.filter((resourceType) => rewrittenResourceTypes.has(resourceType)),
+    elementOrdinals,
+  );
+  const contentChanges = buildContentChangeReport({
+    documentPath: options.documentPath,
+    references,
+    baseHrefRemovals,
+    cssRewrites,
+    srcsetRewrites,
+    serviceWorkerSafety,
+    cspAdjustment,
+  });
 
   return {
     html: serializeHtmlDocument(document),
@@ -345,5 +388,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     ),
     srcsetRewrites,
     serviceWorkerSafety,
+    cspAdjustment,
+    contentChanges,
   };
 }

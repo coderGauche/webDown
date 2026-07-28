@@ -34,6 +34,37 @@ export {
   type HtmlSrcsetRewriteResult,
   type RewriteHtmlResourceOptions,
 } from './html-rewriter';
+export {
+  CONTENT_CHANGE_KINDS,
+  CONTENT_CHANGE_REASONS,
+  CONTENT_CHANGE_REPORT_LIMITATIONS,
+  buildCssContentChangeReport,
+  buildContentChangeReport,
+  combineContentChangeReports,
+  type ArchiveContentChangeReport,
+  type BuildContentChangeReportOptions,
+  type ContentChange,
+  type ContentChangeCounts,
+  type ContentChangeKind,
+  type ContentChangeLocation,
+  type ContentChangeReason,
+  type ContentChangeReport,
+  type ContentChangeReportLimitation,
+} from './content-change-report';
+export {
+  CSP_ADJUSTMENT_LIMITATIONS,
+  CSP_ADJUSTMENT_REASONS,
+  CSP_HTTP_EQUIV_VALUE,
+  CSP_REPORT_ONLY_HTTP_EQUIV_VALUE,
+  SERVICE_WORKER_GUARD_HASH_SOURCE,
+  adjustContentSecurityPolicies,
+  type CspAdjustmentLimitation,
+  type CspAdjustmentReason,
+  type CspAdjustmentResult,
+  type CspDirectiveChange,
+  type CspMetaPolicyResult,
+  type CspMetaPolicyStatus,
+} from './csp-policy';
 export { createLocalArchiveReference, createRelativeArchivePath } from './rewrite-support';
 export {
   CSS_REWRITE_CONTEXTS,
@@ -67,6 +98,7 @@ export {
 } from './uncaptured-dependencies';
 export {
   SERVICE_WORKER_BLOCK_FUNCTION,
+  SERVICE_WORKER_GUARD_SOURCE,
   SERVICE_WORKER_POLICY_ATTRIBUTE,
   SERVICE_WORKER_POLICY_LIMITATIONS,
   SERVICE_WORKER_POLICY_VALUE,

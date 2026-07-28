@@ -3,6 +3,9 @@ import { parse, type Node } from 'acorn';
 export const SERVICE_WORKER_POLICY_ATTRIBUTE = 'data-sitecapsule-service-worker-policy';
 export const SERVICE_WORKER_POLICY_VALUE = 'block-registration-v1';
 export const SERVICE_WORKER_BLOCK_FUNCTION = '__sitecapsuleBlockServiceWorkerRegistration_v1__';
+export const SERVICE_WORKER_GUARD_SOURCE = `(()=>{const n=${JSON.stringify(
+  SERVICE_WORKER_BLOCK_FUNCTION,
+)};const deny=()=>Promise.reject(new DOMException("Service Worker registration is disabled in this SiteCapsule archive.","SecurityError"));try{Object.defineProperty(globalThis,n,{value:deny,writable:false,configurable:false})}catch{}const c=globalThis.navigator?.serviceWorker;if(!c)return;for(const target of [c,Object.getPrototypeOf(c)]){if(!target)continue;try{Object.defineProperty(target,"register",{value:deny,writable:false,configurable:false})}catch{}}})();`;
 
 export const SERVICE_WORKER_SCRIPT_KINDS = [
   'inline-classic',
@@ -32,6 +35,7 @@ export type ServiceWorkerRegistrationChange = {
   startOffset: number;
   endOffset: number;
   calleePath: string;
+  originalValue: string;
   replacement: string;
 };
 
@@ -74,9 +78,6 @@ const JAVASCRIPT_MIME_TYPES = new Set([
 ]);
 const GLOBAL_NAVIGATOR_ROOTS = new Set(['window', 'globalThis', 'self']);
 const BLOCK_EXPRESSION = `globalThis.${SERVICE_WORKER_BLOCK_FUNCTION}()`;
-const GUARD_SOURCE = `(()=>{const n=${JSON.stringify(
-  SERVICE_WORKER_BLOCK_FUNCTION,
-)};const deny=()=>Promise.reject(new DOMException("Service Worker registration is disabled in this SiteCapsule archive.","SecurityError"));try{Object.defineProperty(globalThis,n,{value:deny,writable:false,configurable:false})}catch{}const c=globalThis.navigator?.serviceWorker;if(!c)return;for(const target of [c,Object.getPrototypeOf(c)]){if(!target)continue;try{Object.defineProperty(target,"register",{value:deny,writable:false,configurable:false})}catch{}}})();`;
 
 function isAstNode(value: unknown): value is AstNode {
   return (
@@ -229,6 +230,7 @@ function analyzeInlineScript(
       startOffset: replacement.start,
       endOffset: replacement.end,
       calleePath: replacement.calleePath,
+      originalValue: source.slice(replacement.start, replacement.end),
       replacement: replacement.value,
     }));
   const status: ServiceWorkerScriptStatus =
@@ -254,7 +256,7 @@ function analyzeInlineScript(
 function createGuardScript(document: Document): HTMLScriptElement {
   const guard = document.createElement('script');
   guard.setAttribute(SERVICE_WORKER_POLICY_ATTRIBUTE, SERVICE_WORKER_POLICY_VALUE);
-  guard.textContent = GUARD_SOURCE;
+  guard.textContent = SERVICE_WORKER_GUARD_SOURCE;
   return guard;
 }
 

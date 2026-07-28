@@ -56,6 +56,7 @@ function createFixture() {
     savedResourceMappings: [],
   });
   const parseError: CssRewriteResult = {
+    originalCssText: 'broken',
     cssText: 'broken',
     context: 'stylesheet',
     sourcePath: 'assets/origins/https/dns-cdn.example.test/default/css/broken.css',

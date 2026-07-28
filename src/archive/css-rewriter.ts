@@ -56,6 +56,7 @@ export type CssReferenceResult =
     });
 
 export type CssRewriteResult = {
+  originalCssText: string;
   cssText: string;
   context: CssRewriteContext;
   sourcePath: string;
@@ -193,6 +194,7 @@ export function rewriteCssResource(options: RewriteCssResourceOptions): CssRewri
     });
   } catch {
     return {
+      originalCssText: options.cssText,
       cssText: options.cssText,
       context: options.context,
       sourcePath: options.sourcePath,
@@ -228,6 +230,7 @@ export function rewriteCssResource(options: RewriteCssResourceOptions): CssRewri
 
   const rewrittenCount = references.filter((reference) => reference.status === 'rewritten').length;
   return {
+    originalCssText: options.cssText,
     cssText: rewrittenCount === 0 ? options.cssText : generate(ast),
     context: options.context,
     sourcePath: options.sourcePath,
