@@ -22,6 +22,18 @@ export {
   type ArchiveMetadataPath,
 } from './archive-layout';
 export {
+  ARCHIVE_DOWNLOAD_CONFLICT_ACTION,
+  ARCHIVE_DOWNLOAD_FALLBACK_FILE_NAME,
+  ARCHIVE_DOWNLOAD_MIME_TYPE,
+  createArchiveDownloadFileName,
+  exportArchiveDownload,
+  exportArchiveWithChromeDownloads,
+  type ArchiveDownloadEnvironment,
+  type ArchiveDownloadInput,
+  type ArchiveDownloadRequest,
+  type ArchiveDownloadResult,
+} from './archive-download';
+export {
   ARCHIVE_MANIFEST_FORMAT_VERSION,
   ARCHIVE_MANIFEST_PRODUCT,
   ARCHIVE_MANIFEST_REDACTED_VALUE,

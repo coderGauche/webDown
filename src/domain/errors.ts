@@ -16,6 +16,7 @@ export const CAPTURE_ERROR_CODES = [
   'permission-denied',
   'network-request-failed',
   'resource-limit-exceeded',
+  'archive-download-failed',
   'capture-cancelled',
   'unexpected-error',
 ] as const;
@@ -35,6 +36,7 @@ export const CAPTURE_ERROR_OPERATIONS = [
   'job-cleanup',
   'resource-download',
   'archive-package',
+  'archive-download',
 ] as const;
 
 export type CaptureErrorCode = (typeof CAPTURE_ERROR_CODES)[number];
@@ -139,6 +141,11 @@ export const CAPTURE_ERROR_CATALOG = {
     message: '资源超出当前任务的大小限制。',
     retryable: false,
     suggestion: '请提高体积上限或排除该资源。',
+  },
+  'archive-download-failed': {
+    message: '归档文件下载失败。',
+    retryable: true,
+    suggestion: '请检查浏览器下载设置和可用存储空间后重试。',
   },
   'capture-cancelled': {
     message: '任务已取消。',
