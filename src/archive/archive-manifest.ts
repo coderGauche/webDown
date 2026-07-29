@@ -97,7 +97,11 @@ function hasSensitiveFragmentParameter(fragment: string): boolean {
   });
 }
 
-function normalizeManifestUrl(value: unknown, label: string, removeFragment: boolean): string {
+export function sanitizeArchiveNetworkUrl(
+  value: unknown,
+  label: string,
+  removeFragment: boolean,
+): string {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new TypeError(`${label} must be a non-empty URL string.`);
   }
@@ -153,7 +157,7 @@ function normalizeOnlineDependencies(value: unknown): string[] {
   }
 
   const normalized = Array.from(value.entries(), ([index, dependency]) =>
-    normalizeManifestUrl(dependency, `Archive online dependency at index ${index}`, true),
+    sanitizeArchiveNetworkUrl(dependency, `Archive online dependency at index ${index}`, true),
   );
   return Array.from(new Set(normalized)).sort(compareText);
 }
@@ -176,8 +180,8 @@ export function buildArchiveManifest(input: ArchiveManifestInput): ArchiveManife
     formatVersion: ARCHIVE_MANIFEST_FORMAT_VERSION,
     product: ARCHIVE_MANIFEST_PRODUCT,
     capturedAt: normalizeTimestamp(input.capturedAt),
-    startUrl: normalizeManifestUrl(input.startUrl, 'Archive start URL', false),
-    finalUrl: normalizeManifestUrl(input.finalUrl, 'Archive final URL', false),
+    startUrl: sanitizeArchiveNetworkUrl(input.startUrl, 'Archive start URL', false),
+    finalUrl: sanitizeArchiveNetworkUrl(input.finalUrl, 'Archive final URL', false),
     mode: input.mode,
     captureProfile: input.captureProfile,
     pages: validatePositiveCount(input.pages, 'Archive page count'),

@@ -28,9 +28,26 @@ export {
   buildArchiveManifest,
   createArchiveManifestBytes,
   createArchiveManifestEntry,
+  sanitizeArchiveNetworkUrl,
   type ArchiveManifest,
   type ArchiveManifestInput,
 } from './archive-manifest';
+export {
+  ARCHIVE_RESOURCE_MANIFEST_FORMAT_VERSION,
+  buildArchiveResourceManifests,
+  createArchiveResourceManifestEntries,
+  type ArchiveFailureManifest,
+  type ArchiveOriginalUrlMapping,
+  type ArchiveOriginalUrlsManifest,
+  type ArchiveRedirectHop,
+  type ArchiveRedirectTrace,
+  type ArchiveResourceEntry,
+  type ArchiveResourceError,
+  type ArchiveResourceManifest,
+  type ArchiveResourceManifests,
+  type ArchiveResourceManifestsInput,
+  type ArchiveUnsavedResourceEntry,
+} from './resource-manifests';
 export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
