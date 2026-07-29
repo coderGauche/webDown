@@ -66,10 +66,21 @@ export {
   createArchiveReportArtifacts,
   createArchiveReportEntries,
   createArchiveReportHtml,
+  validateArchiveFailureManifest,
+  validateArchiveManifest,
+  validateArchiveResourceManifest,
   type ArchiveReportArtifacts,
   type ArchiveReportInput,
   type ArchiveReportLocale,
 } from './archive-report';
+export {
+  ARCHIVE_VERIFICATION_ERROR_CODES,
+  ArchiveVerificationError,
+  verifySiteCapsuleArchiveSync,
+  type ArchiveVerificationErrorCode,
+  type ArchiveVerificationResult,
+  type VerifySiteCapsuleArchiveInput,
+} from './archive-verifier';
 export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,

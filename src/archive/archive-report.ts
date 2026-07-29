@@ -217,7 +217,7 @@ function validateResourceType(value: unknown, label: string): asserts value is R
   }
 }
 
-function validateArchiveManifest(value: unknown): ArchiveManifest {
+export function validateArchiveManifest(value: unknown): ArchiveManifest {
   if (!isRecord(value)) throw new TypeError('Archive report archiveManifest must be an object.');
   if (
     value.formatVersion !== ARCHIVE_MANIFEST_FORMAT_VERSION ||
@@ -292,7 +292,7 @@ function validateUnsavedEntry(
   return value as unknown as ArchiveUnsavedResourceEntry;
 }
 
-function validateResourceManifest(value: unknown): ArchiveResourceManifest {
+export function validateArchiveResourceManifest(value: unknown): ArchiveResourceManifest {
   if (
     !isRecord(value) ||
     !hasExactKeys(value, ['formatVersion', 'resources']) ||
@@ -305,7 +305,7 @@ function validateResourceManifest(value: unknown): ArchiveResourceManifest {
   return value as unknown as ArchiveResourceManifest;
 }
 
-function validateFailureManifest(value: unknown): ArchiveFailureManifest {
+export function validateArchiveFailureManifest(value: unknown): ArchiveFailureManifest {
   if (
     !isRecord(value) ||
     !hasExactKeys(value, ['formatVersion', 'failures', 'skipped']) ||
@@ -328,8 +328,8 @@ function validateReportInput(input: ArchiveReportInput): ValidatedReportInput {
     throw new TypeError('Archive report locale is not supported.');
   }
   const archiveManifest = validateArchiveManifest(input.archiveManifest);
-  const resourceManifest = validateResourceManifest(input.resourceManifest);
-  const failureManifest = validateFailureManifest(input.failureManifest);
+  const resourceManifest = validateArchiveResourceManifest(input.resourceManifest);
+  const failureManifest = validateArchiveFailureManifest(input.failureManifest);
   if (archiveManifest.resources !== resourceManifest.resources.length) {
     throw new Error('Archive report saved resource count does not match resources.json.');
   }

@@ -3,9 +3,9 @@
 > 文档类型：Implementation Plan + Progress Tracker  
 > 版本：v0.1  
 > 建立日期：2026-07-22  
-> 当前阶段：M7 ZIP、清单与归档报告
-> 当前状态：M7-T7 已完成并通过验收
-> 下一任务：M7-T8 验证 ZIP CRC、解压和文件数量
+> 当前阶段：M8 Side Panel 完整工作流
+> 当前状态：M7 已全部完成并通过验收
+> 下一任务：M8-T1 实现当前页任务设置
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -321,7 +321,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M7-T5** 生成 `report.html` 和 `README_OFFLINE.md`；
 - [x] **M7-T6** 生成可选 SHA-256；
 - [x] **M7-T7** 使用 Chrome Downloads API 导出；
-- [ ] **M7-T8** 验证 ZIP CRC、解压和文件数量。
+- [x] **M7-T8** 验证 ZIP CRC、解压和文件数量。
 
 验收门禁：
 
@@ -462,10 +462,10 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 | 项目 | 当前值 |
 |---|---|
-| 当前里程碑 | M7 ZIP、清单与归档报告 |
+| 当前里程碑 | M8 Side Panel 完整工作流 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M7-T7 使用 Chrome Downloads API 导出 |
-| 下一任务 | M7-T8 验证 ZIP CRC、解压和文件数量 |
+| 最近完成 | M7-T8 验证 ZIP CRC、解压和文件数量 |
+| 下一任务 | M8-T1 实现当前页任务设置 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -542,6 +542,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M7-T5 | 完成 | 新增 `src/archive/archive-report.ts` 及归档模块导出，从已验证的 `ArchiveManifest`、`ArchiveResourceManifest` 和 `ArchiveFailureManifest` 生成 `_sitecapsule/report.html` 与 `README_OFFLINE.md`，支持 `zh-CN`/英文任务语言；生成边界重验格式版本、规范 `archive.json` 字段顺序、资源/失败行结构及 HTTP/类型/长度，并强制 archive 成功和失败计数与机器清单数组一致，体积汇总不得超出安全整数；HTML 报告包含捕获摘要、体积、失败/跳过明细、线上依赖、已知限制和机器清单相对链接，使用内联系统字体/样式与限制 CSP，不包含 script、远程样式/媒体、form、iframe 或 base；README 同步记录捕获模式/配置档和各类计数，区分可直接打开与必须本地 HTTP，固定提供 `python3 -m http.server 8000 --bind 127.0.0.1` 及不暴露局域网的安全提示；所有动态文本按 HTML 或 Markdown 上下文编码，Markdown 以可扩展 code span 包裹 URL/限制，拒绝多行注入，英文报告使用稳定错误码而不混入中文错误文案；不计算 SHA-256、不导出 ZIP 且不伪造完整性验收；`tests/archive-report.test.ts` 12 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（50 个文件、520 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M7-T6 | 完成 | 新增 `src/archive/sha256.ts`、`resource-integrity.ts` 及归档模块导出，将 Web Crypto SHA-256 底层边界抽象为纯 `Uint8Array -> 64 位小写十六进制`，M6 路径/query/冲突哈希的字符串入口复用该字节工具且保持既有输出；定义开启/关闭鉴别联合输入，关闭时不允许传入资源字节、不读取 Web Crypto、清除旧摘要并保持 `sha256: null`；开启时复制调用方字节快照，对 `ArchiveResourceManifest` 与资源条目做一对一路径关联，按 NFC+小写拒绝重复，拒绝不可移植路径、缺失/额外条目和与清单不一致的字节长度；按清单原顺序顺序计算并覆盖旧摘要，返回已回填的新清单、哈希数量及稳定 UTF-8 `_sitecapsule/resources.json` 条目，不修改输入清单、顺序或字节；Web Crypto 缺失显式失败，摘要拒绝以 `ArchiveResourceSha256Error` 保留 localPath 和 cause；未导出 ZIP 且未执行 CRC/解压验收；`tests/resource-integrity.test.ts` 13 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（51 个文件、533 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M7-T7 | 完成 | 新增 `src/archive/archive-download.ts` 与归档模块导出，将非空 ZIP `Uint8Array` 复制后封装为 `application/zip` Blob，并通过真实 `browser.downloads.download` 适配器发起一次下载；导出边界要求调用方显式指定 `saveAs`，固定 `conflictAction: 'uniquify'`，校验 Downloads API 返回的非负安全整数任务 ID并返回文件名、字节数和下载 ID；文件名复用 M6 可移植清理规则，统一规范为 `.zip` 后缀并继续满足 240 UTF-8 字节限制；只接受 `blob:` URL，拒绝 data URL 和其他协议，不上传归档；下载启动成功、失败或返回非法 ID 后均回收 Blob URL，下载与清理异常转换为脱敏的 `archive-download-failed` 结构化错误且主失败不会被清理失败覆盖；Manifest 已有 `downloads` 权限，实际调用保留在同时具备 Blob 与扩展 API 的文档型扩展上下文，未提前接入 M8 UI 或执行 M7-T8 CRC/解压验收；`tests/archive-download.test.ts` 18 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（52 个文件、551 项测试）、`pnpm build`（MV3 总计 504.02 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M7-T8 | 完成 | 新增 `src/archive/archive-verifier.ts` 与归档模块导出，在 `fflate` 可信解压之上独立解析 EOCD、中央目录和本地文件头，拒绝分卷/ZIP64、未知压缩方式、数据描述符、截断、尾随结构、头字段不一致、重复路径及 NFC+大小写可移植碰撞；解压前先将中央目录路径和未压缩长度与最终 `ArchiveLayout` 预期条目核对，避免未知条目或异常膨胀尺寸进入 eager 解压；解压后逐文件重新计算 CRC32、核对长度并与预期条目字节一致性比较，区分结构、CRC、路径和内容错误；复用并公开 M7-T5 的规范清单校验器，读取 ZIP 内 archive/resources/failures/original-urls 四个 JSON，强制六个 metadata 文件齐全，校验真实 index/pages/assets 路径集合、资源字节长度、页面/成功/失败/跳过计数及原始 URL 映射；输出路径、布局计数和清单计数的结构化结果，所有路径复制输入字节且不修改调用方集合；接口明确只验收 SiteCapsule 自产 ZIP，不作为任意第三方 ZIP 的安全沙箱；`tests/archive-verifier.test.ts` 8 项定向测试覆盖成功、CRC 篡改仍可解压、截断、重复、缺失/额外路径、等长内容差异和清单不一致，并经用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（53 个文件、559 项测试）、`pnpm build`（MV3 总计 504.02 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -623,6 +624,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-060 | 2026-07-29 | 人类可读报告只从已验证机器清单投影，生成静态双语 HTML 和 Markdown，不复制第二套计数逻辑 | 报告若信任调用方计数、直接插入 URL/错误/限制文本或加载远程资源，会导致交付数据不一致、HTML/Markdown 注入或离线报告自身依赖网络；鼓励 `0.0.0.0` 启动服务器还会暴露客户归档 | 生成前重验格式版本、行形状和 archive/resources/failures 计数；动态值按上下文编码并拒绝多行注入；HTML 只含内联样式、限制 CSP 和相对清单链接，README 要求从解压根目录启动仅绑定 `127.0.0.1` 的服务；报告仅是当前清单的一致性投影，真实文件存在/CRC/解压仍由 M7-T8 验证 |
 | D-061 | 2026-07-29 | 可选文件摘要以已验证 `resources.json` 中的 localPath/byteLength 与同路径字节条目一对一关联，开关关闭时从类型和运行时均不接受字节 | 按数组下标哈希会在顺序变化时绑错文件；信任记录 byteLength 会为错误内容生成看似合法的摘要；关闭功能却保留旧哈希或暗中读取 Crypto 会让清单语义不可预期 | 开启时要求路径集合完全相等、可移植唯一且实际字节长度相等，以资源清单顺序顺序摘要；关闭时强制所有 `sha256: null`；底层只使用 Web Crypto `SHA-256` 且复制 BufferSource，错误按 localPath 定位；ZIP 中清单与文件实际摘要的全面复验仍由 M7-T8 完成 |
 | D-062 | 2026-07-29 | ZIP 导出使用文档型扩展上下文创建本地 Blob URL并直接调用 Chrome Downloads API，用户保存交互显式传入且重名固定 uniquify | MV3 Service Worker 不能创建 Blob URL，offscreen 文档又只支持 Runtime 扩展 API；使用 data URL 会放大内存并绕过 Blob 生命周期，自动覆盖同名文件或吞掉浏览器错误也不适合客户交付 | 导出适配器只接受复制后的非空 `Uint8Array` 和 `blob:` URL；文件名复用可移植规则并强制 `.zip`；`download()` 返回有效任务 ID 后视为启动成功，所有结算路径回收 URL；异常只保留稳定错误类型和 `archive-download` 操作，不解析不稳定的浏览器错误正文；M8 再接入可见按钮与任务结果页 |
+| D-063 | 2026-07-29 | ZIP 最终验收先解析受支持结构并以预期布局限制路径和未压缩长度，再由 fflate 可信解压并独立复算 CRC32、比对条目和清单 | `fflate.unzipSync` 能解压 ZIP 但不会校验 ZIP 中记录的 CRC；直接 eager 解压未知输入还可能按伪造长度分配内存；只比较文件数无法发现重名覆盖、缺失文件、清单谎报或内容被替换 | 仅接受 SiteCapsule 同步生成的单盘、非 ZIP64、无数据描述符 ZIP；中央目录、本地头、路径集合和预期长度在解压前一致，解压后 CRC、字节和四类机器清单再交叉验证；错误按 structure/CRC/path/content/manifest/count 分类，接口和注释不承诺处理不可信第三方 ZIP |
 
 ---
 
@@ -643,11 +645,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M7-T8：验证 ZIP CRC、解压和文件数量**。
+下一步严格只执行 **M8-T1：实现当前页任务设置**。
 
-M7-T8 完成后必须：
+M8-T1 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 对 SiteCapsule 生成的 ZIP 执行 CRC 校验和可信解压，损坏、截断或校验失败必须显式拒绝；
-3. 验证解压后的实际路径集合、总文件数和 M7 目录/清单声明一致，缺失、额外和重复条目不得通过；
-4. 保持验证结果结构化且不修改输入字节，不将可信输出验收接口描述为任意第三方 ZIP 的安全沙箱，不提前实现 M8 Side Panel 工作流。
+2. 在 Side Panel 建立面向非技术用户的当前页面任务设置区，明确显示当前页模式、页面标题/URL 和可编辑 ZIP 文件名；
+3. 设置值必须形成可校验的 `current-page` 任务输入，文件名错误可在表单内解释，刷新页面信息时不丢失无关设置；
+4. 保持窄面板布局稳定，不提前实现 M8-T2 渲染等待/并发/媒体/第三方控件、M8-T3 执行进度或站点爬取模式。
