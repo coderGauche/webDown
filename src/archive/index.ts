@@ -49,6 +49,16 @@ export {
   type ArchiveUnsavedResourceEntry,
 } from './resource-manifests';
 export {
+  ARCHIVE_REPORT_LOCALES,
+  createArchiveOfflineReadme,
+  createArchiveReportArtifacts,
+  createArchiveReportEntries,
+  createArchiveReportHtml,
+  type ArchiveReportArtifacts,
+  type ArchiveReportInput,
+  type ArchiveReportLocale,
+} from './archive-report';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,

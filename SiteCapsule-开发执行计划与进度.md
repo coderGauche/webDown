@@ -318,7 +318,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M7-T2** 实现规定的 ZIP 目录结构；
 - [x] **M7-T3** 生成 `archive.json`；
 - [x] **M7-T4** 生成 `resources.json` 和 `failures.json`；
-- [ ] **M7-T5** 生成 `report.html` 和 `README_OFFLINE.md`；
+- [x] **M7-T5** 生成 `report.html` 和 `README_OFFLINE.md`；
 - [ ] **M7-T6** 生成可选 SHA-256；
 - [ ] **M7-T7** 使用 Chrome Downloads API 导出；
 - [ ] **M7-T8** 验证 ZIP CRC、解压和文件数量。
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M7 ZIP、清单与归档报告 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M7-T4 生成 `resources.json` 和 `failures.json` |
-| 下一任务 | M7-T5 生成 `report.html` 和 `README_OFFLINE.md` |
+| 最近完成 | M7-T5 生成 `report.html` 和 `README_OFFLINE.md` |
+| 下一任务 | M7-T6 生成可选 SHA-256 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -539,6 +539,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M7-T2 | 完成 | 新增 `src/archive/archive-layout.ts` 与归档模块导出，在 M7-T1 ZIP 边界上定义必需根 `index.html`、`pages/`、M6 `assets/`、`_sitecapsule/` 和可选 `screenshots/` 五个区域；`_sitecapsule` 只保留方案规定的 archive/resources/failures/original-urls/report/README 六个路径，本任务不生成其内容；调用方按区域提交完整归档路径和 `Uint8Array`，装配层复制字节、稳定排序并返回 pages/assets/metadata/screenshots/total 分类计数，支持直接生成确定性 ZIP；路径复用安全相对 POSIX 校验，每个组件必须经过既有可移植文件名规则且保持不变，跨全部区域按 NFC + 小写键拒绝精确、大小写和规范化碰撞，区域串用、未知 metadata、逃逸、Windows 设备名和非二进制输入显式失败；ZIP 目录由文件路径自然形成，不写无内容的合成目录条目，除 `index.html` 外各区域在当前阶段可缺省；未提前实现 M7-T3 清单正文、报告、哈希或 Downloads 导出；`tests/archive-layout.test.ts` 15 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（47 个文件、473 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M7-T3 | 完成 | 新增 `src/archive/archive-manifest.ts` 与归档模块导出，固定 `formatVersion: 1` 和产品名 `SiteCapsule`，以严格 10 字段输入生成捕获时间、起止 URL、模式、配置档、页面/资源/失败计数、本地 HTTP 要求和线上依赖摘要；拒绝额外或缺失字段，捕获时间必须为规范 ISO 8601 UTC，页面数必须为正安全整数，其他计数为非负安全整数，模式/配置档/布尔值/数组做运行时校验；HTTP/HTTPS URL 使用 WHATWG URL 规范化、拒绝内嵌凭据，保留影响内容的普通 query 和页面 fragment，对常见 token、JWT、auth、API key、secret、password、session、signature、credential、code 及带云厂商前缀的敏感参数值替换为 `REDACTED`，敏感 fragment 整体脱敏；线上依赖移除 fragment、在脱敏后去重排序，稀疏数组和非法协议显式失败；以固定字段顺序、两空格缩进和单个尾随换行生成 UTF-8 `Uint8Array`，并直接产出 M7-T2 预留的 `_sitecapsule/archive.json` 条目，相同业务输入和不同依赖顺序得到相同字节；未提前实现 M7-T4 逐资源/失败清单或 M7-T5 报告；`tests/archive-manifest.test.ts` 20 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（48 个文件、493 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M7-T4 | 完成 | 新增 `src/archive/resource-manifests.ts` 及归档模块导出，从同一任务的已验证 `ResourceRecord` 与 M6 确定性 `ResourcePathMapping` 一次构建固定 `formatVersion: 1` 的 `_sitecapsule/resources.json`、`failures.json` 和 `original-urls.json`；只接受 saved/failed/skipped 终态，saved 资源与 index/pages/assets 路径、资源类型、final URL 和确定性映射双向一致，失败与跳过资源分层输出且不能携带本地路径或哈希；校验唯一资源 ID、任务归属、可移植路径、重定向链、HTTP 状态、规范 MIME、字节长度、可选哈希形状和结构化 `CaptureError`，错误对外仅保留 code/message/retry/stage/status/browser/visual 等安全诊断，不序列化内部 jobId/resourceId/context URL；复用 M7-T3 URL 脱敏，data/Blob/不支持协议只记录安全协议占位，原始负载不进入交付物；成功、失败、跳过及原始 URL 到 final URL/本地路径映射全部去重稳定排序，两空格缩进、单尾随换行生成 UTF-8 字节，不同输入顺序输出相同；`sha256` 字段仅预留并验证已有值，本任务不计算哈希，未提前实现 M7-T5 报告或 Downloads 导出；`tests/resource-manifests.test.ts` 15 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（49 个文件、508 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M7-T5 | 完成 | 新增 `src/archive/archive-report.ts` 及归档模块导出，从已验证的 `ArchiveManifest`、`ArchiveResourceManifest` 和 `ArchiveFailureManifest` 生成 `_sitecapsule/report.html` 与 `README_OFFLINE.md`，支持 `zh-CN`/英文任务语言；生成边界重验格式版本、规范 `archive.json` 字段顺序、资源/失败行结构及 HTTP/类型/长度，并强制 archive 成功和失败计数与机器清单数组一致，体积汇总不得超出安全整数；HTML 报告包含捕获摘要、体积、失败/跳过明细、线上依赖、已知限制和机器清单相对链接，使用内联系统字体/样式与限制 CSP，不包含 script、远程样式/媒体、form、iframe 或 base；README 同步记录捕获模式/配置档和各类计数，区分可直接打开与必须本地 HTTP，固定提供 `python3 -m http.server 8000 --bind 127.0.0.1` 及不暴露局域网的安全提示；所有动态文本按 HTML 或 Markdown 上下文编码，Markdown 以可扩展 code span 包裹 URL/限制，拒绝多行注入，英文报告使用稳定错误码而不混入中文错误文案；不计算 SHA-256、不导出 ZIP 且不伪造完整性验收；`tests/archive-report.test.ts` 12 项定向测试及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（50 个文件、520 项测试）、`pnpm build`（MV3 总计 503.46 kB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -617,6 +618,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-057 | 2026-07-29 | ZIP 布局以区域化文件条目装配，不生成空目录记录；主入口必需，其他区域按当前可用产物增量加入 | ZIP 目录本质由条目路径表达，额外目录记录会增加清单计数歧义；让调用方提交任意全路径又会绕过 M6 路径约束、污染保留元数据区或在大小写不敏感文件系统覆盖 | `index.html` 由独立二进制输入建立且不能被覆盖；pages/assets/metadata/screenshots 分别校验固定根，metadata 仅接受六个保留路径；所有条目稳定排序并按 NFC + 小写拒绝可移植碰撞；最终必须存在的清单及报告内容由 M7-T3 至 M7-T5 逐项生成，完整文件数与 CRC 由 M7-T8 验证 |
 | D-058 | 2026-07-29 | `archive.json` 使用固定格式版本、精确业务字段和规范 UTF-8 JSON；交付 URL 在保留非敏感语义的同时执行凭据拒绝与敏感参数脱敏 | 直接序列化 `CaptureJob` 会泄露内部 ID、标签页、完整设置或未来新增字段；默认对象/集合顺序和非规范时间会破坏可重复性；起止 URL 与线上依赖可能携带 Token、签名或会话凭据 | 清单模型不接受任务对象，只接收产品方案定义的 10 个字段；字段插入顺序、时间格式、依赖排序和尾随换行固定；普通 query 与非敏感页面 fragment 保留，线上依赖 fragment 移除，敏感 query 值和 fragment 脱敏；参数名启发式无法识别任意自定义秘密，M7-T4/M7-T5 继续复用并记录该限制 |
 | D-059 | 2026-07-29 | 逐资源交付清单以终态 `ResourceRecord` 与确定性路径映射为唯一事实来源，成功、失败和跳过状态分层，原始 URL 映射独立输出 | 直接序列化存储记录会泄露任务/资源 ID、错误内部 URL 或 data 负载；将 failed/skipped 混入成功数组或带上 localPath 会伪造离线可用性；引用未使用的路径映射可产生不存在的文件 | 归档边界拒绝非终态、跨任务、重复 ID/路径、孤立映射、失败无结构错误和状态/路径/类型/final URL 不一致；对外错误重建固定安全字段，URL 复用脱敏并将非网络负载替换为协议占位；可选 SHA-256 当前只校验形状，真实计算留给 M7-T6 |
+| D-060 | 2026-07-29 | 人类可读报告只从已验证机器清单投影，生成静态双语 HTML 和 Markdown，不复制第二套计数逻辑 | 报告若信任调用方计数、直接插入 URL/错误/限制文本或加载远程资源，会导致交付数据不一致、HTML/Markdown 注入或离线报告自身依赖网络；鼓励 `0.0.0.0` 启动服务器还会暴露客户归档 | 生成前重验格式版本、行形状和 archive/resources/failures 计数；动态值按上下文编码并拒绝多行注入；HTML 只含内联样式、限制 CSP 和相对清单链接，README 要求从解压根目录启动仅绑定 `127.0.0.1` 的服务；报告仅是当前清单的一致性投影，真实文件存在/CRC/解压仍由 M7-T8 验证 |
 
 ---
 
@@ -637,11 +639,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M7-T5：生成 `report.html` 和 `README_OFFLINE.md`**。
+下一步严格只执行 **M7-T6：生成可选 SHA-256**。
 
-M7-T5 完成后必须：
+M7-T6 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 基于已验证的 archive/resources/failures 清单生成 `_sitecapsule/report.html` 和 `README_OFFLINE.md`，人类可读摘要必须与机器清单计数一致；
-3. 报告覆盖捕获概要、成功/失败/跳过资源、线上依赖、已知限制和本地 HTTP 启动说明，所有动态文本按 HTML/Markdown 上下文安全编码；
-4. 报告输出必须稳定、无远程资源和可执行脚本，不提前实现 M7-T6 SHA-256 计算、M7-T7 Downloads API 或 M7-T8 ZIP 完整性验收。
+2. 以明确开关对已保存资源字节使用 Web Crypto SHA-256，关闭时不执行摘要计算且清单保持 `null`；
+3. 哈希计算必须校验资源本地路径、字节长度和唯一性，生成 64 位小写十六进制值并回填 `resources.json`，不修改输入字节或资源顺序；
+4. 相同字节输出必须稳定，Web Crypto 不可用、路径缺失或长度不一致显式失败，不提前实现 M7-T7 Downloads API 或 M7-T8 ZIP 完整性验收。
