@@ -2,10 +2,10 @@ import type { ResourceType } from '@sitecapsule/domain';
 
 import { appendArchiveFileNameSuffix, createResourceFileName } from './resource-file-name';
 import { createResourceDirectoryMapping } from './resource-directory';
+import { createArchiveSha256Hex, SHA_256_HEX_LENGTH } from './sha256';
 
 export const ARCHIVE_HASH_HEX_LENGTH = 12;
 const COLLISION_HASH_LENGTH_STEP = 4;
-const SHA_256_HEX_LENGTH = 64;
 
 export type ResourcePathInput = {
   url: string;
@@ -41,15 +41,9 @@ function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function bytesToHex(value: ArrayBuffer): string {
-  return Array.from(new Uint8Array(value), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 export async function createStableArchiveHash(value: string): Promise<string> {
   if (typeof value !== 'string') throw new TypeError('Archive hash input must be a string.');
-  if (!globalThis.crypto?.subtle) throw new Error('Web Crypto SHA-256 is unavailable.');
-
-  return bytesToHex(await globalThis.crypto.subtle.digest('SHA-256', UTF8_ENCODER.encode(value)));
+  return createArchiveSha256Hex(UTF8_ENCODER.encode(value));
 }
 
 export async function createQueryHash(search: string): Promise<string | null> {

@@ -74,6 +74,13 @@ export {
   type ResourcePathInput,
   type ResourcePathMapping,
 } from './resource-path-mapping';
+export { SHA_256_HEX_LENGTH, createArchiveSha256Hex } from './sha256';
+export {
+  ArchiveResourceSha256Error,
+  applyArchiveResourceSha256,
+  type ArchiveResourceSha256Input,
+  type ArchiveResourceSha256Result,
+} from './resource-integrity';
 export {
   rewriteHtmlResource,
   type HtmlBaseHrefRemoval,
