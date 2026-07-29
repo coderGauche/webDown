@@ -3,6 +3,7 @@ import {
   CAPTURE_PROFILES,
   JOB_STATUSES,
   PAUSABLE_JOB_STATUSES,
+  RESOURCE_TYPES,
   isCaptureError,
   isRenderWaitMs,
   type CaptureJob,
@@ -36,6 +37,8 @@ import {
   type CaptureJobUpdatedEvent,
   type MessageType,
   type PageInfoCollectRequest,
+  type PageArchiveRewriteRequest,
+  type PageArchiveRewriteResponse,
   type PageInfoRequest,
   type PageInfoResponse,
   type ProtocolMessage,
@@ -423,6 +426,71 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
   return hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
 }
 
+function isResourcePathMapping(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [
+      'normalizedUrl',
+      'originalUrls',
+      'resourceType',
+      'directoryPath',
+      'baseFileName',
+      'queryHash',
+      'collisionHash',
+      'fileName',
+      'relativePath',
+    ]) &&
+    isAbsoluteUrl(value.normalizedUrl) &&
+    isStringArray(value.originalUrls) &&
+    value.originalUrls.length > 0 &&
+    value.originalUrls.every(isAbsoluteUrl) &&
+    RESOURCE_TYPES.includes(value.resourceType as (typeof RESOURCE_TYPES)[number]) &&
+    isNonEmptyString(value.directoryPath) &&
+    isNonEmptyString(value.baseFileName) &&
+    (value.queryHash === null || isNonEmptyString(value.queryHash)) &&
+    (value.collisionHash === null || isNonEmptyString(value.collisionHash)) &&
+    isNonEmptyString(value.fileName) &&
+    isNonEmptyString(value.relativePath)
+  );
+}
+
+export function isPageArchiveRewriteRequest(
+  message: unknown,
+): message is PageArchiveRewriteRequest {
+  return (
+    isProtocolMessageEnvelope(message) &&
+    hasMessageType(message, MESSAGE_TYPES.pageArchiveRewrite) &&
+    isRecord(message.payload) &&
+    hasExactKeys(message.payload, ['html', 'documentUrl', 'baseUrl', 'savedResourceMappings']) &&
+    isNonEmptyString(message.payload.html) &&
+    isAbsoluteUrl(message.payload.documentUrl) &&
+    isAbsoluteUrl(message.payload.baseUrl) &&
+    Array.isArray(message.payload.savedResourceMappings) &&
+    message.payload.savedResourceMappings.every(isResourcePathMapping)
+  );
+}
+
+export function isPageArchiveRewriteResponse(
+  message: unknown,
+): message is PageArchiveRewriteResponse {
+  if (
+    !isProtocolMessageEnvelope(message) ||
+    !hasMessageType(message, MESSAGE_TYPES.pageArchiveRewriteResponse) ||
+    !isRecord(message.payload) ||
+    typeof message.payload.ok !== 'boolean'
+  ) {
+    return false;
+  }
+  if (message.payload.ok) {
+    return (
+      hasExactKeys(message.payload, ['ok', 'html', 'rewrittenCount']) &&
+      isNonEmptyString(message.payload.html) &&
+      isNonNegativeSafeInteger(message.payload.rewrittenCount)
+    );
+  }
+  return hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
+}
+
 export function isCaptureJobCreateRequest(message: unknown): message is CaptureJobCreateRequest {
   if (
     !isProtocolMessageEnvelope(message) ||
@@ -512,6 +580,7 @@ export function isSiteCapsuleRequest(message: unknown): message is SiteCapsuleRe
   return (
     isPageInfoRequest(message) ||
     isPageInfoCollectRequest(message) ||
+    isPageArchiveRewriteRequest(message) ||
     isCaptureJobCreateRequest(message) ||
     isCaptureJobControlRequest(message) ||
     isCaptureJobGetRequest(message)
@@ -519,7 +588,11 @@ export function isSiteCapsuleRequest(message: unknown): message is SiteCapsuleRe
 }
 
 export function isSiteCapsuleResponse(message: unknown): message is SiteCapsuleResponse {
-  return isPageInfoResponse(message) || isCaptureJobResponse(message);
+  return (
+    isPageInfoResponse(message) ||
+    isPageArchiveRewriteResponse(message) ||
+    isCaptureJobResponse(message)
+  );
 }
 
 export function isSiteCapsuleEvent(message: unknown): message is SiteCapsuleEvent {

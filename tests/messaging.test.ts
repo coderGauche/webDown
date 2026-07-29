@@ -18,9 +18,17 @@ import {
   createPageInfoError,
   createPageInfoRequest,
   createPageInfoResponse,
+  createPageArchiveRewriteError,
+  createPageArchiveRewriteRequest,
+  createPageArchiveRewriteResponse,
   type PageInfo,
 } from '@sitecapsule/messaging/protocol';
-import { isPageInfoRequest, isPageInfoResponse } from '@sitecapsule/messaging/validators';
+import {
+  isPageArchiveRewriteRequest,
+  isPageArchiveRewriteResponse,
+  isPageInfoRequest,
+  isPageInfoResponse,
+} from '@sitecapsule/messaging/validators';
 import { describe, expect, it } from 'vitest';
 
 describe('page info messaging protocol', () => {
@@ -47,11 +55,45 @@ describe('page info messaging protocol', () => {
     },
   };
 
-  it('adds protocol v16 and a correlation ID to requests', () => {
+  it('round-trips a versioned DOM rewrite request and structured response', () => {
+    const request = createPageArchiveRewriteRequest(
+      {
+        html: page.serializedDom,
+        documentUrl: page.finalUrl,
+        baseUrl: page.baseUrl,
+        savedResourceMappings: [
+          {
+            normalizedUrl: 'https://cdn.example.com/assets/app.css',
+            originalUrls: ['https://cdn.example.com/assets/app.css'],
+            resourceType: 'stylesheet',
+            directoryPath: 'assets/cdn.example.com/css',
+            baseFileName: 'app.css',
+            queryHash: null,
+            collisionHash: null,
+            fileName: 'app.css',
+            relativePath: 'assets/cdn.example.com/css/app.css',
+          },
+        ],
+      },
+      'rewrite-1',
+    );
+    const success = createPageArchiveRewriteResponse('<html>offline</html>', 3, 'rewrite-1');
+    const failure = createPageArchiveRewriteError(
+      createCaptureError('unexpected-error'),
+      'rewrite-2',
+    );
+
+    expect(isPageArchiveRewriteRequest(request)).toBe(true);
+    expect(isPageArchiveRewriteResponse(success)).toBe(true);
+    expect(isPageArchiveRewriteResponse(failure)).toBe(true);
+    expect(success).toMatchObject({ payload: { ok: true, rewrittenCount: 3 } });
+  });
+
+  it('adds protocol v17 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
-      protocolVersion: 16,
+      protocolVersion: MESSAGE_PROTOCOL_VERSION,
       correlationId: 'request-42',
       type: 'page-info/request',
       payload: { tabId: 42, renderWaitMs: 1_500 },

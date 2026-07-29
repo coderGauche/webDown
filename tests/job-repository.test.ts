@@ -205,6 +205,27 @@ describe('JobRepository', () => {
     expect(await database.resources.where('jobId').equals(second.id).count()).toBe(1);
   });
 
+  it('atomically replaces and lists resources owned by a job', async () => {
+    const job = await repository.createJob(createInput);
+    await repository.replaceJobResources(job.id, [
+      createResource('resource-2', job.id),
+      createResource('resource-1', job.id),
+    ]);
+
+    expect((await repository.listJobResources(job.id)).map((resource) => resource.id)).toEqual([
+      'resource-1',
+      'resource-2',
+    ]);
+
+    await repository.replaceJobResources(job.id, [createResource('resource-3', job.id)]);
+    expect((await repository.listJobResources(job.id)).map((resource) => resource.id)).toEqual([
+      'resource-3',
+    ]);
+    await expect(
+      repository.replaceJobResources(job.id, [createResource('foreign', 'another-job')]),
+    ).rejects.toMatchObject({ details: { code: 'storage-conflict' } });
+  });
+
   it('clears eligible terminal jobs and can clear all remaining records', async () => {
     const oldCompleted = await repository.createJob(createInput);
     const active = await repository.createJob(createInput);

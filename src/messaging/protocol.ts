@@ -7,13 +7,16 @@ import {
   type CaptureSettings,
 } from '@sitecapsule/domain';
 import type { PageSnapshot } from '@sitecapsule/page';
+import type { ResourcePathMapping } from '@sitecapsule/archive';
 
-export const MESSAGE_PROTOCOL_VERSION = 16 as const;
+export const MESSAGE_PROTOCOL_VERSION = 17 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
   pageInfoCollect: 'page-info/collect',
   pageInfoResponse: 'page-info/response',
+  pageArchiveRewrite: 'page-archive/rewrite',
+  pageArchiveRewriteResponse: 'page-archive/rewrite-response',
   captureJobCreate: 'capture-job/create',
   captureJobControl: 'capture-job/control',
   captureJobGet: 'capture-job/get',
@@ -61,6 +64,29 @@ export type PageInfoResponse = ProtocolMessage<
   | {
       ok: true;
       page: PageInfo;
+    }
+  | {
+      ok: false;
+      error: CaptureError;
+    }
+>;
+
+export type PageArchiveRewriteRequest = ProtocolMessage<
+  typeof MESSAGE_TYPES.pageArchiveRewrite,
+  {
+    html: string;
+    documentUrl: string;
+    baseUrl: string;
+    savedResourceMappings: ResourcePathMapping[];
+  }
+>;
+
+export type PageArchiveRewriteResponse = ProtocolMessage<
+  typeof MESSAGE_TYPES.pageArchiveRewriteResponse,
+  | {
+      ok: true;
+      html: string;
+      rewrittenCount: number;
     }
   | {
       ok: false;
@@ -118,11 +144,13 @@ export type CaptureJobUpdatedEvent = ProtocolMessage<
 export type SiteCapsuleRequest =
   | PageInfoRequest
   | PageInfoCollectRequest
+  | PageArchiveRewriteRequest
   | CaptureJobCreateRequest
   | CaptureJobControlRequest
   | CaptureJobGetRequest;
 
-export type SiteCapsuleResponse = PageInfoResponse | CaptureJobResponse;
+export type SiteCapsuleResponse =
+  PageInfoResponse | PageArchiveRewriteResponse | CaptureJobResponse;
 export type SiteCapsuleEvent = CaptureJobUpdatedEvent;
 export type SiteCapsuleMessage = SiteCapsuleRequest | SiteCapsuleResponse | SiteCapsuleEvent;
 
@@ -178,6 +206,36 @@ export function createPageInfoError(
   correlationId = createCorrelationId(),
 ): PageInfoResponse {
   return createMessage(MESSAGE_TYPES.pageInfoResponse, { ok: false, error }, correlationId);
+}
+
+export function createPageArchiveRewriteRequest(
+  payload: PageArchiveRewriteRequest['payload'],
+  correlationId = createCorrelationId(),
+): PageArchiveRewriteRequest {
+  return createMessage(MESSAGE_TYPES.pageArchiveRewrite, payload, correlationId);
+}
+
+export function createPageArchiveRewriteResponse(
+  html: string,
+  rewrittenCount: number,
+  correlationId = createCorrelationId(),
+): PageArchiveRewriteResponse {
+  return createMessage(
+    MESSAGE_TYPES.pageArchiveRewriteResponse,
+    { ok: true, html, rewrittenCount },
+    correlationId,
+  );
+}
+
+export function createPageArchiveRewriteError(
+  error: CaptureError,
+  correlationId = createCorrelationId(),
+): PageArchiveRewriteResponse {
+  return createMessage(
+    MESSAGE_TYPES.pageArchiveRewriteResponse,
+    { ok: false, error },
+    correlationId,
+  );
 }
 
 export function createCaptureJobCreateRequest(

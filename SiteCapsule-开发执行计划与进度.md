@@ -5,7 +5,7 @@
 > 建立日期：2026-07-22  
 > 当前阶段：M8 Side Panel 完整工作流
 > 当前状态：M8-T2 已完成并通过验收
-> 下一任务：M8-T3 实现准备、发现、下载、改写、打包进度
+> 下一任务：M8-T4 实现暂停、继续、取消和重试
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -339,7 +339,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 - [x] **M8-T1** 实现当前页任务设置；
 - [x] **M8-T2** 实现渲染等待、并发、媒体和第三方资源控件；
-- [ ] **M8-T3** 实现准备、发现、下载、改写、打包进度；
+- [x] **M8-T3** 实现准备、发现、下载、改写、打包进度；
 - [ ] **M8-T4** 实现暂停、继续、取消和重试；
 - [ ] **M8-T5** 实现结果页和失败详情；
 - [ ] **M8-T6** 实现任务历史和本地清理；
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M8 Side Panel 完整工作流 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M8-T2 实现渲染等待、并发、媒体和第三方资源控件 |
-| 下一任务 | M8-T3 实现准备、发现、下载、改写、打包进度 |
+| 最近完成 | M8-T3 实现准备、发现、下载、改写、打包进度 |
+| 下一任务 | M8-T4 实现暂停、继续、取消和重试 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -545,6 +545,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M7-T8 | 完成 | 新增 `src/archive/archive-verifier.ts` 与归档模块导出，在 `fflate` 可信解压之上独立解析 EOCD、中央目录和本地文件头，拒绝分卷/ZIP64、未知压缩方式、数据描述符、截断、尾随结构、头字段不一致、重复路径及 NFC+大小写可移植碰撞；解压前先将中央目录路径和未压缩长度与最终 `ArchiveLayout` 预期条目核对，避免未知条目或异常膨胀尺寸进入 eager 解压；解压后逐文件重新计算 CRC32、核对长度并与预期条目字节一致性比较，区分结构、CRC、路径和内容错误；复用并公开 M7-T5 的规范清单校验器，读取 ZIP 内 archive/resources/failures/original-urls 四个 JSON，强制六个 metadata 文件齐全，校验真实 index/pages/assets 路径集合、资源字节长度、页面/成功/失败/跳过计数及原始 URL 映射；输出路径、布局计数和清单计数的结构化结果，所有路径复制输入字节且不修改调用方集合；接口明确只验收 SiteCapsule 自产 ZIP，不作为任意第三方 ZIP 的安全沙箱；`tests/archive-verifier.test.ts` 8 项定向测试覆盖成功、CRC 篡改仍可解压、截断、重复、缺失/额外路径、等长内容差异和清单不一致，并经用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（53 个文件、559 项测试）、`pnpm build`（MV3 总计 504.02 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M8-T1 | 完成 | 新增 `src/ui/current-page-task.ts` 及模块导出，建立当前页任务默认设置、HTTP/HTTPS 页面输入、非负标签 ID 和可移植 ZIP 文件名的纯构建边界，产出固定 `current-page`/`standard` 且能通过现有 v16 运行时协议校验的 `CaptureJobCreateInput`；默认文件名以页面 hostname 和本地日期生成，空值、缺少 `.zip` 后缀、路径分隔符和保留字符在表单内显示明确错误与可用修正建议；Side Panel 改为面向用户的 New archive/当前页设置区，显示模式、页面标题、最终 URL 和可编辑 ZIP 名，技术诊断收起到 `details`；未编辑的自动名称可随页面更新，一旦用户编辑，后续刷新不覆盖该设置，渲染等待等既有状态同样保留；本任务只形成可校验输入，不发送任务创建/执行消息，未新增站点爬取或 M8-T2 高级控件；`tests/current-page-task.test.ts` 5 项定向测试及用户 Chrome 验收通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（54 个文件、564 项测试）、`pnpm build`（MV3 总计 627.46 kB）与 `git diff --check` 全部通过 |
 | 2026-07-29 | M8-T2 | 完成 | 扩展 `src/ui/current-page-task.ts` 及 Side Panel 设置区，依产品方案将并发默认值调整为 `6`、强制范围 `1-12`，渲染等待保持 `0-30000ms`；数字控件保留用户原始字符串，对空值、小数、负数和超范围值显示就地错误，不再自动夹紧或默默回退，任一非法值均不构建任务输入；新增稳定尺寸的媒体和第三方资源 switch，两者默认关闭，四项控件值与 ZIP 名统一写入通过 v16 校验的 `current-page` 任务输入；第三方开启后显示 M5 已有的精确 host 汇总，自动选中待授权项但仍只在用户点击时调用 Chrome 按需授权，未完成全部已发现 host 授权时任务保持未就绪，关闭开关则不阻断当前页任务；页面刷新只更新页面/权限摘要，不重置渲染等待、并发和两个开关；CSS 使用固定数字输入宽度、可换行状态和键盘可聚焦 switch，用户 Chrome 窄面板验收通过；`tests/current-page-task.test.ts` 增至 9 项定向测试，与第三方权限测试同时通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（54 个文件、568 项测试）、`pnpm build`（MV3 总计 634.23 kB）与 `git diff --check` 全部通过 |
+| 2026-07-29 | M8-T3 | 完成 | 新增 `src/jobs/capture-pipeline.ts` 及导出，以可注入阶段处理器将持久化 `CaptureJob` 严格推进 `preparing → discovering → fetching → rewriting → packaging → completed`，每次状态/计数写入后发布真实事件，不使用前端计时器；阶段异常先转换为结构化错误并尽力持久化 `failed`；Background 接入 `capture-job/create|get`，创建任务后记录最近任务 ID，重新捕获已渲染页面、从资源图生成并持久化资源记录，按用户媒体/脚本/第三方设置筛选，复用 M5 权限、安全策略、并发、重试、响应元数据和流式体积限制执行真实下载，非关键资源失败继续主任务；已保存资源复用 M6 确定性路径和 CSSTree 改写，消息协议升级 v17，新增严格校验的 `page-archive/rewrite|rewrite-response`，由 DOM-capable Content 使用既有 DOMParser 改写器处理 HTML；Background 以改写 HTML 和资源字节生成真实 ZIP，但本任务仅在当前 Service Worker 会话保留产物，不提前实现 M8-T5 下载/结果页或 M10 持久化；Side Panel 新增 Create archive、五阶段状态列表和资源/失败/跳过/字节计数，仅投影持久化任务与版本事件，重开后通过最近任务 ID 和 `capture-job/get` 恢复；仓储新增任务资源原子替换/查询；新增流水线测试并扩展协议、校验和仓储测试，23 项定向测试及用户 Chrome 验收通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（55 个文件、572 项测试）、`pnpm build`（MV3 总计 1.25 MB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -629,6 +630,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-063 | 2026-07-29 | ZIP 最终验收先解析受支持结构并以预期布局限制路径和未压缩长度，再由 fflate 可信解压并独立复算 CRC32、比对条目和清单 | `fflate.unzipSync` 能解压 ZIP 但不会校验 ZIP 中记录的 CRC；直接 eager 解压未知输入还可能按伪造长度分配内存；只比较文件数无法发现重名覆盖、缺失文件、清单谎报或内容被替换 | 仅接受 SiteCapsule 同步生成的单盘、非 ZIP64、无数据描述符 ZIP；中央目录、本地头、路径集合和预期长度在解压前一致，解压后 CRC、字节和四类机器清单再交叉验证；错误按 structure/CRC/path/content/manifest/count 分类，接口和注释不承诺处理不可信第三方 ZIP |
 | D-064 | 2026-07-29 | Side Panel 以纯函数设置模型构建当前页任务输入，自动 ZIP 文件名只在用户未编辑时随页面刷新 | 直接从 React 表单临时值发消息会绕过可测试的任务约束；每次页面刷新都重算名称会覆盖客户交付名，而永不更新则会让默认名与新页面失配 | `src/ui/current-page-task.ts` 统一文件名校验、默认设置和 `CaptureJobCreateInput` 构建，测试通过 v16 协议校验器二次确认；视图以 `edited` 状态区分自动值与用户值；M8-T1 不发送创建消息，执行入口和进度仍留给 M8-T3 |
 | D-065 | 2026-07-29 | Side Panel 保留数字控件原始字符串并仅将校验后整数写入任务；开启第三方捕获时要求已发现精确 host 全部授权 | `input[type=number]` 的空值和中间态无法用单一 number 状态准确表达，自动夹紧会隐藏配置错误；设置表示包含第三方资源但 Chrome 未授权时，结果会与用户选择不一致 | 视图用字符串保留编辑状态，纯校验器限定 render wait `0-30000` 和 concurrency `1-12`，任务构建器再次拒绝超界值；第三方状态区分 checking/ready/error，只有开关关闭或已发现 host 全部 granted 时输入就绪，未授权则必须明确关闭开关才能继续 |
+| D-066 | 2026-07-29 | 可见捕获进度只由持久化任务状态/计数和 v17 事件驱动；DOM 改写在 Content 执行，下载与 ZIP 装配由 Background 编排 | 前端定时器无法反映真实失败或面板重开状态；MV3 Service Worker 不提供 DOMParser，将 HTML 改写强行放入 Background 会在运行时失败；立即接入下载按钮又会越过结果页和产物生命周期设计 | 通用流水线在每个真实阶段前后原子更新任务并发布事件，Side Panel 重开按本地最近任务 ID 查询；Content 只接收严格校验的快照/映射并返回改写结果，Background 持有资源字节并完成 ZIP；当前 ZIP 仅为会话级产物，M8-T5 再设计结果/导出，M10 处理跨 Service Worker 生命周期持久化 |
 
 ---
 
@@ -649,11 +651,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M8-T3：实现准备、发现、下载、改写、打包进度**。
+下一步严格只执行 **M8-T4：实现暂停、继续、取消和重试**。
 
-M8-T3 完成后必须：
+M8-T4 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 从已就绪的 `current-page` 设置创建并持久化真实任务，Side Panel 依次呈现准备、发现、下载、改写和打包阶段，不得用脱离实际任务状态的前端定时器伪造进度；
-3. 进度从持久化 `CaptureJob` 状态/计数器和带版本消息事件投影，能区分当前阶段、已完成阶段、资源数与字节数，Side Panel 重开后可查询当前任务；
-4. 任务创建、非法协议、持久化和阶段失败必须进入结构化错误路径；不提前实现 M8-T4 暂停/继续/取消/重试、M8-T5 结果页或站点爬取模式。
+2. 暂停和取消必须通过 M5 已有 `AbortController` 合作式中止当前下载队列，不能只修改 UI；暂停保留可恢复阶段与未开始资源，取消最终进入 `cancelled`；
+3. 继续只恢复已持久化暂停任务，重试只允许结构化失败任务并按状态机从 `retrying` 回到准备阶段，所有控制消息继续进行 v17 运行时校验；
+4. Side Panel 控件必须按当前任务状态启用或禁用，操作后由持久化状态/事件更新，不乐观伪造结果；不提前实现 M8-T5 结果页、任务历史或站点爬取模式。

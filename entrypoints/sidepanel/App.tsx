@@ -4,9 +4,20 @@ import {
   SiteCapsuleError,
   createCaptureError,
   toCaptureError,
+  type CaptureJob,
+  type JobStatus,
 } from '@sitecapsule/domain';
-import { createPageInfoRequest, type PageInfo } from '@sitecapsule/messaging/protocol';
-import { isPageInfoResponse } from '@sitecapsule/messaging/validators';
+import {
+  createCaptureJobCreateRequest,
+  createCaptureJobGetRequest,
+  createPageInfoRequest,
+  type PageInfo,
+} from '@sitecapsule/messaging/protocol';
+import {
+  isCaptureJobResponse,
+  isCaptureJobUpdatedEvent,
+  isPageInfoResponse,
+} from '@sitecapsule/messaging/validators';
 import {
   checkCurrentSiteAccess,
   createPageAccessRequest,
@@ -32,11 +43,37 @@ import {
   validateCurrentPageArchiveFileName,
   validateRenderWaitInput,
 } from '@sitecapsule/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 type ThirdPartyGrantStatus = 'idle' | 'requesting';
 type ThirdPartyCheckStatus = 'idle' | 'checking' | 'ready' | 'error';
+type CreateStatus = 'idle' | 'creating';
+
+const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
+const PIPELINE_STAGES = [
+  { status: 'preparing', label: 'Preparing' },
+  { status: 'discovering', label: 'Discovering' },
+  { status: 'fetching', label: 'Downloading' },
+  { status: 'rewriting', label: 'Rewriting' },
+  { status: 'packaging', label: 'Packaging' },
+] as const;
+
+function isActiveJob(status: JobStatus): boolean {
+  return !['completed', 'cancelled', 'failed'].includes(status);
+}
+
+function stageDisplayState(
+  job: CaptureJob,
+  stage: (typeof PIPELINE_STAGES)[number]['status'],
+): 'complete' | 'active' | 'pending' {
+  if (job.status === 'completed') return 'complete';
+  const currentIndex = PIPELINE_STAGES.findIndex((item) => item.status === job.status);
+  const stageIndex = PIPELINE_STAGES.findIndex((item) => item.status === stage);
+  if (currentIndex < 0) return 'pending';
+  if (stageIndex < currentIndex) return 'complete';
+  return stageIndex === currentIndex ? 'active' : 'pending';
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown permission error.';
@@ -107,6 +144,9 @@ export function App() {
   const [thirdPartyGrantStatus, setThirdPartyGrantStatus] = useState<ThirdPartyGrantStatus>('idle');
   const [thirdPartyCheckStatus, setThirdPartyCheckStatus] = useState<ThirdPartyCheckStatus>('idle');
   const [thirdPartyError, setThirdPartyError] = useState<string | null>(null);
+  const [captureJob, setCaptureJob] = useState<CaptureJob | null>(null);
+  const [createStatus, setCreateStatus] = useState<CreateStatus>('idle');
+  const [createError, setCreateError] = useState<string | null>(null);
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
@@ -160,6 +200,30 @@ export function App() {
               : pendingThirdPartyCount > 0
                 ? `${pendingThirdPartyCount} ${pendingThirdPartyCount === 1 ? 'host needs' : 'hosts need'} access.`
                 : `${thirdPartyAccess.length} ${thirdPartyAccess.length === 1 ? 'host' : 'hosts'} ready.`;
+
+  useEffect(() => {
+    const onMessage = (message: unknown) => {
+      if (!isCaptureJobUpdatedEvent(message)) return;
+      setCaptureJob(message.payload.job);
+    };
+    browser.runtime.onMessage.addListener(onMessage);
+
+    void browser.storage.local
+      .get(LAST_CAPTURE_JOB_STORAGE_KEY)
+      .then(async (stored) => {
+        const jobId = stored[LAST_CAPTURE_JOB_STORAGE_KEY];
+        if (typeof jobId !== 'string' || jobId.trim() === '') return;
+        const response: unknown = await browser.runtime.sendMessage(
+          createCaptureJobGetRequest(jobId),
+        );
+        if (isCaptureJobResponse(response) && response.payload.ok) {
+          setCaptureJob(response.payload.job);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => browser.runtime.onMessage.removeListener(onMessage);
+  }, []);
 
   const readCurrentPage = async () => {
     if (!renderWaitValidation.valid) return;
@@ -285,6 +349,31 @@ export function App() {
       setThirdPartyError(`Unable to grant third-party access. ${errorMessage(permissionError)}`);
     } finally {
       setThirdPartyGrantStatus('idle');
+    }
+  };
+
+  const startCapture = async () => {
+    if (!currentPageTask) return;
+    setCreateStatus('creating');
+    setCreateError(null);
+    try {
+      const response: unknown = await browser.runtime.sendMessage(
+        createCaptureJobCreateRequest(currentPageTask),
+      );
+      if (!isCaptureJobResponse(response)) {
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'job-create' }),
+        );
+      }
+      if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+      setCaptureJob(response.payload.job);
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'unexpected-error', {
+        operation: 'job-create',
+      });
+      setCreateError(`${captureError.message} ${captureError.suggestion}`);
+    } finally {
+      setCreateStatus('idle');
     }
   };
 
@@ -495,7 +584,74 @@ export function App() {
           >
             {taskStatusMessage}
           </p>
+
+          <button
+            className="start-capture-action"
+            type="button"
+            onClick={startCapture}
+            disabled={
+              currentPageTask === null ||
+              createStatus === 'creating' ||
+              (captureJob !== null && isActiveJob(captureJob.status))
+            }
+          >
+            {captureJob && isActiveJob(captureJob.status)
+              ? 'Archiving...'
+              : createStatus === 'creating'
+                ? 'Starting...'
+                : 'Create archive'}
+          </button>
+
+          {createError && (
+            <p className="error-text" role="alert">
+              {createError}
+            </p>
+          )}
         </form>
+
+        {captureJob && (
+          <section className="capture-progress" aria-labelledby="capture-progress-title">
+            <div className="progress-heading">
+              <div>
+                <h3 id="capture-progress-title">Archive progress</h3>
+                <p>{captureJob.settings.archiveFileName}</p>
+              </div>
+              <span className={`job-state ${captureJob.status}`}>{captureJob.status}</span>
+            </div>
+            <ol className="progress-stages">
+              {PIPELINE_STAGES.map((stage) => {
+                const displayState = stageDisplayState(captureJob, stage.status);
+                return (
+                  <li key={stage.status} className={displayState}>
+                    <span className="stage-marker" aria-hidden="true" />
+                    <span>{stage.label}</span>
+                    <small>
+                      {displayState === 'complete'
+                        ? 'Done'
+                        : displayState === 'active'
+                          ? 'In progress'
+                          : 'Waiting'}
+                    </small>
+                  </li>
+                );
+              })}
+            </ol>
+            <dl className="progress-counters">
+              <div>
+                <dt>Resources</dt>
+                <dd>
+                  {captureJob.counters.resourcesSaved.toLocaleString()} saved ·{' '}
+                  {captureJob.counters.resourcesFailed.toLocaleString()} failed ·{' '}
+                  {captureJob.counters.resourcesSkipped.toLocaleString()} skipped
+                </dd>
+              </div>
+              <div>
+                <dt>Downloaded</dt>
+                <dd>{captureJob.counters.bytesWritten.toLocaleString()} bytes</dd>
+              </div>
+            </dl>
+          </section>
+        )}
 
         <div className="capture-setting access-setting">
           <span>Current site access</span>

@@ -11,6 +11,9 @@ import {
   createPageInfoError,
   createPageInfoRequest,
   createPageInfoResponse,
+  createPageArchiveRewriteError,
+  createPageArchiveRewriteRequest,
+  createPageArchiveRewriteResponse,
   type PageInfo,
 } from '@sitecapsule/messaging/protocol';
 import {
@@ -21,6 +24,8 @@ import {
   isCaptureJobResponse,
   isCaptureJobUpdatedEvent,
   isPageInfoCollectRequest,
+  isPageArchiveRewriteRequest,
+  isPageArchiveRewriteResponse,
   isPageInfoRequest,
   isPageInfoResponse,
   isProtocolMessageEnvelope,
@@ -185,10 +190,19 @@ const pageInfo: PageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v16 request, response, and event shape', () => {
+  it('accepts every v17 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
+      createPageArchiveRewriteRequest(
+        {
+          html: pageInfo.serializedDom,
+          documentUrl: pageInfo.finalUrl,
+          baseUrl: pageInfo.baseUrl,
+          savedResourceMappings: [],
+        },
+        'page-rewrite',
+      ),
       createCaptureJobCreateRequest(createInput, 'job-create'),
       createCaptureJobControlRequest(job.id, 'pause', 'job-control'),
       createCaptureJobGetRequest(job.id, 'job-get'),
@@ -196,6 +210,8 @@ describe('message runtime validation', () => {
     const responses = [
       createPageInfoResponse(pageInfo, 'page-success'),
       createPageInfoError(createCaptureError('content-script-unresponsive'), 'page-error'),
+      createPageArchiveRewriteResponse('<html>offline</html>', 0, 'rewrite-success'),
+      createPageArchiveRewriteError(createCaptureError('unexpected-error'), 'rewrite-error'),
       createCaptureJobResponse(job, 'job-success'),
       createCaptureJobError(createCaptureError('job-not-found'), 'job-error'),
     ];
@@ -208,11 +224,13 @@ describe('message runtime validation', () => {
 
     expect(isPageInfoRequest(requests[0])).toBe(true);
     expect(isPageInfoCollectRequest(requests[1])).toBe(true);
-    expect(isCaptureJobCreateRequest(requests[2])).toBe(true);
-    expect(isCaptureJobControlRequest(requests[3])).toBe(true);
-    expect(isCaptureJobGetRequest(requests[4])).toBe(true);
+    expect(isPageArchiveRewriteRequest(requests[2])).toBe(true);
+    expect(isCaptureJobCreateRequest(requests[3])).toBe(true);
+    expect(isCaptureJobControlRequest(requests[4])).toBe(true);
+    expect(isCaptureJobGetRequest(requests[5])).toBe(true);
     expect(isPageInfoResponse(responses[0])).toBe(true);
-    expect(isCaptureJobResponse(responses[2])).toBe(true);
+    expect(isPageArchiveRewriteResponse(responses[2])).toBe(true);
+    expect(isCaptureJobResponse(responses[4])).toBe(true);
     expect(isCaptureJobUpdatedEvent(events[0])).toBe(true);
   });
 

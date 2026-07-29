@@ -95,6 +95,145 @@ h3 {
   padding-top: 22px;
 }
 
+.start-capture-action {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 12px;
+  border: 1px solid #183b68;
+  border-radius: 5px;
+  color: #fff;
+  background: #183b68;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.start-capture-action:disabled {
+  border-color: #c9d2df;
+  color: #718096;
+  background: #edf1f6;
+  cursor: default;
+}
+
+.capture-progress {
+  margin-top: 18px;
+  padding: 14px 0;
+  border-top: 1px solid #dce2eb;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.progress-heading,
+.progress-stages li,
+.progress-counters > div {
+  display: flex;
+  align-items: center;
+}
+
+.progress-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progress-heading p {
+  max-width: 190px;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: #60708b;
+  font-size: 10px;
+}
+
+.job-state {
+  padding: 3px 6px;
+  border: 1px solid #c9d2df;
+  border-radius: 4px;
+  color: #60708b;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.job-state.completed {
+  border-color: #9dd8c5;
+  color: #087052;
+  background: #ebf8f3;
+}
+
+.job-state.failed {
+  border-color: #dfb1b1;
+  color: #a32929;
+  background: #fff2f2;
+}
+
+.progress-stages {
+  display: grid;
+  gap: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress-stages li {
+  min-height: 30px;
+  gap: 8px;
+  color: #718096;
+  font-size: 11px;
+}
+
+.progress-stages li > span:nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.progress-stages small {
+  font-size: 9px;
+}
+
+.stage-marker {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border: 1px solid #aeb9c8;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.progress-stages li.complete,
+.progress-stages li.active {
+  color: #182033;
+}
+
+.progress-stages li.complete .stage-marker {
+  border-color: #087052;
+  background: #087052;
+}
+
+.progress-stages li.active .stage-marker {
+  border: 3px solid #b9cce5;
+  background: #183b68;
+}
+
+.progress-counters {
+  margin-top: 8px;
+  border-top: 1px solid #dce2eb;
+}
+
+.progress-counters > div {
+  min-height: 32px;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #dce2eb;
+  font-size: 10px;
+}
+
+.progress-counters dt {
+  color: #60708b;
+  font-weight: 650;
+}
+
+.progress-counters dd {
+  text-align: right;
+}
+
 .task-settings {
   margin-top: 14px;
   border-top: 1px solid #dce2eb;

@@ -1,7 +1,16 @@
 import { createCaptureError } from '@sitecapsule/domain';
+import { rewriteHtmlResource } from '@sitecapsule/archive';
 import { RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
-import { createPageInfoError, createPageInfoResponse } from '@sitecapsule/messaging/protocol';
-import { isPageInfoCollectRequest } from '@sitecapsule/messaging/validators';
+import {
+  createPageArchiveRewriteError,
+  createPageArchiveRewriteResponse,
+  createPageInfoError,
+  createPageInfoResponse,
+} from '@sitecapsule/messaging/protocol';
+import {
+  isPageArchiveRewriteRequest,
+  isPageInfoCollectRequest,
+} from '@sitecapsule/messaging/validators';
 import { capturePageSnapshot, waitForRender } from '@sitecapsule/page';
 
 export default defineContentScript({
@@ -10,6 +19,28 @@ export default defineContentScript({
     console.info(`${RUNTIME_LOG_PREFIX} Content script initialized.`);
 
     browser.runtime.onMessage.addListener(async (message: unknown) => {
+      if (isPageArchiveRewriteRequest(message)) {
+        try {
+          const result = rewriteHtmlResource({
+            ...message.payload,
+            documentPath: 'index.html',
+          });
+          return createPageArchiveRewriteResponse(
+            result.html,
+            result.rewrittenCount + result.cssRewrittenCount + result.srcsetRewrittenCount,
+            message.correlationId,
+          );
+        } catch {
+          return createPageArchiveRewriteError(
+            createCaptureError('unexpected-error', {
+              operation: 'page-capture',
+              stage: 'rewriting',
+            }),
+            message.correlationId,
+          );
+        }
+      }
+
       if (!isPageInfoCollectRequest(message)) return;
 
       const startUrl = document.URL;

@@ -13,6 +13,7 @@ import {
   type CaptureErrorOperation,
   type JobState,
   type JobStatus,
+  type ResourceRecord,
 } from '@sitecapsule/domain';
 import { database, type SiteCapsuleDatabase } from './database';
 
@@ -155,6 +156,35 @@ export class JobRepository {
 
   listRecoverableJobs(): Promise<CaptureJob[]> {
     return this.listJobs({ statuses: RECOVERABLE_JOB_STATUSES });
+  }
+
+  listJobResources(jobId: string): Promise<ResourceRecord[]> {
+    return this.runStorageOperation('job-read', () =>
+      this.db.resources.where('jobId').equals(jobId).sortBy('id'),
+    );
+  }
+
+  async replaceJobResources(jobId: string, resources: readonly ResourceRecord[]): Promise<void> {
+    await this.runStorageOperation('job-update', () =>
+      this.db.transaction('rw', this.db.jobs, this.db.resources, async () => {
+        if (!(await this.db.jobs.get(jobId))) {
+          throw new SiteCapsuleError(
+            createCaptureError('job-not-found', { operation: 'job-update', jobId }),
+          );
+        }
+        if (resources.some((resource) => resource.jobId !== jobId)) {
+          throw new SiteCapsuleError(
+            createCaptureError('storage-conflict', {
+              operation: 'job-update',
+              jobId,
+              field: 'resource.jobId',
+            }),
+          );
+        }
+        await this.db.resources.where('jobId').equals(jobId).delete();
+        await this.db.resources.bulkAdd(resources.map((resource) => ({ ...resource })));
+      }),
+    );
   }
 
   async updateJob(jobId: string, update: CaptureJobUpdate): Promise<CaptureJob | undefined> {
