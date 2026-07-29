@@ -19,14 +19,24 @@ import { EXTENSION_NAME } from '@sitecapsule/shared';
 import {
   applyCurrentPageToArchiveName,
   buildCurrentPageTaskInput,
+  DEFAULT_CURRENT_PAGE_CONCURRENCY,
+  DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA,
+  DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
+  getPendingThirdPartyPermissionPatterns,
+  isThirdPartyCaptureReady,
+  MAX_CURRENT_PAGE_CONCURRENCY,
+  MIN_CURRENT_PAGE_CONCURRENCY,
   createInitialCurrentPageArchiveName,
   editCurrentPageArchiveName,
+  validateConcurrencyInput,
   validateCurrentPageArchiveFileName,
+  validateRenderWaitInput,
 } from '@sitecapsule/ui';
 import { useState } from 'react';
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 type ThirdPartyGrantStatus = 'idle' | 'requesting';
+type ThirdPartyCheckStatus = 'idle' | 'checking' | 'ready' | 'error';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown permission error.';
@@ -79,7 +89,14 @@ function summarizeResourceMetadata(pageInfo: PageInfo): string {
 
 export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
-  const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
+  const [renderWaitInput, setRenderWaitInput] = useState(String(DEFAULT_RENDER_WAIT_MS));
+  const [concurrencyInput, setConcurrencyInput] = useState(
+    String(DEFAULT_CURRENT_PAGE_CONCURRENCY),
+  );
+  const [includeMedia, setIncludeMedia] = useState(DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA);
+  const [includeThirdPartyResources, setIncludeThirdPartyResources] = useState(
+    DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
+  );
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const [archiveName, setArchiveName] = useState(createInitialCurrentPageArchiveName);
@@ -88,26 +105,70 @@ export function App() {
   const [thirdPartyAccess, setThirdPartyAccess] = useState<ThirdPartySiteAccessSummary[]>([]);
   const [selectedThirdParties, setSelectedThirdParties] = useState<string[]>([]);
   const [thirdPartyGrantStatus, setThirdPartyGrantStatus] = useState<ThirdPartyGrantStatus>('idle');
+  const [thirdPartyCheckStatus, setThirdPartyCheckStatus] = useState<ThirdPartyCheckStatus>('idle');
   const [thirdPartyError, setThirdPartyError] = useState<string | null>(null);
-  const pendingThirdPartyCount = thirdPartyAccess.filter(
-    (access) => access.status === 'not-granted',
-  ).length;
+  const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
+  const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
+  const renderWaitValidation = validateRenderWaitInput(renderWaitInput);
+  const concurrencyValidation = validateConcurrencyInput(concurrencyInput);
+  const thirdPartyReady =
+    !includeThirdPartyResources ||
+    (thirdPartyCheckStatus === 'ready' &&
+      isThirdPartyCaptureReady(includeThirdPartyResources, thirdPartyAccess));
   const currentPageTask =
-    pageInfo && currentTabId !== null && archiveNameValidation.valid
+    status === 'success' &&
+    pageInfo &&
+    currentTabId !== null &&
+    archiveNameValidation.valid &&
+    renderWaitValidation.valid &&
+    concurrencyValidation.valid &&
+    thirdPartyReady
       ? buildCurrentPageTaskInput({
           tabId: currentTabId,
           pageUrl: pageInfo.finalUrl,
           archiveFileName: archiveNameValidation.fileName,
-          renderWaitMs,
+          renderWaitMs: renderWaitValidation.value,
+          maxConcurrentRequests: concurrencyValidation.value,
+          includeMedia,
+          includeThirdPartyResources,
         })
       : null;
+  const taskStatusMessage = currentPageTask
+    ? 'Archive settings ready.'
+    : status !== 'success'
+      ? 'Read the page to finish setup.'
+      : !archiveNameValidation.valid || !renderWaitValidation.valid || !concurrencyValidation.valid
+        ? 'Fix the highlighted settings.'
+        : includeThirdPartyResources && thirdPartyCheckStatus === 'error'
+          ? 'Third-party access could not be checked.'
+          : includeThirdPartyResources && pendingThirdPartyCount > 0
+            ? `Grant access to ${pendingThirdPartyCount} third-party ${pendingThirdPartyCount === 1 ? 'host' : 'hosts'}.`
+            : 'Checking archive settings...';
+
+  const thirdPartyOptionStatus =
+    status !== 'success'
+      ? 'Access is checked after the page is read.'
+      : thirdPartyCheckStatus === 'checking'
+        ? 'Checking host access...'
+        : thirdPartyCheckStatus === 'error'
+          ? 'Host access check failed.'
+          : thirdPartyAccess.length === 0
+            ? 'No third-party hosts found.'
+            : !includeThirdPartyResources
+              ? `${thirdPartyAccess.length} ${thirdPartyAccess.length === 1 ? 'host' : 'hosts'} found · Off`
+              : pendingThirdPartyCount > 0
+                ? `${pendingThirdPartyCount} ${pendingThirdPartyCount === 1 ? 'host needs' : 'hosts need'} access.`
+                : `${thirdPartyAccess.length} ${thirdPartyAccess.length === 1 ? 'host' : 'hosts'} ready.`;
 
   const readCurrentPage = async () => {
+    if (!renderWaitValidation.valid) return;
+    const renderWaitMs = renderWaitValidation.value;
     setStatus('loading');
     setError(null);
     setThirdPartyAccess([]);
     setSelectedThirdParties([]);
+    setThirdPartyCheckStatus('checking');
     setThirdPartyError(null);
 
     try {
@@ -157,13 +218,18 @@ export function App() {
       setStatus('success');
 
       try {
-        setThirdPartyAccess(
-          await summarizeThirdPartySiteAccess(capturedPage.resourceGraph, (request) =>
-            browser.permissions.contains(request),
-          ),
+        const accessSummary = await summarizeThirdPartySiteAccess(
+          capturedPage.resourceGraph,
+          (request) => browser.permissions.contains(request),
         );
+        setThirdPartyAccess(accessSummary);
+        setSelectedThirdParties(
+          includeThirdPartyResources ? getPendingThirdPartyPermissionPatterns(accessSummary) : [],
+        );
+        setThirdPartyCheckStatus('ready');
       } catch (permissionError) {
         setThirdPartyError(`Unable to check third-party access. ${errorMessage(permissionError)}`);
+        setThirdPartyCheckStatus('error');
       }
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
@@ -171,6 +237,7 @@ export function App() {
       });
       setPageInfo(null);
       setCurrentTabId(null);
+      setThirdPartyCheckStatus('idle');
       setError(
         [captureError.message, captureError.context?.browserError]
           .filter((message): message is string => Boolean(message))
@@ -186,6 +253,12 @@ export function App() {
         ? Array.from(new Set([...current, permissionPattern]))
         : current.filter((pattern) => pattern !== permissionPattern),
     );
+  };
+
+  const updateThirdPartySetting = (enabled: boolean) => {
+    setIncludeThirdPartyResources(enabled);
+    setThirdPartyError(null);
+    setSelectedThirdParties(enabled ? pendingThirdPartyPatterns : []);
   };
 
   const grantSelectedThirdParties = async () => {
@@ -207,20 +280,12 @@ export function App() {
       );
       setThirdPartyAccess(refreshed);
       setSelectedThirdParties([]);
+      setThirdPartyCheckStatus('ready');
     } catch (permissionError) {
       setThirdPartyError(`Unable to grant third-party access. ${errorMessage(permissionError)}`);
     } finally {
       setThirdPartyGrantStatus('idle');
     }
-  };
-
-  const updateRenderWait = (value: number) => {
-    if (!Number.isFinite(value)) {
-      setRenderWaitMs(DEFAULT_RENDER_WAIT_MS);
-      return;
-    }
-
-    setRenderWaitMs(Math.min(MAX_RENDER_WAIT_MS, Math.max(0, Math.round(value))));
   };
 
   return (
@@ -240,7 +305,7 @@ export function App() {
             className="primary-action"
             type="button"
             onClick={readCurrentPage}
-            disabled={status === 'loading'}
+            disabled={status === 'loading' || !renderWaitValidation.valid}
           >
             {status === 'loading'
               ? 'Reading...'
@@ -252,7 +317,10 @@ export function App() {
 
         {status === 'idle' && <p className="helper-text">Choose the active browser tab.</p>}
         {status === 'loading' && (
-          <p className="helper-text">Waiting {renderWaitMs} ms before reading...</p>
+          <p className="helper-text">
+            Waiting {renderWaitValidation.valid ? renderWaitValidation.value : 0} ms before
+            reading...
+          </p>
         )}
         {status === 'error' && (
           <p className="error-text" role="alert">
@@ -300,9 +368,7 @@ export function App() {
             />
             <div id="archive-file-name-feedback" className="field-feedback" aria-live="polite">
               {archiveNameValidation.valid ? (
-                <span className="valid-text">
-                  {currentPageTask ? 'Archive settings ready.' : 'Ready after the page is read.'}
-                </span>
+                <span className="valid-text">Valid ZIP file name.</span>
               ) : (
                 <>
                   <span className="error-text">{archiveNameValidation.message}</span>
@@ -323,24 +389,113 @@ export function App() {
               )}
             </div>
           </div>
-        </form>
 
-        <div className="capture-setting">
-          <label htmlFor="render-wait">Render wait</label>
-          <div className="duration-input">
-            <input
-              id="render-wait"
-              type="number"
-              min="0"
-              max={MAX_RENDER_WAIT_MS}
-              step="100"
-              value={renderWaitMs}
-              onChange={(event) => updateRenderWait(event.currentTarget.valueAsNumber)}
-              disabled={status === 'loading'}
-            />
-            <span>ms</span>
-          </div>
-        </div>
+          <fieldset className="capture-options">
+            <legend>Capture options</legend>
+
+            <div className="numeric-setting">
+              <div className="numeric-setting-row">
+                <label htmlFor="render-wait">Render wait</label>
+                <div className="number-with-unit">
+                  <input
+                    id="render-wait"
+                    name="renderWaitMs"
+                    type="number"
+                    min="0"
+                    max={MAX_RENDER_WAIT_MS}
+                    step="100"
+                    value={renderWaitInput}
+                    aria-invalid={!renderWaitValidation.valid}
+                    aria-describedby="render-wait-feedback"
+                    onChange={(event) => setRenderWaitInput(event.currentTarget.value)}
+                    disabled={status === 'loading'}
+                  />
+                  <span>ms</span>
+                </div>
+              </div>
+              <p
+                id="render-wait-feedback"
+                className={renderWaitValidation.valid ? 'setting-hint' : 'setting-error'}
+              >
+                {renderWaitValidation.valid
+                  ? `0-${MAX_RENDER_WAIT_MS.toLocaleString()} ms`
+                  : renderWaitValidation.message}
+              </p>
+            </div>
+
+            <div className="numeric-setting">
+              <div className="numeric-setting-row">
+                <label htmlFor="capture-concurrency">Concurrent downloads</label>
+                <input
+                  id="capture-concurrency"
+                  name="maxConcurrentRequests"
+                  className="compact-number-input"
+                  type="number"
+                  min={MIN_CURRENT_PAGE_CONCURRENCY}
+                  max={MAX_CURRENT_PAGE_CONCURRENCY}
+                  step="1"
+                  value={concurrencyInput}
+                  aria-invalid={!concurrencyValidation.valid}
+                  aria-describedby="capture-concurrency-feedback"
+                  onChange={(event) => setConcurrencyInput(event.currentTarget.value)}
+                  disabled={status === 'loading'}
+                />
+              </div>
+              <p
+                id="capture-concurrency-feedback"
+                className={concurrencyValidation.valid ? 'setting-hint' : 'setting-error'}
+              >
+                {concurrencyValidation.valid
+                  ? `${MIN_CURRENT_PAGE_CONCURRENCY}-${MAX_CURRENT_PAGE_CONCURRENCY}`
+                  : concurrencyValidation.message}
+              </p>
+            </div>
+
+            <label className="toggle-setting">
+              <span>
+                <strong>Media files</strong>
+                <small>Video and audio</small>
+              </span>
+              <span className="switch-control">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  name="includeMedia"
+                  checked={includeMedia}
+                  onChange={(event) => setIncludeMedia(event.currentTarget.checked)}
+                  disabled={status === 'loading'}
+                />
+                <span aria-hidden="true" />
+              </span>
+            </label>
+
+            <label className="toggle-setting third-party-toggle">
+              <span>
+                <strong>Third-party resources</strong>
+                <small>{thirdPartyOptionStatus}</small>
+              </span>
+              <span className="switch-control">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  name="includeThirdPartyResources"
+                  checked={includeThirdPartyResources}
+                  onChange={(event) => updateThirdPartySetting(event.currentTarget.checked)}
+                  disabled={status === 'loading'}
+                />
+                <span aria-hidden="true" />
+              </span>
+            </label>
+          </fieldset>
+
+          <p
+            className={`task-readiness ${currentPageTask ? 'ready' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
+            {taskStatusMessage}
+          </p>
+        </form>
 
         <div className="capture-setting access-setting">
           <span>Current site access</span>
@@ -412,73 +567,79 @@ export function App() {
               </dl>
             </details>
 
-            <section className="third-party-section" aria-labelledby="third-party-title">
-              <div className="third-party-heading">
-                <div>
-                  <h3 id="third-party-title">Third-party access</h3>
-                  <p>Optional network hosts discovered on this page.</p>
+            {includeThirdPartyResources && (
+              <section className="third-party-section" aria-labelledby="third-party-title">
+                <div className="third-party-heading">
+                  <div>
+                    <h3 id="third-party-title">Third-party access</h3>
+                    <p>Hosts used by this page.</p>
+                  </div>
+                  {pendingThirdPartyCount > 0 ? (
+                    <button
+                      className="secondary-action"
+                      type="button"
+                      onClick={grantSelectedThirdParties}
+                      disabled={
+                        selectedThirdParties.length === 0 || thirdPartyGrantStatus === 'requesting'
+                      }
+                    >
+                      {thirdPartyGrantStatus === 'requesting' ? 'Granting...' : 'Grant selected'}
+                    </button>
+                  ) : (
+                    <span className="access-summary">
+                      {thirdPartyAccess.length > 0 ? 'All granted' : 'None required'}
+                    </span>
+                  )}
                 </div>
-                {pendingThirdPartyCount > 0 ? (
-                  <button
-                    className="secondary-action"
-                    type="button"
-                    onClick={grantSelectedThirdParties}
-                    disabled={
-                      selectedThirdParties.length === 0 || thirdPartyGrantStatus === 'requesting'
-                    }
-                  >
-                    {thirdPartyGrantStatus === 'requesting' ? 'Granting...' : 'Grant selected'}
-                  </button>
+
+                {thirdPartyAccess.length === 0 ? (
+                  <p className="helper-text">No third-party network hosts discovered.</p>
                 ) : (
-                  <span className="access-summary">
-                    {thirdPartyAccess.length > 0 ? 'All granted' : 'None required'}
-                  </span>
-                )}
-              </div>
-
-              {thirdPartyAccess.length === 0 ? (
-                <p className="helper-text">No third-party network hosts discovered.</p>
-              ) : (
-                <ul className="third-party-list">
-                  {thirdPartyAccess.map((access) => (
-                    <li key={access.permissionPattern}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={
-                            access.status === 'granted' ||
-                            selectedThirdParties.includes(access.permissionPattern)
-                          }
-                          disabled={
-                            access.status === 'granted' || thirdPartyGrantStatus === 'requesting'
-                          }
-                          onChange={(event) =>
-                            toggleThirdParty(access.permissionPattern, event.currentTarget.checked)
-                          }
-                        />
-                        <span className="third-party-details">
-                          <span className="third-party-pattern">{access.permissionPattern}</span>
-                          <span>
-                            {access.resourceCount.toLocaleString()} resources ·{' '}
-                            {access.provenanceCount.toLocaleString()} discoveries ·{' '}
-                            {access.discoverySources.join(', ')} · {access.resourceTypes.join(', ')}
+                  <ul className="third-party-list">
+                    {thirdPartyAccess.map((access) => (
+                      <li key={access.permissionPattern}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={
+                              access.status === 'granted' ||
+                              selectedThirdParties.includes(access.permissionPattern)
+                            }
+                            disabled={
+                              access.status === 'granted' || thirdPartyGrantStatus === 'requesting'
+                            }
+                            onChange={(event) =>
+                              toggleThirdParty(
+                                access.permissionPattern,
+                                event.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <span className="third-party-details">
+                            <span className="third-party-pattern">{access.permissionPattern}</span>
+                            <span>
+                              {access.resourceCount.toLocaleString()} resources ·{' '}
+                              {access.provenanceCount.toLocaleString()} discoveries ·{' '}
+                              {access.discoverySources.join(', ')} ·{' '}
+                              {access.resourceTypes.join(', ')}
+                            </span>
                           </span>
-                        </span>
-                        <span className={`access-state ${access.status}`}>
-                          {access.status === 'granted' ? 'Granted' : 'Pending'}
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                          <span className={`access-state ${access.status}`}>
+                            {access.status === 'granted' ? 'Granted' : 'Pending'}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-              {thirdPartyError && (
-                <p className="error-text" role="alert">
-                  {thirdPartyError}
-                </p>
-              )}
-            </section>
+                {thirdPartyError && (
+                  <p className="error-text" role="alert">
+                    {thirdPartyError}
+                  </p>
+                )}
+              </section>
+            )}
           </>
         )}
       </section>

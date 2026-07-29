@@ -1,9 +1,19 @@
 import { createArchiveDownloadFileName } from '@sitecapsule/archive';
-import { DEFAULT_RENDER_WAIT_MS, type CaptureSettings } from '@sitecapsule/domain';
+import {
+  DEFAULT_RENDER_WAIT_MS,
+  MAX_RENDER_WAIT_MS,
+  isRenderWaitMs,
+  type CaptureSettings,
+} from '@sitecapsule/domain';
 import type { CaptureJobCreateInput } from '@sitecapsule/messaging/protocol';
+import type { ThirdPartySiteAccessSummary } from '@sitecapsule/permissions';
 
 export const DEFAULT_CURRENT_PAGE_ARCHIVE_FILE_NAME = 'sitecapsule-archive.zip';
-export const DEFAULT_CURRENT_PAGE_CONCURRENCY = 4;
+export const DEFAULT_CURRENT_PAGE_CONCURRENCY = 6;
+export const MIN_CURRENT_PAGE_CONCURRENCY = 1;
+export const MAX_CURRENT_PAGE_CONCURRENCY = 12;
+export const DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA = false;
+export const DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES = false;
 
 export type ArchiveFileNameValidation =
   | { valid: true; fileName: string; message: null; suggestion: null }
@@ -14,11 +24,24 @@ export type CurrentPageArchiveNameState = {
   edited: boolean;
 };
 
+export type NumericSettingValidation =
+  { valid: true; value: number; message: null } | { valid: false; value: null; message: string };
+
+export type CurrentPageCaptureOptions = {
+  renderWaitMs: number;
+  maxConcurrentRequests: number;
+  includeMedia: boolean;
+  includeThirdPartyResources: boolean;
+};
+
 export type BuildCurrentPageTaskInput = {
   tabId: number;
   pageUrl: string;
   archiveFileName: string;
   renderWaitMs?: number;
+  maxConcurrentRequests?: number;
+  includeMedia?: boolean;
+  includeThirdPartyResources?: boolean;
 };
 
 function formatLocalDate(date: Date): string {
@@ -77,6 +100,60 @@ export function validateCurrentPageArchiveFileName(value: string): ArchiveFileNa
   return { valid: true, fileName: normalized, message: null, suggestion: null };
 }
 
+function validateIntegerInput(
+  value: string,
+  label: string,
+  minimum: number,
+  maximum: number,
+): NumericSettingValidation {
+  const trimmed = value.trim();
+  const sentenceLabel = `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+  if (!trimmed) {
+    return { valid: false, value: null, message: `Enter ${label}.` };
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return { valid: false, value: null, message: `${sentenceLabel} must be a whole number.` };
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    return {
+      valid: false,
+      value: null,
+      message: `${sentenceLabel} must be between ${minimum} and ${maximum}.`,
+    };
+  }
+  return { valid: true, value: parsed, message: null };
+}
+
+export function validateRenderWaitInput(value: string): NumericSettingValidation {
+  return validateIntegerInput(value, 'render wait', 0, MAX_RENDER_WAIT_MS);
+}
+
+export function validateConcurrencyInput(value: string): NumericSettingValidation {
+  return validateIntegerInput(
+    value,
+    'concurrency',
+    MIN_CURRENT_PAGE_CONCURRENCY,
+    MAX_CURRENT_PAGE_CONCURRENCY,
+  );
+}
+
+export function getPendingThirdPartyPermissionPatterns(
+  access: readonly ThirdPartySiteAccessSummary[],
+): string[] {
+  return access
+    .filter((entry) => entry.status === 'not-granted')
+    .map((entry) => entry.permissionPattern);
+}
+
+export function isThirdPartyCaptureReady(
+  includeThirdPartyResources: boolean,
+  access: readonly ThirdPartySiteAccessSummary[],
+): boolean {
+  return !includeThirdPartyResources || getPendingThirdPartyPermissionPatterns(access).length === 0;
+}
+
 export function createInitialCurrentPageArchiveName(): CurrentPageArchiveNameState {
   return { value: DEFAULT_CURRENT_PAGE_ARCHIVE_FILE_NAME, edited: false };
 }
@@ -99,18 +176,33 @@ export function applyCurrentPageToArchiveName(
 
 export function createDefaultCurrentPageSettings(
   archiveFileName: string,
-  renderWaitMs = DEFAULT_RENDER_WAIT_MS,
+  options: Partial<CurrentPageCaptureOptions> = {},
 ): CaptureSettings {
   const fileName = validateCurrentPageArchiveFileName(archiveFileName);
   if (!fileName.valid) throw new TypeError(fileName.message);
+  const renderWaitMs = options.renderWaitMs ?? DEFAULT_RENDER_WAIT_MS;
+  const maxConcurrentRequests = options.maxConcurrentRequests ?? DEFAULT_CURRENT_PAGE_CONCURRENCY;
+  if (!isRenderWaitMs(renderWaitMs)) {
+    throw new TypeError(`Render wait must be between 0 and ${MAX_RENDER_WAIT_MS}.`);
+  }
+  if (
+    !Number.isSafeInteger(maxConcurrentRequests) ||
+    maxConcurrentRequests < MIN_CURRENT_PAGE_CONCURRENCY ||
+    maxConcurrentRequests > MAX_CURRENT_PAGE_CONCURRENCY
+  ) {
+    throw new TypeError(
+      `Concurrency must be between ${MIN_CURRENT_PAGE_CONCURRENCY} and ${MAX_CURRENT_PAGE_CONCURRENCY}.`,
+    );
+  }
 
   return {
     archiveFileName: fileName.fileName,
     renderWaitMs,
-    maxConcurrentRequests: DEFAULT_CURRENT_PAGE_CONCURRENCY,
-    includeMedia: true,
+    maxConcurrentRequests,
+    includeMedia: options.includeMedia ?? DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA,
     includeScripts: true,
-    includeThirdPartyResources: false,
+    includeThirdPartyResources:
+      options.includeThirdPartyResources ?? DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
     autoScroll: false,
     maxDepth: 0,
     maxPages: 1,
@@ -132,6 +224,15 @@ export function buildCurrentPageTaskInput(input: BuildCurrentPageTaskInput): Cap
     startUrl: pageUrl,
     mode: 'current-page',
     profile: 'standard',
-    settings: createDefaultCurrentPageSettings(input.archiveFileName, input.renderWaitMs),
+    settings: createDefaultCurrentPageSettings(input.archiveFileName, {
+      ...(input.renderWaitMs === undefined ? {} : { renderWaitMs: input.renderWaitMs }),
+      ...(input.maxConcurrentRequests === undefined
+        ? {}
+        : { maxConcurrentRequests: input.maxConcurrentRequests }),
+      ...(input.includeMedia === undefined ? {} : { includeMedia: input.includeMedia }),
+      ...(input.includeThirdPartyResources === undefined
+        ? {}
+        : { includeThirdPartyResources: input.includeThirdPartyResources }),
+    }),
   };
 }

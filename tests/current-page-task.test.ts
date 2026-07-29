@@ -6,8 +6,13 @@ import {
   createDefaultCurrentPageArchiveFileName,
   createInitialCurrentPageArchiveName,
   editCurrentPageArchiveName,
+  getPendingThirdPartyPermissionPatterns,
+  isThirdPartyCaptureReady,
+  validateConcurrencyInput,
   validateCurrentPageArchiveFileName,
+  validateRenderWaitInput,
 } from '@sitecapsule/ui';
+import type { ThirdPartySiteAccessSummary } from '@sitecapsule/permissions';
 import { describe, expect, it } from 'vitest';
 
 describe('current-page task settings', () => {
@@ -17,6 +22,9 @@ describe('current-page task settings', () => {
       pageUrl: 'https://example.com/products?view=full#details',
       archiveFileName: 'example-products.zip',
       renderWaitMs: 1_500,
+      maxConcurrentRequests: 9,
+      includeMedia: true,
+      includeThirdPartyResources: true,
     });
 
     expect(input).toMatchObject({
@@ -27,10 +35,10 @@ describe('current-page task settings', () => {
       settings: {
         archiveFileName: 'example-products.zip',
         renderWaitMs: 1_500,
-        maxConcurrentRequests: 4,
+        maxConcurrentRequests: 9,
         includeMedia: true,
         includeScripts: true,
-        includeThirdPartyResources: false,
+        includeThirdPartyResources: true,
         maxDepth: 0,
         maxPages: 1,
       },
@@ -38,6 +46,22 @@ describe('current-page task settings', () => {
     expect(isCaptureJobCreateRequest(createCaptureJobCreateRequest(input, 'current-page'))).toBe(
       true,
     );
+  });
+
+  it('uses the product defaults for concurrency, media, and third-party resources', () => {
+    const input = buildCurrentPageTaskInput({
+      tabId: 1,
+      pageUrl: 'https://example.com',
+      archiveFileName: 'example.zip',
+    });
+
+    expect(input.settings).toMatchObject({
+      renderWaitMs: 1_000,
+      maxConcurrentRequests: 6,
+      includeMedia: false,
+      includeScripts: true,
+      includeThirdPartyResources: false,
+    });
   });
 
   it('creates a deterministic portable default from the page host and local date', () => {
@@ -93,6 +117,67 @@ describe('current-page task settings', () => {
     expect(refreshed.value).toBe('customer-delivery.zip');
   });
 
+  it('validates render wait as a whole number from 0 through 30000', () => {
+    expect(validateRenderWaitInput('0')).toEqual({ valid: true, value: 0, message: null });
+    expect(validateRenderWaitInput('30000')).toEqual({
+      valid: true,
+      value: 30_000,
+      message: null,
+    });
+    expect(validateRenderWaitInput('')).toMatchObject({
+      valid: false,
+      message: 'Enter render wait.',
+    });
+    expect(validateRenderWaitInput('1.5')).toMatchObject({
+      valid: false,
+      message: 'Render wait must be a whole number.',
+    });
+    expect(validateRenderWaitInput('30001')).toMatchObject({
+      valid: false,
+      message: 'Render wait must be between 0 and 30000.',
+    });
+  });
+
+  it('validates concurrency as a whole number from 1 through 12', () => {
+    expect(validateConcurrencyInput('1')).toEqual({ valid: true, value: 1, message: null });
+    expect(validateConcurrencyInput('12')).toEqual({ valid: true, value: 12, message: null });
+    for (const value of ['', '0', '13', '2.5', '-1', '1e1']) {
+      expect(validateConcurrencyInput(value).valid).toBe(false);
+    }
+  });
+
+  it('requires every discovered third-party host to be granted when inclusion is enabled', () => {
+    const access: ThirdPartySiteAccessSummary[] = [
+      {
+        status: 'granted',
+        permissionPattern: 'https://ready.example/*',
+        scheme: 'https:',
+        hostname: 'ready.example',
+        origins: ['https://ready.example'],
+        resourceCount: 1,
+        provenanceCount: 1,
+        discoverySources: ['dom'],
+        resourceTypes: ['image'],
+      },
+      {
+        status: 'not-granted',
+        permissionPattern: 'https://pending.example/*',
+        scheme: 'https:',
+        hostname: 'pending.example',
+        origins: ['https://pending.example'],
+        resourceCount: 2,
+        provenanceCount: 3,
+        discoverySources: ['css', 'performance'],
+        resourceTypes: ['font'],
+      },
+    ];
+
+    expect(getPendingThirdPartyPermissionPatterns(access)).toEqual(['https://pending.example/*']);
+    expect(isThirdPartyCaptureReady(false, access)).toBe(true);
+    expect(isThirdPartyCaptureReady(true, access)).toBe(false);
+    expect(isThirdPartyCaptureReady(true, [{ ...access[0]!, status: 'granted' }])).toBe(true);
+  });
+
   it('rejects invalid tab IDs, URLs, and file names before building a task', () => {
     expect(() =>
       buildCurrentPageTaskInput({
@@ -115,5 +200,21 @@ describe('current-page task settings', () => {
         archiveFileName: 'example',
       }),
     ).toThrow('end in .zip');
+    expect(() =>
+      buildCurrentPageTaskInput({
+        tabId: 1,
+        pageUrl: 'https://example.com',
+        archiveFileName: 'example.zip',
+        renderWaitMs: 30_001,
+      }),
+    ).toThrow('Render wait');
+    expect(() =>
+      buildCurrentPageTaskInput({
+        tabId: 1,
+        pageUrl: 'https://example.com',
+        archiveFileName: 'example.zip',
+        maxConcurrentRequests: 13,
+      }),
+    ).toThrow('Concurrency');
   });
 });

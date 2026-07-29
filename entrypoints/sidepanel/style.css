@@ -199,6 +199,203 @@ h3 {
   cursor: pointer;
 }
 
+.capture-options {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid #dce2eb;
+}
+
+.capture-options legend {
+  padding: 14px 0 8px;
+  color: #60708b;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.numeric-setting {
+  padding: 9px 0 8px;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.numeric-setting-row,
+.number-with-unit,
+.toggle-setting {
+  display: flex;
+  align-items: center;
+}
+
+.numeric-setting-row {
+  min-height: 32px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.numeric-setting-row label {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.number-with-unit {
+  flex: 0 0 auto;
+  gap: 6px;
+  color: #60708b;
+  font-size: 11px;
+}
+
+.numeric-setting input {
+  width: 78px;
+  min-height: 30px;
+  padding: 4px 7px;
+  border: 1px solid #c9d2df;
+  border-radius: 4px;
+  color: #182033;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  text-align: right;
+}
+
+.numeric-setting input.compact-number-input {
+  width: 60px;
+}
+
+.numeric-setting input:focus-visible {
+  border-color: #183b68;
+  outline: 2px solid #b9cce5;
+  outline-offset: 1px;
+}
+
+.numeric-setting input[aria-invalid='true'] {
+  border-color: #bd6969;
+}
+
+.numeric-setting input:disabled {
+  background: #edf1f6;
+}
+
+.setting-hint,
+.setting-error {
+  min-height: 14px;
+  margin-top: 3px;
+  color: #60708b;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.setting-error {
+  color: #a32929;
+}
+
+.toggle-setting {
+  min-height: 54px;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #dce2eb;
+  cursor: pointer;
+}
+
+.toggle-setting > span:first-child {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.toggle-setting strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toggle-setting small {
+  overflow-wrap: anywhere;
+  color: #60708b;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.switch-control {
+  position: relative;
+  width: 36px;
+  height: 22px;
+  flex: 0 0 36px;
+}
+
+.switch-control input {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.switch-control > span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #aeb9c8;
+  border-radius: 11px;
+  background: #dce2eb;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.switch-control > span::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(24 32 51 / 24%);
+  content: '';
+  transition: transform 120ms ease;
+}
+
+.switch-control input:checked + span {
+  border-color: #183b68;
+  background: #183b68;
+}
+
+.switch-control input:checked + span::after {
+  transform: translateX(14px);
+}
+
+.switch-control input:focus-visible + span {
+  outline: 2px solid #b9cce5;
+  outline-offset: 2px;
+}
+
+.switch-control input:disabled {
+  cursor: wait;
+}
+
+.switch-control input:disabled + span {
+  opacity: 0.55;
+}
+
+.task-readiness {
+  min-height: 32px;
+  padding: 9px 0;
+  color: #60708b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.task-readiness.ready {
+  color: #087052;
+  font-weight: 600;
+}
+
 .capture-setting,
 .duration-input {
   display: flex;
