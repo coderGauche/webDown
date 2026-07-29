@@ -28,8 +28,7 @@ body {
 }
 
 .app-header,
-.section-heading,
-.runtime-row {
+.section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -87,36 +86,117 @@ h3 {
   font-weight: 650;
 }
 
-.runtime-section {
-  padding-top: 22px;
-}
-
 .section-heading {
   color: #60708b;
   font-size: 12px;
 }
 
-.runtime-list {
-  margin-top: 10px;
+.inspect-section {
+  padding-top: 22px;
+}
+
+.task-settings {
+  margin-top: 14px;
   border-top: 1px solid #dce2eb;
 }
 
-.runtime-row {
-  min-height: 44px;
+.setting-row {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid #dce2eb;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-.runtime-row dt {
-  font-weight: 600;
+.setting-row strong {
+  color: #183b68;
+  font-weight: 650;
 }
 
-.runtime-row dd {
+.page-summary > div {
+  padding: 10px 0;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.page-summary dt,
+.file-name-setting label {
   color: #60708b;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
 }
 
-.inspect-section {
-  padding-top: 24px;
+.page-summary dd {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.file-name-setting {
+  padding: 11px 0 12px;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.file-name-setting label {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.file-name-setting input {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #c9d2df;
+  border-radius: 4px;
+  color: #182033;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+
+.file-name-setting input:focus-visible {
+  border-color: #183b68;
+  outline: 2px solid #b9cce5;
+  outline-offset: 1px;
+}
+
+.file-name-setting input[aria-invalid='true'] {
+  border-color: #bd6969;
+}
+
+.field-feedback {
+  display: flex;
+  min-height: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.field-feedback .error-text {
+  margin-top: 0;
+}
+
+.valid-text {
+  color: #087052;
+}
+
+.suggestion-action {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: #183b68;
+  background: transparent;
+  font: inherit;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  text-align: right;
+  cursor: pointer;
 }
 
 .capture-setting,
@@ -237,7 +317,7 @@ h3 {
 }
 
 .page-info {
-  margin-top: 12px;
+  margin-top: 7px;
   border-top: 1px solid #dce2eb;
 }
 
@@ -259,6 +339,17 @@ h3 {
   color: #182033;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.diagnostics {
+  margin-top: 14px;
+}
+
+.diagnostics summary {
+  color: #60708b;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 .third-party-section {

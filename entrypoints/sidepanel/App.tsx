@@ -16,13 +16,14 @@ import {
   type ThirdPartySiteAccessSummary,
 } from '@sitecapsule/permissions';
 import { EXTENSION_NAME } from '@sitecapsule/shared';
+import {
+  applyCurrentPageToArchiveName,
+  buildCurrentPageTaskInput,
+  createInitialCurrentPageArchiveName,
+  editCurrentPageArchiveName,
+  validateCurrentPageArchiveFileName,
+} from '@sitecapsule/ui';
 import { useState } from 'react';
-
-const runtimeSurfaces = [
-  ['Background', 'Ready'],
-  ['Content', 'Runtime'],
-  ['Offscreen', 'Standby'],
-] as const;
 
 type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 type ThirdPartyGrantStatus = 'idle' | 'requesting';
@@ -80,6 +81,8 @@ export function App() {
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [renderWaitMs, setRenderWaitMs] = useState(DEFAULT_RENDER_WAIT_MS);
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
+  const [currentTabId, setCurrentTabId] = useState<number | null>(null);
+  const [archiveName, setArchiveName] = useState(createInitialCurrentPageArchiveName);
   const [error, setError] = useState<string | null>(null);
   const [siteAccess, setSiteAccess] = useState<SiteAccessResult | null>(null);
   const [thirdPartyAccess, setThirdPartyAccess] = useState<ThirdPartySiteAccessSummary[]>([]);
@@ -89,6 +92,16 @@ export function App() {
   const pendingThirdPartyCount = thirdPartyAccess.filter(
     (access) => access.status === 'not-granted',
   ).length;
+  const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
+  const currentPageTask =
+    pageInfo && currentTabId !== null && archiveNameValidation.valid
+      ? buildCurrentPageTaskInput({
+          tabId: currentTabId,
+          pageUrl: pageInfo.finalUrl,
+          archiveFileName: archiveNameValidation.fileName,
+          renderWaitMs,
+        })
+      : null;
 
   const readCurrentPage = async () => {
     setStatus('loading');
@@ -139,6 +152,8 @@ export function App() {
 
       const capturedPage = response.payload.page;
       setPageInfo(capturedPage);
+      setCurrentTabId(activeTab.id);
+      setArchiveName((current) => applyCurrentPageToArchiveName(current, capturedPage.finalUrl));
       setStatus('success');
 
       try {
@@ -155,6 +170,7 @@ export function App() {
         operation: 'page-info',
       });
       setPageInfo(null);
+      setCurrentTabId(null);
       setError(
         [captureError.message, captureError.context?.browserError]
           .filter((message): message is string => Boolean(message))
@@ -212,38 +228,102 @@ export function App() {
       <header className="app-header">
         <div>
           <p className="eyebrow">{EXTENSION_NAME}</p>
-          <h1>Archive workspace</h1>
+          <h1>New archive</h1>
         </div>
-        <span className="status-badge">Foundation</span>
+        <span className="status-badge">Current page</span>
       </header>
-
-      <section className="runtime-section" aria-labelledby="runtime-title">
-        <div className="section-heading">
-          <h2 id="runtime-title">Runtime surfaces</h2>
-          <span>v0.1.0</span>
-        </div>
-        <dl className="runtime-list">
-          {runtimeSurfaces.map(([name, status]) => (
-            <div className="runtime-row" key={name}>
-              <dt>{name}</dt>
-              <dd>{status}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
 
       <section className="inspect-section" aria-labelledby="inspect-title">
         <div className="section-heading">
-          <h2 id="inspect-title">Current page</h2>
+          <h2 id="inspect-title">Page</h2>
           <button
             className="primary-action"
             type="button"
             onClick={readCurrentPage}
             disabled={status === 'loading'}
           >
-            {status === 'loading' ? 'Reading...' : 'Read page'}
+            {status === 'loading'
+              ? 'Reading...'
+              : status === 'success'
+                ? 'Refresh page'
+                : 'Use current page'}
           </button>
         </div>
+
+        {status === 'idle' && <p className="helper-text">Choose the active browser tab.</p>}
+        {status === 'loading' && (
+          <p className="helper-text">Waiting {renderWaitMs} ms before reading...</p>
+        )}
+        {status === 'error' && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
+
+        <form
+          className="task-settings"
+          data-task-ready={currentPageTask !== null}
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <div className="setting-row mode-setting">
+            <span>Capture mode</span>
+            <strong>Current page</strong>
+          </div>
+
+          {pageInfo && (
+            <dl className="page-summary">
+              <div>
+                <dt>Title</dt>
+                <dd>{pageInfo.title || 'Untitled page'}</dd>
+              </div>
+              <div>
+                <dt>Page URL</dt>
+                <dd>{pageInfo.finalUrl}</dd>
+              </div>
+            </dl>
+          )}
+
+          <div className="file-name-setting">
+            <label htmlFor="archive-file-name">ZIP file name</label>
+            <input
+              id="archive-file-name"
+              name="archiveFileName"
+              type="text"
+              value={archiveName.value}
+              aria-invalid={!archiveNameValidation.valid}
+              aria-describedby="archive-file-name-feedback"
+              spellCheck="false"
+              autoComplete="off"
+              onChange={(event) =>
+                setArchiveName(editCurrentPageArchiveName(event.currentTarget.value))
+              }
+            />
+            <div id="archive-file-name-feedback" className="field-feedback" aria-live="polite">
+              {archiveNameValidation.valid ? (
+                <span className="valid-text">
+                  {currentPageTask ? 'Archive settings ready.' : 'Ready after the page is read.'}
+                </span>
+              ) : (
+                <>
+                  <span className="error-text">{archiveNameValidation.message}</span>
+                  {archiveNameValidation.suggestion && (
+                    <button
+                      className="suggestion-action"
+                      type="button"
+                      onClick={() =>
+                        setArchiveName(
+                          editCurrentPageArchiveName(archiveNameValidation.suggestion ?? ''),
+                        )
+                      }
+                    >
+                      Use {archiveNameValidation.suggestion}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </form>
 
         <div className="capture-setting">
           <label htmlFor="render-wait">Render wait</label>
@@ -267,84 +347,70 @@ export function App() {
           <span className="access-value">{summarizeSiteAccess(siteAccess)}</span>
         </div>
 
-        {status === 'idle' && <p className="helper-text">Ready to inspect the active tab.</p>}
-        {status === 'loading' && (
-          <p className="helper-text">Waiting {renderWaitMs} ms before reading...</p>
-        )}
-        {status === 'error' && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
         {status === 'success' && pageInfo && (
           <>
-            <dl className="page-info">
-              <div>
-                <dt>Title</dt>
-                <dd>{pageInfo.title || 'Untitled page'}</dd>
-              </div>
-              <div>
-                <dt>Tab URL</dt>
-                <dd>{pageInfo.tabUrl}</dd>
-              </div>
-              <div>
-                <dt>Base URL</dt>
-                <dd>{pageInfo.baseUrl}</dd>
-              </div>
-              <div>
-                <dt>Final URL</dt>
-                <dd>{pageInfo.finalUrl}</dd>
-              </div>
-              <div>
-                <dt>DOM snapshot</dt>
-                <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
-              </div>
-              <div>
-                <dt>Special regions</dt>
-                <dd>{summarizeRegions(pageInfo)}</dd>
-              </div>
-              <div>
-                <dt>Runtime resources</dt>
-                <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
-              </div>
-              <div>
-                <dt>DOM resources</dt>
-                <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
-              </div>
-              <div>
-                <dt>Embedded sources</dt>
-                <dd>
-                  {pageInfo.cssSources.length.toLocaleString()} CSS /{' '}
-                  {pageInfo.svgResources.length.toLocaleString()} SVG
-                </dd>
-              </div>
-              <div>
-                <dt>CSS references</dt>
-                <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
-              </div>
-              <div>
-                <dt>Unified resources</dt>
-                <dd>
-                  {pageInfo.mergedResources.length.toLocaleString()} normalized URLs /{' '}
-                  {countMergedEvidence(pageInfo).toLocaleString()} discoveries
-                </dd>
-              </div>
-              <div>
-                <dt>Resource graph</dt>
-                <dd>
-                  {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
-                  {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
-                </dd>
-              </div>
-              <div>
-                <dt>Resource protocols</dt>
-                <dd>{summarizeResourceProtocols(pageInfo)}</dd>
-              </div>
-              <div>
-                <dt>Resource metadata</dt>
-                <dd>{summarizeResourceMetadata(pageInfo)}</dd>
-              </div>
-            </dl>
+            <details className="diagnostics">
+              <summary>Capture diagnostics</summary>
+              <dl className="page-info">
+                <div>
+                  <dt>Tab URL</dt>
+                  <dd>{pageInfo.tabUrl}</dd>
+                </div>
+                <div>
+                  <dt>Base URL</dt>
+                  <dd>{pageInfo.baseUrl}</dd>
+                </div>
+                <div>
+                  <dt>DOM snapshot</dt>
+                  <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
+                </div>
+                <div>
+                  <dt>Special regions</dt>
+                  <dd>{summarizeRegions(pageInfo)}</dd>
+                </div>
+                <div>
+                  <dt>Runtime resources</dt>
+                  <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
+                </div>
+                <div>
+                  <dt>DOM resources</dt>
+                  <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
+                </div>
+                <div>
+                  <dt>Embedded sources</dt>
+                  <dd>
+                    {pageInfo.cssSources.length.toLocaleString()} CSS /{' '}
+                    {pageInfo.svgResources.length.toLocaleString()} SVG
+                  </dd>
+                </div>
+                <div>
+                  <dt>CSS references</dt>
+                  <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
+                </div>
+                <div>
+                  <dt>Unified resources</dt>
+                  <dd>
+                    {pageInfo.mergedResources.length.toLocaleString()} normalized URLs /{' '}
+                    {countMergedEvidence(pageInfo).toLocaleString()} discoveries
+                  </dd>
+                </div>
+                <div>
+                  <dt>Resource graph</dt>
+                  <dd>
+                    {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
+                    {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
+                  </dd>
+                </div>
+                <div>
+                  <dt>Resource protocols</dt>
+                  <dd>{summarizeResourceProtocols(pageInfo)}</dd>
+                </div>
+                <div>
+                  <dt>Resource metadata</dt>
+                  <dd>{summarizeResourceMetadata(pageInfo)}</dd>
+                </div>
+              </dl>
+            </details>
 
             <section className="third-party-section" aria-labelledby="third-party-title">
               <div className="third-party-heading">
