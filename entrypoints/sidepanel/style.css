@@ -36,15 +36,45 @@ summary:focus-visible,
   outline-offset: 2px;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
-  min-width: 280px;
   min-height: 100vh;
   margin: 0;
 }
 
 .app-shell {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 100vh;
   padding: 20px;
+  overflow-wrap: anywhere;
+}
+
+section,
+form,
+fieldset,
+details,
+dl,
+ul,
+li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+button {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .app-header,
@@ -63,6 +93,7 @@ body {
 
 .header-controls {
   display: flex;
+  min-width: 0;
   flex: 0 1 auto;
   align-items: flex-end;
   justify-content: flex-end;
@@ -184,6 +215,16 @@ h3 {
   gap: 12px;
 }
 
+.progress-heading > div,
+.result-heading > div,
+.history-heading > div:first-child,
+.third-party-heading > div,
+.section-heading > :first-child,
+.failure-title > :first-child,
+.history-item-heading > :first-child {
+  min-width: 0;
+}
+
 .progress-heading p {
   max-width: 190px;
   margin-top: 3px;
@@ -193,12 +234,16 @@ h3 {
 }
 
 .job-state {
+  min-width: 0;
+  flex: 0 1 auto;
   padding: 3px 6px;
   border: 1px solid #c9d2df;
   border-radius: 4px;
   color: #60708b;
   font-size: 10px;
   font-weight: 650;
+  overflow-wrap: anywhere;
+  text-align: center;
   text-transform: capitalize;
 }
 
@@ -230,11 +275,17 @@ h3 {
 }
 
 .progress-stages li > span:nth-child(2) {
+  min-width: 0;
   flex: 1 1 auto;
+  overflow-wrap: anywhere;
 }
 
 .progress-stages small {
+  min-width: 0;
+  flex: 0 1 auto;
   font-size: 9px;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .stage-marker {
@@ -275,11 +326,14 @@ h3 {
 }
 
 .progress-counters dt {
+  min-width: 0;
   color: #60708b;
   font-weight: 650;
 }
 
 .progress-counters dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-align: right;
 }
 
@@ -490,6 +544,7 @@ h3 {
 
 .history-heading-actions,
 .history-item-actions {
+  min-width: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -544,6 +599,7 @@ h3 {
 
 .history-list li > p {
   margin-top: 4px;
+  overflow-wrap: anywhere;
   color: #60708b;
   font-size: 9px;
   line-height: 1.4;
@@ -586,6 +642,8 @@ h3 {
 }
 
 .setting-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: #183b68;
   font-weight: 650;
 }
@@ -1106,4 +1164,97 @@ h3 {
   flex: 0 0 auto;
   font-size: 10px;
   font-weight: 650;
+}
+
+@media (max-width: 360px) {
+  .app-shell {
+    padding: 14px;
+  }
+
+  .app-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-controls {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .section-heading,
+  .progress-heading,
+  .result-heading,
+  .history-heading,
+  .third-party-heading,
+  .capture-setting {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .section-heading .primary-action,
+  .third-party-heading .secondary-action {
+    width: 100%;
+  }
+
+  .progress-heading .job-state,
+  .result-heading .result-loading,
+  .third-party-heading .access-summary {
+    align-self: flex-start;
+  }
+
+  .field-feedback {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .suggestion-action {
+    width: 100%;
+    text-align: left;
+  }
+
+  .progress-counters > div,
+  .result-summary > div,
+  .setting-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding: 7px 0;
+  }
+
+  .progress-counters dd,
+  .result-summary dd,
+  .access-value {
+    width: 100%;
+    text-align: left;
+  }
+
+  .job-controls,
+  .history-heading-actions,
+  .history-item-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .job-control-action,
+  .history-action {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .history-item-heading,
+  .failure-title,
+  .third-party-list label {
+    align-items: flex-start;
+  }
+
+  .third-party-list label {
+    flex-wrap: wrap;
+  }
+
+  .third-party-list .access-state {
+    margin-left: 24px;
+  }
 }
