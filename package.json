@@ -10,10 +10,12 @@
     "icons:generate": "node scripts/generate-icons.mjs",
     "zip": "wxt zip",
     "lint": "eslint . --max-warnings 0",
-    "format": "prettier --write 'entrypoints/**/*.{ts,tsx,css,html}' 'src/**/*.{ts,tsx}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx,html}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'tsconfig.json' 'package.json'",
-    "format:check": "prettier --check 'entrypoints/**/*.{ts,tsx,css,html}' 'src/**/*.{ts,tsx}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx,html}' 'wxt.config.ts' 'vitest.config.ts' 'eslint.config.js' 'tsconfig.json' 'package.json'",
+    "format": "prettier --write 'entrypoints/**/*.{ts,tsx,css,html}' 'src/**/*.{ts,tsx}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx,html}' 'wxt.config.ts' 'vitest.config.ts' 'playwright.config.ts' 'eslint.config.js' 'tsconfig.json' 'package.json'",
+    "format:check": "prettier --check 'entrypoints/**/*.{ts,tsx,css,html}' 'src/**/*.{ts,tsx}' 'scripts/**/*.{js,mjs}' 'tests/**/*.{ts,tsx,html}' 'wxt.config.ts' 'vitest.config.ts' 'playwright.config.ts' 'eslint.config.js' 'tsconfig.json' 'package.json'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "SITECAPSULE_E2E=1 pnpm build && playwright test",
+    "test:e2e:install": "playwright install chromium",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
     "@types/css-tree": "2.3.11",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",

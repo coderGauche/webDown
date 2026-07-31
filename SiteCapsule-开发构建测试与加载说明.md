@@ -64,9 +64,30 @@ pnpm build
 | `pnpm format:check` | 检查格式但不修改文件                 |
 | `pnpm typecheck`    | 执行 TypeScript 类型检查，不输出 JS  |
 | `pnpm test`         | 执行 Vitest 单元测试                 |
+| `pnpm test:e2e`     | 构建测试扩展并执行 Playwright E2E    |
 | `pnpm build`        | 生成 Chrome MV3 生产构建             |
 
 当前 TypeScript 版本为 7.0.2，`typescript-eslint` 尚不支持 TypeScript 7。因此 ESLint 暂时覆盖 JS/MJS/CJS；TS/TSX 由 `typecheck` 和 Prettier 负责检查。这个限制已记录在开发进度台账 D-009。
+
+### 4.1 Playwright 扩展 E2E
+
+首次运行先安装与当前 Playwright 版本匹配的 Chromium：
+
+```bash
+pnpm test:e2e:install
+```
+
+执行扩展端到端测试：
+
+```bash
+pnpm test:e2e
+```
+
+该命令会生成仅供 E2E 使用的扩展构建，启动绑定在 `127.0.0.1:4173` 的本地 fixture，并在隔离的 Playwright Chromium profile 中加载 `.output/chrome-mv3`。测试自动验证扩展加载、Side Panel 页面、当前页捕获、ZIP 下载、`index.html` 内容和敏感表单值清理。
+
+测试构建会通过 `SITECAPSULE_E2E=1` 预授予 `http://127.0.0.1/*`，避免无头 Chromium 中无法操作原生扩展权限提示。普通 `pnpm build` 不包含该固定 host 权限，仍只声明产品使用的可选 HTTP/HTTPS host 权限。
+
+失败时检查 `test-results/playwright/` 中保留的 trace、截图和视频；CI 还会生成 `playwright-report/`。本任务不验证断网请求，断网环境自动化由 M9-T4 单独完成。
 
 ## 5. 生产构建和 ZIP
 
