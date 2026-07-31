@@ -2,12 +2,14 @@
 
 import { readFileSync } from 'node:fs';
 import { act, createElement, useEffect, useRef, useState } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import { capturePageSnapshot, waitForRender } from '@sitecapsule/page';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const STATIC_URL = `${window.location.origin}/fixtures/static/index.html`;
 const SPA_URL = `${window.location.origin}/fixtures/spa/index.html`;
+const VUE_STYLE_URL = `${window.location.origin}/fixtures/vue/records/42`;
+const NEXT_STYLE_URL = `${window.location.origin}/fixtures/next/products/42`;
 
 function readFixture(relativePath: string): string {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
@@ -41,6 +43,55 @@ function mockResourceTiming(entries: PerformanceResourceTiming[]): void {
   vi.spyOn(window.performance, 'getEntriesByType').mockImplementation((type) =>
     type === 'resource' ? entries : [],
   );
+}
+
+type FixtureSnapshot = ReturnType<typeof capturePageSnapshot>;
+
+function expectStableFixtureSnapshot(
+  snapshot: FixtureSnapshot,
+  expected: { title: string; tabUrl: string; baseUrl: string; content: string },
+): void {
+  expect(snapshot.title).toBe(expected.title);
+  expect(snapshot.tabUrl).toBe(expected.tabUrl);
+  expect(snapshot.finalUrl).toBe(expected.tabUrl);
+  expect(snapshot.baseUrl).toBe(expected.baseUrl);
+  expect(snapshot.serializedDom).toContain(expected.content);
+  expect(snapshot.resourceGraph.nodes.map((node) => node.url)).toEqual(
+    snapshot.mergedResources.map((resource) => resource.url),
+  );
+  expect(snapshot.resourceGraph.edges).toHaveLength(
+    snapshot.mergedResources.reduce((total, resource) => total + resource.evidence.length, 0),
+  );
+  expect(capturePageSnapshot(document, expected.tabUrl)).toEqual(snapshot);
+}
+
+function mountVueStyleFixture(): () => void {
+  const app = document.getElementById('app');
+  if (!app) throw new Error('Vue-style fixture root is missing.');
+  app.removeAttribute('v-cloak');
+  app.setAttribute('data-v-app', '');
+
+  const timeoutId = window.setTimeout(() => {
+    const main = document.createElement('main');
+    main.setAttribute('data-v-7af31d2c', '');
+    main.dataset.route = '/records/42';
+
+    const heading = document.createElement('h1');
+    heading.textContent = 'Mounted Vue-style record';
+    const image = document.createElement('img');
+    image.src = 'images/record-42.png';
+    image.alt = 'Record 42';
+    image.loading = 'lazy';
+    const input = document.createElement('input');
+    input.name = 'session_token';
+    input.value = 'vue-style-runtime-token';
+
+    main.append(heading, image, input);
+    app.replaceChildren(main);
+    document.title = 'Vue-style record ready';
+  }, 35);
+
+  return () => window.clearTimeout(timeoutId);
 }
 
 function ShadowWidget() {
@@ -87,6 +138,43 @@ function DeferredSpa() {
   );
 }
 
+function NextStyleRoute() {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setHydrated(true), 40);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (hydrated) document.title = 'Next-style product ready';
+  }, [hydrated]);
+
+  return createElement(
+    'main',
+    { 'data-route': '/products/42' },
+    createElement('h1', null, 'Server-rendered product detail'),
+    createElement('p', null, 'Initial route payload'),
+    hydrated
+      ? createElement(
+          'section',
+          { id: 'deferred-product' },
+          createElement('h2', null, 'Hydrated recommendations'),
+          createElement('img', {
+            src: 'images/product-42.webp',
+            alt: 'Product 42',
+            loading: 'lazy',
+          }),
+          createElement('input', {
+            name: 'checkout_token',
+            value: 'next-style-runtime-token',
+            readOnly: true,
+          }),
+        )
+      : null,
+  );
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -95,7 +183,7 @@ afterEach(() => {
   document.close();
 });
 
-describe('M3 page fixtures', () => {
+describe('M9 page profile fixtures', () => {
   it('captures a deterministic, sanitized static HTML page', () => {
     loadFixture(readFixture('./fixtures/static-page/index.html'), STATIC_URL);
     mockResourceTiming([
@@ -141,7 +229,12 @@ describe('M3 page fixtures', () => {
       snapshot.mergedResources.map((resource) => resource.url),
     );
     expect(snapshot.resourceGraph.edges).toHaveLength(3);
-    expect(capturePageSnapshot(document, STATIC_URL)).toEqual(snapshot);
+    expectStableFixtureSnapshot(snapshot, {
+      title: 'Static fixture',
+      tabUrl: STATIC_URL,
+      baseUrl: 'https://cdn.fixture.test/static/',
+      content: 'Static archive fixture',
+    });
   });
 
   it('waits for a React SPA and captures its final sanitized DOM', async () => {
@@ -201,8 +294,127 @@ describe('M3 page fixtures', () => {
       snapshot.mergedResources.map((resource) => resource.url),
     );
     expect(snapshot.resourceGraph.edges).toHaveLength(3);
-    expect(capturePageSnapshot(document, SPA_URL)).toEqual(snapshot);
+    expectStableFixtureSnapshot(snapshot, {
+      title: 'SPA fixture ready',
+      tabUrl: SPA_URL,
+      baseUrl: 'https://cdn.fixture.test/spa/',
+      content: 'Rendered SPA dashboard',
+    });
 
     await act(async () => root?.unmount());
+  });
+
+  it('captures a settled Vue-style route profile without claiming a Vue runtime', async () => {
+    vi.useFakeTimers();
+    loadFixture(readFixture('./fixtures/vue-style-page/index.html'), VUE_STYLE_URL);
+    const serverSnapshot = capturePageSnapshot(document, VUE_STYLE_URL);
+    expectStableFixtureSnapshot(serverSnapshot, {
+      title: 'Vue-style route shell',
+      tabUrl: VUE_STYLE_URL,
+      baseUrl: 'https://cdn.fixture.test/vue/',
+      content: 'Server route fallback',
+    });
+    mockResourceTiming([
+      resourceEntry('https://cdn.fixture.test/vue/runtime.js', 'script', 4),
+      resourceEntry('https://cdn.fixture.test/vue/images/record-42.png', 'img', 18),
+    ]);
+    const dispose = mountVueStyleFixture();
+
+    expect(document.querySelector('[data-route="/records/42"]')?.textContent).toContain(
+      'Server route fallback',
+    );
+    const renderWait = waitForRender(35);
+    await vi.advanceTimersByTimeAsync(35);
+    await renderWait;
+    const snapshot = capturePageSnapshot(document, VUE_STYLE_URL);
+
+    expect(snapshot.serializedDom).toContain('data-v-app=""');
+    expect(snapshot.serializedDom).toContain('data-v-7af31d2c=""');
+    expect(snapshot.serializedDom).not.toContain('Server route fallback');
+    expect(snapshot.serializedDom).not.toContain('vue-style-runtime-token');
+    expect(snapshot.domResources.map((resource) => resource.resolvedUrl)).toEqual([
+      'https://cdn.fixture.test/vue/images/record-42.png',
+    ]);
+    expect(snapshot.performanceResources.map((resource) => resource.initiatorType)).toEqual([
+      'script',
+      'img',
+    ]);
+    expectStableFixtureSnapshot(snapshot, {
+      title: 'Vue-style record ready',
+      tabUrl: VUE_STYLE_URL,
+      baseUrl: 'https://cdn.fixture.test/vue/',
+      content: 'Mounted Vue-style record',
+    });
+
+    dispose();
+  });
+
+  it('hydrates a Next-style server route and captures deferred route content', async () => {
+    vi.useFakeTimers();
+    loadFixture(readFixture('./fixtures/next-style-page/index.html'), NEXT_STYLE_URL);
+    const serverSnapshot = capturePageSnapshot(document, NEXT_STYLE_URL);
+    expectStableFixtureSnapshot(serverSnapshot, {
+      title: 'Next-style server route',
+      tabUrl: NEXT_STYLE_URL,
+      baseUrl: 'https://cdn.fixture.test/next/',
+      content: 'Server-rendered product detail',
+    });
+    mockResourceTiming([
+      resourceEntry('https://cdn.fixture.test/next/_next/static/chunks/app.js', 'script', 3),
+      resourceEntry('https://cdn.fixture.test/next/images/product-42.webp', 'img', 22),
+    ]);
+    const container = document.getElementById('__next');
+    if (!container) throw new Error('Next-style fixture root is missing.');
+
+    let root: Root | undefined;
+    await act(async () => {
+      root = hydrateRoot(container, createElement(NextStyleRoute));
+    });
+    expect(document.getElementById('__NEXT_DATA__')?.textContent).toContain('fixture-build');
+    expect(document.getElementById('deferred-product')).toBeNull();
+
+    const renderWait = waitForRender(40);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(40);
+      await renderWait;
+    });
+    const snapshot = capturePageSnapshot(document, NEXT_STYLE_URL);
+
+    expect(snapshot.serializedDom).toContain('id="__NEXT_DATA__"');
+    expect(snapshot.serializedDom).toContain('Hydrated recommendations');
+    expect(snapshot.serializedDom).not.toContain('next-style-runtime-token');
+    expect(snapshot.domResources.map((resource) => resource.resolvedUrl)).toEqual([
+      'https://cdn.fixture.test/next/images/product-42.webp',
+    ]);
+    expect(snapshot.performanceResources.map((resource) => resource.url)).toEqual([
+      'https://cdn.fixture.test/next/_next/static/chunks/app.js',
+      'https://cdn.fixture.test/next/images/product-42.webp',
+    ]);
+    expectStableFixtureSnapshot(snapshot, {
+      title: 'Next-style product ready',
+      tabUrl: NEXT_STYLE_URL,
+      baseUrl: 'https://cdn.fixture.test/next/',
+      content: 'Hydrated recommendations',
+    });
+
+    await act(async () => root?.unmount());
+  });
+
+  it('keeps all four fixture documents free of public executable dependencies', () => {
+    const fixturePaths = [
+      './fixtures/static-page/index.html',
+      './fixtures/spa-page/index.html',
+      './fixtures/vue-style-page/index.html',
+      './fixtures/next-style-page/index.html',
+    ];
+
+    for (const fixturePath of fixturePaths) {
+      const markup = readFixture(fixturePath);
+      expect(markup).not.toMatch(/<script[^>]+src=/i);
+      expect(markup).not.toMatch(/<link[^>]+rel=["']stylesheet["']/i);
+      for (const match of markup.matchAll(/https?:\/\/[^"'\s<]+/g)) {
+        expect(new URL(match[0]).hostname.endsWith('.test')).toBe(true);
+      }
+    }
   });
 });
