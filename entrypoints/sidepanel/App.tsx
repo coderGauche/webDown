@@ -7,6 +7,7 @@ import {
   isPausableJobStatus,
   toCaptureError,
   type CaptureJob,
+  type CaptureError,
   type JobStatus,
 } from '@sitecapsule/domain';
 import {
@@ -56,6 +57,12 @@ import {
   validateCurrentPageArchiveFileName,
   validateRenderWaitInput,
   readCaptureArchiveBytes,
+  UI_LOCALE_STORAGE_KEY,
+  localizeCaptureError,
+  resolveUiLocale,
+  translate,
+  type UiLocale,
+  type UiMessageKey,
 } from '@sitecapsule/ui';
 import { useEffect, useState } from 'react';
 
@@ -70,11 +77,11 @@ type HistoryStatus = 'loading' | 'ready' | 'error';
 
 const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
 const PIPELINE_STAGES = [
-  { status: 'preparing', label: 'Preparing' },
-  { status: 'discovering', label: 'Discovering' },
-  { status: 'fetching', label: 'Downloading' },
-  { status: 'rewriting', label: 'Rewriting' },
-  { status: 'packaging', label: 'Packaging' },
+  { status: 'preparing', label: 'preparing' },
+  { status: 'discovering', label: 'discovering' },
+  { status: 'fetching', label: 'downloading' },
+  { status: 'rewriting', label: 'rewriting' },
+  { status: 'packaging', label: 'packaging' },
 ] as const;
 
 function isActiveJob(status: JobStatus): boolean {
@@ -99,26 +106,28 @@ function stageDisplayState(
   return stageIndex === currentIndex ? 'active' : 'pending';
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown permission error.';
+function errorMessage(error: unknown): string | null {
+  return error instanceof Error ? error.message : null;
 }
 
-function formatByteLength(value: number): string {
-  if (value < 1_024) return `${value.toLocaleString()} B`;
+function formatByteLength(value: number, locale: UiLocale): string {
+  if (value < 1_024) return `${value.toLocaleString(locale)} B`;
   if (value < 1_024 * 1_024) return `${(value / 1_024).toFixed(1)} KB`;
   if (value < 1_024 * 1_024 * 1_024) return `${(value / (1_024 * 1_024)).toFixed(1)} MB`;
   return `${(value / (1_024 * 1_024 * 1_024)).toFixed(1)} GB`;
 }
 
-function summarizeSiteAccess(access: SiteAccessResult | null): string {
-  if (!access) return 'Not checked';
+type Translator = (key: UiMessageKey, values?: Record<string, string | number>) => string;
+
+function summarizeSiteAccess(access: SiteAccessResult | null, t: Translator): string {
+  if (!access) return t('notChecked');
   if (access.status === 'restricted') {
-    return `Restricted${access.protocol ? ` · ${access.protocol}` : ''}`;
+    return `${t('restricted')}${access.protocol ? ` · ${access.protocol}` : ''}`;
   }
-  return `${access.status === 'granted' ? 'Granted' : 'Not granted'} · ${access.permissionPattern}`;
+  return `${t(access.status === 'granted' ? 'granted' : 'notGranted')} · ${access.permissionPattern}`;
 }
 
-function summarizeRegions(pageInfo: PageInfo): string {
+function summarizeRegions(pageInfo: PageInfo, t: Translator): string {
   const counts = pageInfo.regionDiagnostics.regions.reduce(
     (summary, region) => {
       if (region.kind === 'iframe') summary.iframes += 1;
@@ -129,20 +138,24 @@ function summarizeRegions(pageInfo: PageInfo): string {
     { iframes: 0, shadowRoots: 0, inaccessible: 0 },
   );
 
-  return `${counts.iframes} iframe / ${counts.shadowRoots} shadow / ${counts.inaccessible} inaccessible`;
+  return t('regionCounts', {
+    iframes: counts.iframes,
+    shadows: counts.shadowRoots,
+    inaccessible: counts.inaccessible,
+  });
 }
 
 function countMergedEvidence(pageInfo: PageInfo): number {
   return pageInfo.mergedResources.reduce((total, resource) => total + resource.evidence.length, 0);
 }
 
-function summarizeResourceProtocols(pageInfo: PageInfo): string {
+function summarizeResourceProtocols(pageInfo: PageInfo, t: Translator): string {
   const counts = { network: 0, data: 0, blob: 0, unsupported: 0 };
   for (const node of pageInfo.resourceGraph.nodes) counts[node.classification.kind] += 1;
-  return `${counts.network} network / ${counts.data} data / ${counts.blob} blob / ${counts.unsupported} unsupported`;
+  return t('protocolCounts', counts);
 }
 
-function summarizeResourceMetadata(pageInfo: PageInfo): string {
+function summarizeResourceMetadata(pageInfo: PageInfo, t: Translator): string {
   let typed = 0;
   let mimeHints = 0;
   let conflicts = 0;
@@ -152,10 +165,32 @@ function summarizeResourceMetadata(pageInfo: PageInfo): string {
     if (node.inference.hasConflict) conflicts += 1;
   }
   const unknown = pageInfo.resourceGraph.nodes.length - typed;
-  return `${typed} typed / ${unknown} unknown / ${mimeHints} MIME hints / ${conflicts} conflicts`;
+  return t('metadataCounts', { typed, unknown, mime: mimeHints, conflicts });
+}
+
+function jobStatusLabel(status: JobStatus, t: Translator): string {
+  const keys: Record<JobStatus, UiMessageKey> = {
+    idle: 'statusIdle',
+    preparing: 'preparing',
+    discovering: 'discovering',
+    fetching: 'downloading',
+    rewriting: 'rewriting',
+    packaging: 'packaging',
+    completed: 'statusCompleted',
+    failed: 'statusFailed',
+    cancelling: 'statusCancelling',
+    cancelled: 'statusCancelled',
+    paused: 'paused',
+    retrying: 'statusRetrying',
+  };
+  return t(keys[status]);
 }
 
 export function App() {
+  const [locale, setLocale] = useState<UiLocale>(() =>
+    resolveUiLocale(browser.i18n.getUILanguage()),
+  );
+  const t: Translator = (key, values) => translate(locale, key, values);
   const [status, setStatus] = useState<ReadStatus>('idle');
   const [renderWaitInput, setRenderWaitInput] = useState(String(DEFAULT_RENDER_WAIT_MS));
   const [concurrencyInput, setConcurrencyInput] = useState(
@@ -168,26 +203,30 @@ export function App() {
   const [pageInfo, setPageInfo] = useState<PageInfo | null>(null);
   const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const [archiveName, setArchiveName] = useState(createInitialCurrentPageArchiveName);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<CaptureError | null>(null);
   const [siteAccess, setSiteAccess] = useState<SiteAccessResult | null>(null);
   const [thirdPartyAccess, setThirdPartyAccess] = useState<ThirdPartySiteAccessSummary[]>([]);
   const [selectedThirdParties, setSelectedThirdParties] = useState<string[]>([]);
   const [thirdPartyGrantStatus, setThirdPartyGrantStatus] = useState<ThirdPartyGrantStatus>('idle');
   const [thirdPartyCheckStatus, setThirdPartyCheckStatus] = useState<ThirdPartyCheckStatus>('idle');
-  const [thirdPartyError, setThirdPartyError] = useState<string | null>(null);
+  const [thirdPartyError, setThirdPartyError] = useState<{
+    key: 'permissionNotGranted' | 'permissionCheckError' | 'permissionGrantError';
+    detail: string | null;
+  } | null>(null);
   const [captureJob, setCaptureJob] = useState<CaptureJob | null>(null);
   const [createStatus, setCreateStatus] = useState<CreateStatus>('idle');
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<CaptureError | null>(null);
   const [controlStatus, setControlStatus] = useState<ControlStatus>('idle');
-  const [controlError, setControlError] = useState<string | null>(null);
+  const [controlError, setControlError] = useState<CaptureError | null>(null);
   const [resultStatus, setResultStatus] = useState<ResultStatus>('idle');
   const [captureResult, setCaptureResult] = useState<CaptureJobResult | null>(null);
-  const [resultError, setResultError] = useState<string | null>(null);
+  const [resultError, setResultError] = useState<CaptureError | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
-  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [downloadFileName, setDownloadFileName] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<CaptureError | null>(null);
   const [historyItems, setHistoryItems] = useState<CaptureJobHistoryItem[]>([]);
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>('loading');
-  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<CaptureError | null>(null);
   const [historyMutation, setHistoryMutation] = useState<string | null>(null);
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
@@ -217,31 +256,76 @@ export function App() {
         })
       : null;
   const taskStatusMessage = currentPageTask
-    ? 'Archive settings ready.'
+    ? t('settingsReady')
     : status !== 'success'
-      ? 'Read the page to finish setup.'
+      ? t('readToSetup')
       : !archiveNameValidation.valid || !renderWaitValidation.valid || !concurrencyValidation.valid
-        ? 'Fix the highlighted settings.'
+        ? t('fixSettings')
         : includeThirdPartyResources && thirdPartyCheckStatus === 'error'
-          ? 'Third-party access could not be checked.'
+          ? t('thirdPartyCheckFailed')
           : includeThirdPartyResources && pendingThirdPartyCount > 0
-            ? `Grant access to ${pendingThirdPartyCount} third-party ${pendingThirdPartyCount === 1 ? 'host' : 'hosts'}.`
-            : 'Checking archive settings...';
+            ? t('grantHostCount', { count: pendingThirdPartyCount })
+            : t('checkingSettings');
 
   const thirdPartyOptionStatus =
     status !== 'success'
-      ? 'Access is checked after the page is read.'
+      ? t('accessAfterRead')
       : thirdPartyCheckStatus === 'checking'
-        ? 'Checking host access...'
+        ? t('checkingHostAccess')
         : thirdPartyCheckStatus === 'error'
-          ? 'Host access check failed.'
+          ? t('hostAccessFailed')
           : thirdPartyAccess.length === 0
-            ? 'No third-party hosts found.'
+            ? t('noThirdPartyHosts')
             : !includeThirdPartyResources
-              ? `${thirdPartyAccess.length} ${thirdPartyAccess.length === 1 ? 'host' : 'hosts'} found · Off`
+              ? t('hostsFoundOff', { count: thirdPartyAccess.length })
               : pendingThirdPartyCount > 0
-                ? `${pendingThirdPartyCount} ${pendingThirdPartyCount === 1 ? 'host needs' : 'hosts need'} access.`
-                : `${thirdPartyAccess.length} ${thirdPartyAccess.length === 1 ? 'host' : 'hosts'} ready.`;
+                ? t('hostsNeedAccess', { count: pendingThirdPartyCount })
+                : t('hostsReady', { count: thirdPartyAccess.length });
+
+  const captureErrorText = (captureError: CaptureError): string => {
+    const localized = localizeCaptureError(captureError, locale);
+    return [localized.message, localized.suggestion, localized.context?.browserError]
+      .filter((value): value is string => Boolean(value))
+      .join(' ');
+  };
+
+  const archiveNameError = !archiveName.value.trim()
+    ? t('zipNameEmpty')
+    : !archiveName.value.trim().toLowerCase().endsWith('.zip')
+      ? t('zipNameExtension')
+      : t('zipNamePortable');
+  const renderWaitError = !renderWaitInput.trim()
+    ? t('renderWaitEmpty')
+    : !/^\d+$/.test(renderWaitInput.trim())
+      ? t('renderWaitWhole')
+      : t('renderWaitRange', { max: MAX_RENDER_WAIT_MS });
+  const concurrencyError = !concurrencyInput.trim()
+    ? t('concurrencyEmpty')
+    : !/^\d+$/.test(concurrencyInput.trim())
+      ? t('concurrencyWhole')
+      : t('concurrencyRange', {
+          min: MIN_CURRENT_PAGE_CONCURRENCY,
+          max: MAX_CURRENT_PAGE_CONCURRENCY,
+        });
+
+  useEffect(() => {
+    void browser.storage.local
+      .get(UI_LOCALE_STORAGE_KEY)
+      .then((stored) => {
+        const saved = stored[UI_LOCALE_STORAGE_KEY];
+        if (saved === 'en' || saved === 'zh-CN') setLocale(saved);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const changeLocale = (nextLocale: UiLocale) => {
+    setLocale(nextLocale);
+    void browser.storage.local.set({ [UI_LOCALE_STORAGE_KEY]: nextLocale });
+  };
 
   useEffect(() => {
     const onMessage = (message: unknown) => {
@@ -302,7 +386,7 @@ export function App() {
       const captureError = toCaptureError(requestError, 'storage-unavailable', {
         operation: 'job-list',
       });
-      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+      setHistoryError(captureError);
       setHistoryStatus('error');
     }
   }
@@ -327,7 +411,8 @@ export function App() {
       setCaptureResult(null);
       setResultError(null);
       setDownloadStatus('idle');
-      setDownloadMessage(null);
+      setDownloadFileName(null);
+      setDownloadError(null);
       return () => {
         disposed = true;
       };
@@ -336,7 +421,8 @@ export function App() {
     setResultStatus('loading');
     setResultError(null);
     setDownloadStatus('idle');
-    setDownloadMessage(null);
+    setDownloadFileName(null);
+    setDownloadError(null);
     void browser.runtime
       .sendMessage(createCaptureJobResultGetRequest(captureJob.id))
       .then((response: unknown) => {
@@ -357,7 +443,7 @@ export function App() {
           operation: 'job-read',
           jobId: captureJob.id,
         });
-        setResultError(`${captureError.message} ${captureError.suggestion}`);
+        setResultError(captureError);
         setResultStatus('error');
       });
 
@@ -433,7 +519,10 @@ export function App() {
         );
         setThirdPartyCheckStatus('ready');
       } catch (permissionError) {
-        setThirdPartyError(`Unable to check third-party access. ${errorMessage(permissionError)}`);
+        setThirdPartyError({
+          key: 'permissionCheckError',
+          detail: errorMessage(permissionError),
+        });
         setThirdPartyCheckStatus('error');
       }
     } catch (requestError) {
@@ -443,11 +532,7 @@ export function App() {
       setPageInfo(null);
       setCurrentTabId(null);
       setThirdPartyCheckStatus('idle');
-      setError(
-        [captureError.message, captureError.context?.browserError]
-          .filter((message): message is string => Boolean(message))
-          .join(' '),
-      );
+      setError(captureError);
       setStatus('error');
     }
   };
@@ -475,7 +560,7 @@ export function App() {
     try {
       const granted = await browser.permissions.request(request);
       if (!granted) {
-        setThirdPartyError('Third-party access was not granted.');
+        setThirdPartyError({ key: 'permissionNotGranted', detail: null });
         return;
       }
 
@@ -487,7 +572,10 @@ export function App() {
       setSelectedThirdParties([]);
       setThirdPartyCheckStatus('ready');
     } catch (permissionError) {
-      setThirdPartyError(`Unable to grant third-party access. ${errorMessage(permissionError)}`);
+      setThirdPartyError({
+        key: 'permissionGrantError',
+        detail: errorMessage(permissionError),
+      });
     } finally {
       setThirdPartyGrantStatus('idle');
     }
@@ -512,7 +600,7 @@ export function App() {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-create',
       });
-      setCreateError(`${captureError.message} ${captureError.suggestion}`);
+      setCreateError(captureError);
     } finally {
       setCreateStatus('idle');
     }
@@ -538,7 +626,7 @@ export function App() {
         operation: 'job-transition',
         jobId: captureJob.id,
       });
-      setControlError(`${captureError.message} ${captureError.suggestion}`);
+      setControlError(captureError);
     } finally {
       setControlStatus('idle');
     }
@@ -553,7 +641,8 @@ export function App() {
       return;
     }
     setDownloadStatus('downloading');
-    setDownloadMessage(null);
+    setDownloadFileName(null);
+    setDownloadError(null);
     try {
       const archiveBytes = await readCaptureArchiveBytes(
         captureResult.jobId,
@@ -566,14 +655,14 @@ export function App() {
         saveAs: true,
       });
       setDownloadStatus('started');
-      setDownloadMessage(`Download started · ${downloaded.fileName}`);
+      setDownloadFileName(downloaded.fileName);
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'archive-download-failed', {
         operation: 'archive-download',
         jobId: captureResult.jobId,
       });
       setDownloadStatus('error');
-      setDownloadMessage(`${captureError.message} ${captureError.suggestion}`);
+      setDownloadError(captureError);
     }
   };
 
@@ -595,14 +684,14 @@ export function App() {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-read',
       });
-      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+      setHistoryError(captureError);
     } finally {
       setHistoryMutation(null);
     }
   };
 
   const deleteHistoryJob = async (item: CaptureJobHistoryItem) => {
-    if (!window.confirm(`Delete "${item.fileName}" and its saved task data?`)) return;
+    if (!window.confirm(t('confirmDelete', { value: item.fileName }))) return;
     setHistoryMutation(`delete:${item.jobId}`);
     setHistoryError(null);
     try {
@@ -620,19 +709,14 @@ export function App() {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-cleanup',
       });
-      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+      setHistoryError(captureError);
     } finally {
       setHistoryMutation(null);
     }
   };
 
   const clearHistory = async () => {
-    if (
-      !window.confirm(
-        `Delete all ${historyItems.length} saved history tasks? Active tasks are kept.`,
-      )
-    )
-      return;
+    if (!window.confirm(t('confirmClear', { count: historyItems.length }))) return;
     setHistoryMutation('clear');
     setHistoryError(null);
     try {
@@ -650,25 +734,37 @@ export function App() {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-cleanup',
       });
-      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+      setHistoryError(captureError);
     } finally {
       setHistoryMutation(null);
     }
   };
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" lang={locale}>
       <header className="app-header">
         <div>
           <p className="eyebrow">{EXTENSION_NAME}</p>
-          <h1>New archive</h1>
+          <h1>{t('newArchive')}</h1>
         </div>
-        <span className="status-badge">Current page</span>
+        <div className="header-controls">
+          <label className="language-control">
+            <span>{t('language')}</span>
+            <select
+              value={locale}
+              onChange={(event) => changeLocale(event.currentTarget.value as UiLocale)}
+            >
+              <option value="en">{t('english')}</option>
+              <option value="zh-CN">{t('chinese')}</option>
+            </select>
+          </label>
+          <span className="status-badge">{t('currentPage')}</span>
+        </div>
       </header>
 
       <section className="inspect-section" aria-labelledby="inspect-title">
         <div className="section-heading">
-          <h2 id="inspect-title">Page</h2>
+          <h2 id="inspect-title">{t('page')}</h2>
           <button
             className="primary-action"
             type="button"
@@ -676,23 +772,24 @@ export function App() {
             disabled={status === 'loading' || !renderWaitValidation.valid}
           >
             {status === 'loading'
-              ? 'Reading...'
+              ? t('reading')
               : status === 'success'
-                ? 'Refresh page'
-                : 'Use current page'}
+                ? t('refreshPage')
+                : t('useCurrentPage')}
           </button>
         </div>
 
-        {status === 'idle' && <p className="helper-text">Choose the active browser tab.</p>}
+        {status === 'idle' && <p className="helper-text">{t('chooseTab')}</p>}
         {status === 'loading' && (
           <p className="helper-text">
-            Waiting {renderWaitValidation.valid ? renderWaitValidation.value : 0} ms before
-            reading...
+            {t('waitingToRead', {
+              count: renderWaitValidation.valid ? renderWaitValidation.value : 0,
+            })}
           </p>
         )}
         {status === 'error' && (
           <p className="error-text" role="alert">
-            {error}
+            {error && captureErrorText(error)}
           </p>
         )}
 
@@ -702,25 +799,25 @@ export function App() {
           onSubmit={(event) => event.preventDefault()}
         >
           <div className="setting-row mode-setting">
-            <span>Capture mode</span>
-            <strong>Current page</strong>
+            <span>{t('captureMode')}</span>
+            <strong>{t('currentPage')}</strong>
           </div>
 
           {pageInfo && (
             <dl className="page-summary">
               <div>
-                <dt>Title</dt>
-                <dd>{pageInfo.title || 'Untitled page'}</dd>
+                <dt>{t('title')}</dt>
+                <dd>{pageInfo.title || t('untitledPage')}</dd>
               </div>
               <div>
-                <dt>Page URL</dt>
+                <dt>{t('pageUrl')}</dt>
                 <dd>{pageInfo.finalUrl}</dd>
               </div>
             </dl>
           )}
 
           <div className="file-name-setting">
-            <label htmlFor="archive-file-name">ZIP file name</label>
+            <label htmlFor="archive-file-name">{t('zipFileName')}</label>
             <input
               id="archive-file-name"
               name="archiveFileName"
@@ -736,10 +833,10 @@ export function App() {
             />
             <div id="archive-file-name-feedback" className="field-feedback" aria-live="polite">
               {archiveNameValidation.valid ? (
-                <span className="valid-text">Valid ZIP file name.</span>
+                <span className="valid-text">{t('validZipName')}</span>
               ) : (
                 <>
-                  <span className="error-text">{archiveNameValidation.message}</span>
+                  <span className="error-text">{archiveNameError}</span>
                   {archiveNameValidation.suggestion && (
                     <button
                       className="suggestion-action"
@@ -750,7 +847,7 @@ export function App() {
                         )
                       }
                     >
-                      Use {archiveNameValidation.suggestion}
+                      {t('useSuggestion', { value: archiveNameValidation.suggestion })}
                     </button>
                   )}
                 </>
@@ -759,11 +856,11 @@ export function App() {
           </div>
 
           <fieldset className="capture-options">
-            <legend>Capture options</legend>
+            <legend>{t('captureOptions')}</legend>
 
             <div className="numeric-setting">
               <div className="numeric-setting-row">
-                <label htmlFor="render-wait">Render wait</label>
+                <label htmlFor="render-wait">{t('renderWait')}</label>
                 <div className="number-with-unit">
                   <input
                     id="render-wait"
@@ -787,13 +884,13 @@ export function App() {
               >
                 {renderWaitValidation.valid
                   ? `0-${MAX_RENDER_WAIT_MS.toLocaleString()} ms`
-                  : renderWaitValidation.message}
+                  : renderWaitError}
               </p>
             </div>
 
             <div className="numeric-setting">
               <div className="numeric-setting-row">
-                <label htmlFor="capture-concurrency">Concurrent downloads</label>
+                <label htmlFor="capture-concurrency">{t('concurrentDownloads')}</label>
                 <input
                   id="capture-concurrency"
                   name="maxConcurrentRequests"
@@ -815,14 +912,14 @@ export function App() {
               >
                 {concurrencyValidation.valid
                   ? `${MIN_CURRENT_PAGE_CONCURRENCY}-${MAX_CURRENT_PAGE_CONCURRENCY}`
-                  : concurrencyValidation.message}
+                  : concurrencyError}
               </p>
             </div>
 
             <label className="toggle-setting">
               <span>
-                <strong>Media files</strong>
-                <small>Video and audio</small>
+                <strong>{t('mediaFiles')}</strong>
+                <small>{t('videoAudio')}</small>
               </span>
               <span className="switch-control">
                 <input
@@ -839,7 +936,7 @@ export function App() {
 
             <label className="toggle-setting third-party-toggle">
               <span>
-                <strong>Third-party resources</strong>
+                <strong>{t('thirdPartyResources')}</strong>
                 <small>{thirdPartyOptionStatus}</small>
               </span>
               <span className="switch-control">
@@ -875,15 +972,15 @@ export function App() {
             }
           >
             {captureJob && isActiveJob(captureJob.status)
-              ? 'Archiving...'
+              ? t('archiving')
               : createStatus === 'creating'
-                ? 'Starting...'
-                : 'Create archive'}
+                ? t('starting')
+                : t('createArchive')}
           </button>
 
           {createError && (
             <p className="error-text" role="alert">
-              {createError}
+              {captureErrorText(createError)}
             </p>
           )}
         </form>
@@ -892,10 +989,12 @@ export function App() {
           <section className="capture-progress" aria-labelledby="capture-progress-title">
             <div className="progress-heading">
               <div>
-                <h3 id="capture-progress-title">Archive progress</h3>
+                <h3 id="capture-progress-title">{t('archiveProgress')}</h3>
                 <p>{captureJob.settings.archiveFileName}</p>
               </div>
-              <span className={`job-state ${captureJob.status}`}>{captureJob.status}</span>
+              <span className={`job-state ${captureJob.status}`}>
+                {jobStatusLabel(captureJob.status, t)}
+              </span>
             </div>
             <ol className="progress-stages">
               {PIPELINE_STAGES.map((stage) => {
@@ -903,15 +1002,15 @@ export function App() {
                 return (
                   <li key={stage.status} className={displayState}>
                     <span className="stage-marker" aria-hidden="true" />
-                    <span>{stage.label}</span>
+                    <span>{t(stage.label)}</span>
                     <small>
                       {displayState === 'complete'
-                        ? 'Done'
+                        ? t('done')
                         : displayState === 'active'
                           ? captureJob.status === 'paused'
-                            ? 'Paused'
-                            : 'In progress'
-                          : 'Waiting'}
+                            ? t('paused')
+                            : t('inProgress')
+                          : t('waiting')}
                     </small>
                   </li>
                 );
@@ -919,22 +1018,28 @@ export function App() {
             </ol>
             <dl className="progress-counters">
               <div>
-                <dt>Resources</dt>
+                <dt>{t('resources')}</dt>
                 <dd>
-                  {captureJob.counters.resourcesSaved.toLocaleString()} saved ·{' '}
-                  {captureJob.counters.resourcesFailed.toLocaleString()} failed ·{' '}
-                  {captureJob.counters.resourcesSkipped.toLocaleString()} skipped
+                  {t('resourceCounts', {
+                    saved: captureJob.counters.resourcesSaved.toLocaleString(locale),
+                    failed: captureJob.counters.resourcesFailed.toLocaleString(locale),
+                    skipped: captureJob.counters.resourcesSkipped.toLocaleString(locale),
+                  })}
                 </dd>
               </div>
               <div>
-                <dt>Downloaded</dt>
-                <dd>{captureJob.counters.bytesWritten.toLocaleString()} bytes</dd>
+                <dt>{t('downloaded')}</dt>
+                <dd>
+                  {t('byteCount', {
+                    count: captureJob.counters.bytesWritten.toLocaleString(locale),
+                  })}
+                </dd>
               </div>
             </dl>
             {(isPausableJobStatus(captureJob.status) ||
               captureJob.status === 'paused' ||
               captureJob.status === 'failed') && (
-              <div className="job-controls" aria-label="Archive controls">
+              <div className="job-controls" aria-label={t('archiveControls')}>
                 {isPausableJobStatus(captureJob.status) && (
                   <button
                     type="button"
@@ -942,7 +1047,7 @@ export function App() {
                     onClick={() => controlCapture('pause')}
                     disabled={controlStatus !== 'idle'}
                   >
-                    {controlStatus === 'pause' ? 'Pausing...' : 'Pause'}
+                    {controlStatus === 'pause' ? t('pausing') : t('pause')}
                   </button>
                 )}
                 {captureJob.status === 'paused' && (
@@ -952,7 +1057,7 @@ export function App() {
                     onClick={() => controlCapture('resume')}
                     disabled={controlStatus !== 'idle'}
                   >
-                    {controlStatus === 'resume' ? 'Resuming...' : 'Resume'}
+                    {controlStatus === 'resume' ? t('resuming') : t('resume')}
                   </button>
                 )}
                 {captureJob.status === 'failed' && (
@@ -962,7 +1067,7 @@ export function App() {
                     onClick={() => controlCapture('retry')}
                     disabled={controlStatus !== 'idle'}
                   >
-                    {controlStatus === 'retry' ? 'Retrying...' : 'Retry'}
+                    {controlStatus === 'retry' ? t('retrying') : t('retry')}
                   </button>
                 )}
                 {(isPausableJobStatus(captureJob.status) || captureJob.status === 'paused') && (
@@ -972,14 +1077,14 @@ export function App() {
                     onClick={() => controlCapture('cancel')}
                     disabled={controlStatus !== 'idle'}
                   >
-                    {controlStatus === 'cancel' ? 'Cancelling...' : 'Cancel'}
+                    {controlStatus === 'cancel' ? t('cancelling') : t('cancel')}
                   </button>
                 )}
               </div>
             )}
             {controlError && (
               <p className="error-text control-error" role="alert">
-                {controlError}
+                {captureErrorText(controlError)}
               </p>
             )}
           </section>
@@ -989,23 +1094,23 @@ export function App() {
           <section className="capture-result" aria-labelledby="capture-result-title">
             <div className="result-heading">
               <div>
-                <p className="result-eyebrow">Task result</p>
+                <p className="result-eyebrow">{t('taskResult')}</p>
                 <h2 id="capture-result-title">
                   {captureJob.status === 'completed'
                     ? captureJob.counters.resourcesFailed > 0
-                      ? 'Archive ready with issues'
-                      : 'Archive ready'
+                      ? t('readyIssues')
+                      : t('archiveReady')
                     : captureJob.status === 'failed'
-                      ? 'Archive failed'
-                      : 'Archive cancelled'}
+                      ? t('archiveFailed')
+                      : t('archiveCancelled')}
                 </h2>
               </div>
-              {resultStatus === 'loading' && <span className="result-loading">Loading...</span>}
+              {resultStatus === 'loading' && <span className="result-loading">{t('loading')}</span>}
             </div>
 
             {resultStatus === 'error' && (
               <p className="error-text result-message" role="alert">
-                {resultError}
+                {resultError && captureErrorText(resultError)}
               </p>
             )}
 
@@ -1013,23 +1118,25 @@ export function App() {
               <>
                 <dl className="result-summary">
                   <div>
-                    <dt>ZIP file</dt>
+                    <dt>{t('zipFile')}</dt>
                     <dd>{captureResult.fileName}</dd>
                   </div>
                   <div>
-                    <dt>ZIP size</dt>
+                    <dt>{t('zipSize')}</dt>
                     <dd>
                       {captureResult.archiveByteLength === null
-                        ? 'Unavailable'
-                        : formatByteLength(captureResult.archiveByteLength)}
+                        ? t('unavailable')
+                        : formatByteLength(captureResult.archiveByteLength, locale)}
                     </dd>
                   </div>
                   <div>
-                    <dt>Resources</dt>
+                    <dt>{t('resources')}</dt>
                     <dd>
-                      {captureResult.counters.resourcesSaved.toLocaleString()} saved ·{' '}
-                      {captureResult.counters.resourcesFailed.toLocaleString()} failed ·{' '}
-                      {captureResult.counters.resourcesSkipped.toLocaleString()} skipped
+                      {t('resourceCounts', {
+                        saved: captureResult.counters.resourcesSaved.toLocaleString(locale),
+                        failed: captureResult.counters.resourcesFailed.toLocaleString(locale),
+                        skipped: captureResult.counters.resourcesSkipped.toLocaleString(locale),
+                      })}
                     </dd>
                   </div>
                 </dl>
@@ -1042,20 +1149,19 @@ export function App() {
                       onClick={downloadArchive}
                       disabled={!captureResult.archiveAvailable || downloadStatus === 'downloading'}
                     >
-                      {downloadStatus === 'downloading' ? 'Preparing download...' : 'Download ZIP'}
+                      {downloadStatus === 'downloading' ? t('preparingDownload') : t('downloadZip')}
                     </button>
                     {!captureResult.archiveAvailable && (
-                      <p className="result-note">
-                        The ZIP is no longer in this browser session. Run the archive again to
-                        download it.
-                      </p>
+                      <p className="result-note">{t('zipSessionGone')}</p>
                     )}
-                    {downloadMessage && (
+                    {(downloadFileName || downloadError) && (
                       <p
                         className={downloadStatus === 'error' ? 'error-text' : 'success-text'}
                         role="status"
                       >
-                        {downloadMessage}
+                        {downloadError
+                          ? captureErrorText(downloadError)
+                          : t('downloadStarted', { value: downloadFileName ?? '' })}
                       </p>
                     )}
                   </div>
@@ -1064,33 +1170,38 @@ export function App() {
                 {captureResult.status === 'failed' && (
                   <div className="task-failure" role="alert">
                     <strong>
-                      {captureResult.error?.message ?? 'The archive could not be completed.'}
+                      {captureResult.error
+                        ? localizeCaptureError(captureResult.error, locale).message
+                        : t('archiveIncomplete')}
                     </strong>
                     <p>
-                      {captureResult.error?.suggestion ??
-                        'Review the resource failures below, then retry the task.'}
+                      {captureResult.error
+                        ? localizeCaptureError(captureResult.error, locale).suggestion
+                        : t('reviewFailures')}
                     </p>
                     <span>
-                      {captureResult.error?.retryable ? 'Retry available' : 'Create a new task'}
+                      {captureResult.error?.retryable ? t('retryAvailable') : t('createNewTask')}
                       {captureResult.error?.context?.stage
-                        ? ` · ${captureResult.error.context.stage}`
+                        ? ` · ${jobStatusLabel(captureResult.error.context.stage, t)}`
                         : ''}
                     </span>
                   </div>
                 )}
 
                 {captureResult.status === 'cancelled' && (
-                  <p className="result-note">No ZIP was produced for this cancelled task.</p>
+                  <p className="result-note">{t('cancelledNoZip')}</p>
                 )}
 
                 {captureResult.failures.length > 0 && (
                   <details className="failure-details" open={captureResult.status === 'failed'}>
                     <summary>
-                      Resource failures ({captureResult.failures.length}
-                      {captureResult.omittedFailureCount > 0
-                        ? ` shown, ${captureResult.omittedFailureCount} more`
-                        : ''}
-                      )
+                      {t('resourceFailures', {
+                        count: captureResult.failures.length,
+                        suffix:
+                          captureResult.omittedFailureCount > 0
+                            ? t('failuresMore', { count: captureResult.omittedFailureCount })
+                            : '',
+                      })}
                     </summary>
                     <div className="failure-list">
                       {captureResult.failures.map((failure, index) => (
@@ -1107,16 +1218,18 @@ export function App() {
                             </span>
                           </div>
                           <p className="failure-url">{failure.url}</p>
-                          <p>{failure.error.message}</p>
+                          <p>{localizeCaptureError(failure.error, locale).message}</p>
                           <small>
                             {failure.affectsPrimaryVisual
-                              ? 'May affect the main page'
-                              : 'Secondary resource'}
+                              ? t('mainPageImpact')
+                              : t('secondaryResource')}
                             {failure.error.context?.stage
-                              ? ` · ${failure.error.context.stage}`
+                              ? ` · ${jobStatusLabel(failure.error.context.stage, t)}`
                               : ''}
                           </small>
-                          {failure.error.suggestion && <p>{failure.error.suggestion}</p>}
+                          {failure.error.suggestion && (
+                            <p>{localizeCaptureError(failure.error, locale).suggestion}</p>
+                          )}
                         </article>
                       ))}
                     </div>
@@ -1130,8 +1243,8 @@ export function App() {
         <section className="task-history" aria-labelledby="task-history-title">
           <div className="history-heading">
             <div>
-              <p className="result-eyebrow">Local tasks</p>
-              <h2 id="task-history-title">Task history</h2>
+              <p className="result-eyebrow">{t('localTasks')}</p>
+              <h2 id="task-history-title">{t('taskHistory')}</h2>
             </div>
             <div className="history-heading-actions">
               <button
@@ -1140,7 +1253,7 @@ export function App() {
                 onClick={() => void refreshHistory()}
                 disabled={historyStatus === 'loading' || historyMutation !== null}
               >
-                Refresh
+                {t('refresh')}
               </button>
               <button
                 type="button"
@@ -1148,20 +1261,20 @@ export function App() {
                 onClick={() => void clearHistory()}
                 disabled={historyItems.length === 0 || historyMutation !== null}
               >
-                {historyMutation === 'clear' ? 'Clearing...' : 'Clear history'}
+                {historyMutation === 'clear' ? t('clearing') : t('clearHistory')}
               </button>
             </div>
           </div>
 
           {historyStatus === 'loading' && historyItems.length === 0 && (
-            <p className="history-empty">Loading local history...</p>
+            <p className="history-empty">{t('loadingHistory')}</p>
           )}
           {historyStatus === 'ready' && historyItems.length === 0 && (
-            <p className="history-empty">No completed, failed, or cancelled tasks yet.</p>
+            <p className="history-empty">{t('noHistory')}</p>
           )}
           {historyError && (
             <p className="error-text history-error" role="alert">
-              {historyError}
+              {captureErrorText(historyError)}
             </p>
           )}
           {historyItems.length > 0 && (
@@ -1170,13 +1283,18 @@ export function App() {
                 <li key={item.jobId}>
                   <div className="history-item-heading">
                     <strong>{item.fileName}</strong>
-                    <span className={`job-state ${item.status}`}>{item.status}</span>
+                    <span className={`job-state ${item.status}`}>
+                      {jobStatusLabel(item.status, t)}
+                    </span>
                   </div>
-                  <p>{new Date(item.updatedAt).toLocaleString()}</p>
+                  <p>{new Date(item.updatedAt).toLocaleString(locale)}</p>
                   <p>
-                    {item.counters.resourcesSaved.toLocaleString()} saved ·{' '}
-                    {item.counters.resourcesFailed.toLocaleString()} failed ·{' '}
-                    {item.archiveAvailable ? 'ZIP available' : 'metadata only'}
+                    {t('resourceCounts', {
+                      saved: item.counters.resourcesSaved.toLocaleString(locale),
+                      failed: item.counters.resourcesFailed.toLocaleString(locale),
+                      skipped: item.counters.resourcesSkipped.toLocaleString(locale),
+                    })}{' '}
+                    · {item.archiveAvailable ? t('zipAvailable') : t('metadataOnly')}
                   </p>
                   <div className="history-item-actions">
                     <button
@@ -1185,7 +1303,7 @@ export function App() {
                       onClick={() => void openHistoryJob(item.jobId)}
                       disabled={historyMutation !== null}
                     >
-                      {historyMutation === `open:${item.jobId}` ? 'Opening...' : 'Open'}
+                      {historyMutation === `open:${item.jobId}` ? t('opening') : t('open')}
                     </button>
                     <button
                       type="button"
@@ -1193,7 +1311,7 @@ export function App() {
                       onClick={() => void deleteHistoryJob(item)}
                       disabled={historyMutation !== null}
                     >
-                      {historyMutation === `delete:${item.jobId}` ? 'Deleting...' : 'Delete'}
+                      {historyMutation === `delete:${item.jobId}` ? t('deleting') : t('delete')}
                     </button>
                   </div>
                 </li>
@@ -1203,71 +1321,91 @@ export function App() {
         </section>
 
         <div className="capture-setting access-setting">
-          <span>Current site access</span>
-          <span className="access-value">{summarizeSiteAccess(siteAccess)}</span>
+          <span>{t('currentSiteAccess')}</span>
+          <span className="access-value">{summarizeSiteAccess(siteAccess, t)}</span>
         </div>
 
         {status === 'success' && pageInfo && (
           <>
             <details className="diagnostics">
-              <summary>Capture diagnostics</summary>
+              <summary>{t('captureDiagnostics')}</summary>
               <dl className="page-info">
                 <div>
-                  <dt>Tab URL</dt>
+                  <dt>{t('tabUrl')}</dt>
                   <dd>{pageInfo.tabUrl}</dd>
                 </div>
                 <div>
-                  <dt>Base URL</dt>
+                  <dt>{t('baseUrl')}</dt>
                   <dd>{pageInfo.baseUrl}</dd>
                 </div>
                 <div>
-                  <dt>DOM snapshot</dt>
-                  <dd>{pageInfo.serializedDom.length.toLocaleString()} chars</dd>
-                </div>
-                <div>
-                  <dt>Special regions</dt>
-                  <dd>{summarizeRegions(pageInfo)}</dd>
-                </div>
-                <div>
-                  <dt>Runtime resources</dt>
-                  <dd>{pageInfo.performanceResources.length.toLocaleString()} timing entries</dd>
-                </div>
-                <div>
-                  <dt>DOM resources</dt>
-                  <dd>{pageInfo.domResources.length.toLocaleString()} attribute candidates</dd>
-                </div>
-                <div>
-                  <dt>Embedded sources</dt>
+                  <dt>{t('domSnapshot')}</dt>
                   <dd>
-                    {pageInfo.cssSources.length.toLocaleString()} CSS /{' '}
-                    {pageInfo.svgResources.length.toLocaleString()} SVG
+                    {t('chars', { count: pageInfo.serializedDom.length.toLocaleString(locale) })}
                   </dd>
                 </div>
                 <div>
-                  <dt>CSS references</dt>
-                  <dd>{pageInfo.cssResources.length.toLocaleString()} AST candidates</dd>
+                  <dt>{t('specialRegions')}</dt>
+                  <dd>{summarizeRegions(pageInfo, t)}</dd>
                 </div>
                 <div>
-                  <dt>Unified resources</dt>
+                  <dt>{t('runtimeResources')}</dt>
                   <dd>
-                    {pageInfo.mergedResources.length.toLocaleString()} normalized URLs /{' '}
-                    {countMergedEvidence(pageInfo).toLocaleString()} discoveries
+                    {t('timingEntries', {
+                      count: pageInfo.performanceResources.length.toLocaleString(locale),
+                    })}
                   </dd>
                 </div>
                 <div>
-                  <dt>Resource graph</dt>
+                  <dt>{t('domResources')}</dt>
                   <dd>
-                    {pageInfo.resourceGraph.nodes.length.toLocaleString()} nodes /{' '}
-                    {pageInfo.resourceGraph.edges.length.toLocaleString()} provenance edges
+                    {t('attributeCandidates', {
+                      count: pageInfo.domResources.length.toLocaleString(locale),
+                    })}
                   </dd>
                 </div>
                 <div>
-                  <dt>Resource protocols</dt>
-                  <dd>{summarizeResourceProtocols(pageInfo)}</dd>
+                  <dt>{t('embeddedSources')}</dt>
+                  <dd>
+                    {t('cssSvg', {
+                      css: pageInfo.cssSources.length.toLocaleString(locale),
+                      svg: pageInfo.svgResources.length.toLocaleString(locale),
+                    })}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Resource metadata</dt>
-                  <dd>{summarizeResourceMetadata(pageInfo)}</dd>
+                  <dt>{t('cssReferences')}</dt>
+                  <dd>
+                    {t('astCandidates', {
+                      count: pageInfo.cssResources.length.toLocaleString(locale),
+                    })}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('unifiedResources')}</dt>
+                  <dd>
+                    {t('normalizedDiscoveries', {
+                      urls: pageInfo.mergedResources.length.toLocaleString(locale),
+                      discoveries: countMergedEvidence(pageInfo).toLocaleString(locale),
+                    })}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('resourceGraph')}</dt>
+                  <dd>
+                    {t('graphCounts', {
+                      nodes: pageInfo.resourceGraph.nodes.length.toLocaleString(locale),
+                      edges: pageInfo.resourceGraph.edges.length.toLocaleString(locale),
+                    })}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('resourceProtocols')}</dt>
+                  <dd>{summarizeResourceProtocols(pageInfo, t)}</dd>
+                </div>
+                <div>
+                  <dt>{t('resourceMetadata')}</dt>
+                  <dd>{summarizeResourceMetadata(pageInfo, t)}</dd>
                 </div>
               </dl>
             </details>
@@ -1276,8 +1414,8 @@ export function App() {
               <section className="third-party-section" aria-labelledby="third-party-title">
                 <div className="third-party-heading">
                   <div>
-                    <h3 id="third-party-title">Third-party access</h3>
-                    <p>Hosts used by this page.</p>
+                    <h3 id="third-party-title">{t('thirdPartyAccess')}</h3>
+                    <p>{t('hostsUsed')}</p>
                   </div>
                   {pendingThirdPartyCount > 0 ? (
                     <button
@@ -1288,17 +1426,17 @@ export function App() {
                         selectedThirdParties.length === 0 || thirdPartyGrantStatus === 'requesting'
                       }
                     >
-                      {thirdPartyGrantStatus === 'requesting' ? 'Granting...' : 'Grant selected'}
+                      {thirdPartyGrantStatus === 'requesting' ? t('granting') : t('grantSelected')}
                     </button>
                   ) : (
                     <span className="access-summary">
-                      {thirdPartyAccess.length > 0 ? 'All granted' : 'None required'}
+                      {thirdPartyAccess.length > 0 ? t('allGranted') : t('noneRequired')}
                     </span>
                   )}
                 </div>
 
                 {thirdPartyAccess.length === 0 ? (
-                  <p className="helper-text">No third-party network hosts discovered.</p>
+                  <p className="helper-text">{t('noNetworkHosts')}</p>
                 ) : (
                   <ul className="third-party-list">
                     {thirdPartyAccess.map((access) => (
@@ -1323,14 +1461,16 @@ export function App() {
                           <span className="third-party-details">
                             <span className="third-party-pattern">{access.permissionPattern}</span>
                             <span>
-                              {access.resourceCount.toLocaleString()} resources ·{' '}
-                              {access.provenanceCount.toLocaleString()} discoveries ·{' '}
-                              {access.discoverySources.join(', ')} ·{' '}
-                              {access.resourceTypes.join(', ')}
+                              {t('accessDetails', {
+                                resources: access.resourceCount.toLocaleString(locale),
+                                discoveries: access.provenanceCount.toLocaleString(locale),
+                                sources: access.discoverySources.join(', '),
+                                types: access.resourceTypes.join(', '),
+                              })}
                             </span>
                           </span>
                           <span className={`access-state ${access.status}`}>
-                            {access.status === 'granted' ? 'Granted' : 'Pending'}
+                            {access.status === 'granted' ? t('granted') : t('pending')}
                           </span>
                         </label>
                       </li>
@@ -1340,7 +1480,8 @@ export function App() {
 
                 {thirdPartyError && (
                   <p className="error-text" role="alert">
-                    {thirdPartyError}
+                    {t(thirdPartyError.key)}
+                    {thirdPartyError.detail ? ` ${thirdPartyError.detail}` : ''}
                   </p>
                 )}
               </section>

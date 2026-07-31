@@ -36,8 +36,37 @@ body {
 }
 
 .app-header {
+  flex-wrap: wrap;
   padding-bottom: 18px;
   border-bottom: 1px solid #dce2eb;
+}
+
+.header-controls {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.language-control {
+  display: grid;
+  gap: 3px;
+  color: #60708b;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.language-control select {
+  min-width: 76px;
+  min-height: 27px;
+  padding: 3px 22px 3px 7px;
+  border: 1px solid #c9d2df;
+  border-radius: 4px;
+  color: #182033;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
 }
 
 .eyebrow {

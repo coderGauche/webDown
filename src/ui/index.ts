@@ -23,3 +23,14 @@ export {
   type NumericSettingValidation,
 } from './current-page-task';
 export { readCaptureArchiveBytes, type ArchiveChunkRequestSender } from './archive-download-client';
+export {
+  UI_LOCALES,
+  UI_LOCALE_STORAGE_KEY,
+  UI_MESSAGES,
+  hasCompleteErrorTranslations,
+  localizeCaptureError,
+  resolveUiLocale,
+  translate,
+  type UiLocale,
+  type UiMessageKey,
+} from './i18n';
