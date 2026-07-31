@@ -6,6 +6,7 @@ import {
   toSiteCapsuleError,
   transitionJobState,
   type CaptureJob,
+  type CaptureError,
   type CaptureMode,
   type CaptureProfile,
   type CaptureSettings,
@@ -33,6 +34,7 @@ export type CaptureJobUpdate = {
   status?: JobStatus;
   settings?: CaptureSettings;
   counters?: Partial<JobCounters>;
+  error?: CaptureError | null;
 };
 
 export type ListCaptureJobsOptions = {
@@ -197,13 +199,16 @@ export class JobRepository {
           update.status === undefined || update.status === current.status
             ? currentJobState(current)
             : transitionJobState(current, update.status);
-        const { status: _status, resumeStatus: _resumeStatus, ...details } = current;
+        const { status: _status, resumeStatus: _resumeStatus, error: _error, ...details } = current;
         const updated: CaptureJob = {
           ...details,
           settings: update.settings ?? current.settings,
           counters: mergeJobCounters(current.counters, update.counters, jobId),
           updatedAt: this.dependencies.now(),
           ...nextState,
+          ...(nextState.status === 'failed' && (update.error ?? current.error)
+            ? { error: update.error ?? current.error }
+            : {}),
         };
 
         await this.db.jobs.put(updated);

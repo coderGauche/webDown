@@ -29,12 +29,21 @@ import {
   type ResourceDownloadWorker,
   type ResourceHttpFailure,
 } from '@sitecapsule/download';
-import { runCapturePipeline, type CapturePipelineHandlers } from '@sitecapsule/jobs';
+import {
+  buildCaptureJobResult,
+  runCapturePipeline,
+  type CapturePipelineHandlers,
+} from '@sitecapsule/jobs';
+import { createArchiveTransferChunk } from '@sitecapsule/messaging/archive-transfer';
 import { CONTENT_SCRIPT_FILE, RUNTIME_LOG_PREFIX } from '@sitecapsule/shared';
 import {
   createPageInfoCollectRequest,
   createPageArchiveRewriteRequest,
+  createCaptureArchiveChunkError,
+  createCaptureArchiveChunkResponse,
   createCaptureJobError,
+  createCaptureJobResultError,
+  createCaptureJobResultResponse,
   createCaptureJobResponse,
   createCaptureJobUpdatedEvent,
   createPageInfoError,
@@ -44,8 +53,10 @@ import {
 } from '@sitecapsule/messaging/protocol';
 import {
   isCaptureJobCreateRequest,
+  isCaptureArchiveChunkGetRequest,
   isCaptureJobControlRequest,
   isCaptureJobGetRequest,
+  isCaptureJobResultGetRequest,
   isPageArchiveRewriteResponse,
   isPageInfoRequest,
   isPageInfoResponse,
@@ -835,6 +846,53 @@ export default defineBackground(() => {
       } catch (error) {
         return createCaptureJobError(
           toCaptureError(error, 'storage-unavailable', { operation: 'job-read' }),
+          message.correlationId,
+        );
+      }
+    }
+
+    if (isCaptureJobResultGetRequest(message)) {
+      try {
+        const job = await requireCaptureJob(message.payload.jobId);
+        const resources = await jobRepository.listJobResources(job.id);
+        const result = buildCaptureJobResult(job, resources, archiveArtifacts.get(job.id));
+        return createCaptureJobResultResponse(result, message.correlationId);
+      } catch (error) {
+        return createCaptureJobResultError(
+          toCaptureError(error, 'unexpected-error', {
+            operation: 'job-read',
+            jobId: message.payload.jobId,
+          }),
+          message.correlationId,
+        );
+      }
+    }
+
+    if (isCaptureArchiveChunkGetRequest(message)) {
+      try {
+        const job = await requireCaptureJob(message.payload.jobId);
+        const artifact = archiveArtifacts.get(job.id);
+        if (job.status !== 'completed' || !artifact) {
+          throw new SiteCapsuleError(
+            createCaptureError('archive-download-failed', {
+              operation: 'archive-download',
+              jobId: job.id,
+            }),
+          );
+        }
+        return createCaptureArchiveChunkResponse(
+          {
+            jobId: job.id,
+            ...createArchiveTransferChunk(artifact, message.payload.offset),
+          },
+          message.correlationId,
+        );
+      } catch (error) {
+        return createCaptureArchiveChunkError(
+          toCaptureError(error, 'archive-download-failed', {
+            operation: 'archive-download',
+            jobId: message.payload.jobId,
+          }),
           message.correlationId,
         );
       }

@@ -6,11 +6,15 @@ import {
 } from '@sitecapsule/domain';
 import {
   CAPTURE_JOB_COMMANDS,
+  createCaptureArchiveChunkGetRequest,
+  createCaptureArchiveChunkResponse,
   MESSAGE_PROTOCOL_VERSION,
   createCaptureJobError,
   createCaptureJobControlRequest,
   createCaptureJobCreateRequest,
   createCaptureJobGetRequest,
+  createCaptureJobResultGetRequest,
+  createCaptureJobResultResponse,
   createCaptureJobResponse,
   createCaptureJobUpdatedEvent,
   createCorrelationId,
@@ -89,7 +93,7 @@ describe('page info messaging protocol', () => {
     expect(success).toMatchObject({ payload: { ok: true, rewrittenCount: 3 } });
   });
 
-  it('adds protocol v17 and a correlation ID to requests', () => {
+  it('adds protocol v18 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({
@@ -252,5 +256,41 @@ describe('capture job messaging protocol', () => {
       type: 'capture-job/updated',
       payload: { job },
     });
+  });
+
+  it('defines terminal result and chunk transfer messages', () => {
+    const resultRequest = createCaptureJobResultGetRequest(job.id, 'result-get');
+    const resultResponse = createCaptureJobResultResponse(
+      {
+        jobId: job.id,
+        status: 'completed',
+        fileName: job.settings.archiveFileName,
+        archiveAvailable: true,
+        archiveByteLength: 3,
+        counters: job.counters,
+        error: null,
+        failures: [],
+        omittedFailureCount: 0,
+      },
+      'result-get',
+    );
+    const chunkRequest = createCaptureArchiveChunkGetRequest(job.id, 0, 'chunk-get');
+    const chunkResponse = createCaptureArchiveChunkResponse(
+      {
+        jobId: job.id,
+        offset: 0,
+        totalByteLength: 3,
+        base64: 'AQID',
+        done: true,
+      },
+      'chunk-get',
+    );
+
+    expect(resultRequest.type).toBe('capture-job/result-get');
+    expect(resultResponse).toMatchObject({
+      payload: { ok: true, result: { archiveByteLength: 3 } },
+    });
+    expect(chunkRequest.payload).toEqual({ jobId: job.id, offset: 0 });
+    expect(chunkResponse).toMatchObject({ payload: { ok: true, base64: 'AQID', done: true } });
   });
 });

@@ -277,6 +277,166 @@ h3 {
   margin-top: 6px;
 }
 
+.capture-result {
+  padding: 16px 0;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.result-heading,
+.result-summary > div,
+.failure-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.result-eyebrow {
+  margin-bottom: 3px;
+  color: #60708b;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.result-loading {
+  color: #60708b;
+  font-size: 10px;
+}
+
+.result-summary {
+  margin-top: 12px;
+  border-top: 1px solid #dce2eb;
+}
+
+.result-summary > div {
+  min-height: 34px;
+  border-bottom: 1px solid #dce2eb;
+  font-size: 10px;
+}
+
+.result-summary dt {
+  flex: 0 0 auto;
+  color: #60708b;
+  font-weight: 650;
+}
+
+.result-summary dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.result-download {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.download-action {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #087052;
+  border-radius: 5px;
+  color: #fff;
+  background: #087052;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.download-action:disabled {
+  border-color: #c9d2df;
+  color: #718096;
+  background: #edf1f6;
+  cursor: default;
+}
+
+.result-note,
+.result-message,
+.success-text,
+.task-failure p,
+.task-failure span {
+  color: #60708b;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.success-text {
+  color: #087052;
+}
+
+.task-failure {
+  margin-top: 12px;
+  padding-left: 10px;
+  border-left: 3px solid #b33a3a;
+}
+
+.task-failure strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #a32929;
+  font-size: 11px;
+}
+
+.task-failure span {
+  display: block;
+  margin-top: 5px;
+  font-weight: 650;
+}
+
+.failure-details {
+  margin-top: 12px;
+  border-top: 1px solid #dce2eb;
+}
+
+.failure-details summary {
+  padding: 10px 0;
+  color: #183b68;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.failure-list {
+  border-top: 1px solid #dce2eb;
+}
+
+.failure-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #dce2eb;
+  font-size: 10px;
+}
+
+.failure-title strong {
+  color: #182033;
+  text-transform: capitalize;
+}
+
+.failure-title span,
+.failure-item small {
+  color: #a32929;
+  font-size: 9px;
+}
+
+.failure-item p {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.failure-url {
+  color: #60708b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.failure-item small {
+  display: block;
+  margin-top: 5px;
+  color: #60708b;
+}
+
 .task-settings {
   margin-top: 14px;
   border-top: 1px solid #dce2eb;

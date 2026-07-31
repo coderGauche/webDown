@@ -5,11 +5,14 @@ import {
   type CaptureMode,
   type CaptureProfile,
   type CaptureSettings,
+  type JobCounters,
+  type JobStatus,
+  type ResourceType,
 } from '@sitecapsule/domain';
 import type { PageSnapshot } from '@sitecapsule/page';
 import type { ResourcePathMapping } from '@sitecapsule/archive';
 
-export const MESSAGE_PROTOCOL_VERSION = 17 as const;
+export const MESSAGE_PROTOCOL_VERSION = 18 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -20,11 +23,16 @@ export const MESSAGE_TYPES = {
   captureJobCreate: 'capture-job/create',
   captureJobControl: 'capture-job/control',
   captureJobGet: 'capture-job/get',
+  captureJobResultGet: 'capture-job/result-get',
+  captureJobResultResponse: 'capture-job/result-response',
+  captureArchiveChunkGet: 'capture-archive/chunk-get',
+  captureArchiveChunkResponse: 'capture-archive/chunk-response',
   captureJobResponse: 'capture-job/response',
   captureJobUpdated: 'capture-job/updated',
 } as const;
 
 export const CAPTURE_JOB_COMMANDS = ['pause', 'resume', 'cancel', 'retry'] as const;
+export const CAPTURE_RESULT_FAILURE_LIMIT = 100;
 
 export type MessageProtocolVersion = typeof MESSAGE_PROTOCOL_VERSION;
 export type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];
@@ -122,6 +130,56 @@ export type CaptureJobGetRequest = ProtocolMessage<
   }
 >;
 
+export type CaptureResultStatus = Extract<JobStatus, 'completed' | 'failed' | 'cancelled'>;
+
+export type CaptureResourceFailure = {
+  url: string;
+  resourceType: ResourceType;
+  httpStatus: number | null;
+  affectsPrimaryVisual: boolean;
+  error: CaptureError;
+};
+
+export type CaptureJobResult = {
+  jobId: string;
+  status: CaptureResultStatus;
+  fileName: string;
+  archiveAvailable: boolean;
+  archiveByteLength: number | null;
+  counters: JobCounters;
+  error: CaptureError | null;
+  failures: CaptureResourceFailure[];
+  omittedFailureCount: number;
+};
+
+export type CaptureJobResultGetRequest = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobResultGet,
+  { jobId: string }
+>;
+
+export type CaptureJobResultResponse = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobResultResponse,
+  { ok: true; result: CaptureJobResult } | { ok: false; error: CaptureError }
+>;
+
+export type CaptureArchiveChunkGetRequest = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureArchiveChunkGet,
+  { jobId: string; offset: number }
+>;
+
+export type CaptureArchiveChunkResponse = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureArchiveChunkResponse,
+  | {
+      ok: true;
+      jobId: string;
+      offset: number;
+      totalByteLength: number;
+      base64: string;
+      done: boolean;
+    }
+  | { ok: false; error: CaptureError }
+>;
+
 export type CaptureJobResponse = ProtocolMessage<
   typeof MESSAGE_TYPES.captureJobResponse,
   | {
@@ -147,10 +205,16 @@ export type SiteCapsuleRequest =
   | PageArchiveRewriteRequest
   | CaptureJobCreateRequest
   | CaptureJobControlRequest
-  | CaptureJobGetRequest;
+  | CaptureJobGetRequest
+  | CaptureJobResultGetRequest
+  | CaptureArchiveChunkGetRequest;
 
 export type SiteCapsuleResponse =
-  PageInfoResponse | PageArchiveRewriteResponse | CaptureJobResponse;
+  | PageInfoResponse
+  | PageArchiveRewriteResponse
+  | CaptureJobResponse
+  | CaptureJobResultResponse
+  | CaptureArchiveChunkResponse;
 export type SiteCapsuleEvent = CaptureJobUpdatedEvent;
 export type SiteCapsuleMessage = SiteCapsuleRequest | SiteCapsuleResponse | SiteCapsuleEvent;
 
@@ -258,6 +322,57 @@ export function createCaptureJobGetRequest(
   correlationId = createCorrelationId(),
 ): CaptureJobGetRequest {
   return createMessage(MESSAGE_TYPES.captureJobGet, { jobId }, correlationId);
+}
+
+export function createCaptureJobResultGetRequest(
+  jobId: string,
+  correlationId = createCorrelationId(),
+): CaptureJobResultGetRequest {
+  return createMessage(MESSAGE_TYPES.captureJobResultGet, { jobId }, correlationId);
+}
+
+export function createCaptureJobResultResponse(
+  result: CaptureJobResult,
+  correlationId = createCorrelationId(),
+): CaptureJobResultResponse {
+  return createMessage(MESSAGE_TYPES.captureJobResultResponse, { ok: true, result }, correlationId);
+}
+
+export function createCaptureJobResultError(
+  error: CaptureError,
+  correlationId = createCorrelationId(),
+): CaptureJobResultResponse {
+  return createMessage(MESSAGE_TYPES.captureJobResultResponse, { ok: false, error }, correlationId);
+}
+
+export function createCaptureArchiveChunkGetRequest(
+  jobId: string,
+  offset: number,
+  correlationId = createCorrelationId(),
+): CaptureArchiveChunkGetRequest {
+  return createMessage(MESSAGE_TYPES.captureArchiveChunkGet, { jobId, offset }, correlationId);
+}
+
+export function createCaptureArchiveChunkResponse(
+  payload: Omit<Extract<CaptureArchiveChunkResponse['payload'], { ok: true }>, 'ok'>,
+  correlationId = createCorrelationId(),
+): CaptureArchiveChunkResponse {
+  return createMessage(
+    MESSAGE_TYPES.captureArchiveChunkResponse,
+    { ok: true, ...payload },
+    correlationId,
+  );
+}
+
+export function createCaptureArchiveChunkError(
+  error: CaptureError,
+  correlationId = createCorrelationId(),
+): CaptureArchiveChunkResponse {
+  return createMessage(
+    MESSAGE_TYPES.captureArchiveChunkResponse,
+    { ok: false, error },
+    correlationId,
+  );
 }
 
 export function createCaptureJobResponse(

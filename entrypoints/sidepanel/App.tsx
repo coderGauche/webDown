@@ -1,3 +1,4 @@
+import { exportArchiveWithChromeDownloads } from '@sitecapsule/archive';
 import {
   DEFAULT_RENDER_WAIT_MS,
   MAX_RENDER_WAIT_MS,
@@ -12,11 +13,14 @@ import {
   createCaptureJobCreateRequest,
   createCaptureJobControlRequest,
   createCaptureJobGetRequest,
+  createCaptureJobResultGetRequest,
   createPageInfoRequest,
   type PageInfo,
   type CaptureJobCommand,
+  type CaptureJobResult,
 } from '@sitecapsule/messaging/protocol';
 import {
+  isCaptureJobResultResponse,
   isCaptureJobResponse,
   isCaptureJobUpdatedEvent,
   isPageInfoResponse,
@@ -45,6 +49,7 @@ import {
   validateConcurrencyInput,
   validateCurrentPageArchiveFileName,
   validateRenderWaitInput,
+  readCaptureArchiveBytes,
 } from '@sitecapsule/ui';
 import { useEffect, useState } from 'react';
 
@@ -53,6 +58,8 @@ type ThirdPartyGrantStatus = 'idle' | 'requesting';
 type ThirdPartyCheckStatus = 'idle' | 'checking' | 'ready' | 'error';
 type CreateStatus = 'idle' | 'creating';
 type ControlStatus = 'idle' | CaptureJobCommand;
+type ResultStatus = 'idle' | 'loading' | 'ready' | 'error';
+type DownloadStatus = 'idle' | 'downloading' | 'started' | 'error';
 
 const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
 const PIPELINE_STAGES = [
@@ -87,6 +94,13 @@ function stageDisplayState(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown permission error.';
+}
+
+function formatByteLength(value: number): string {
+  if (value < 1_024) return `${value.toLocaleString()} B`;
+  if (value < 1_024 * 1_024) return `${(value / 1_024).toFixed(1)} KB`;
+  if (value < 1_024 * 1_024 * 1_024) return `${(value / (1_024 * 1_024)).toFixed(1)} MB`;
+  return `${(value / (1_024 * 1_024 * 1_024)).toFixed(1)} GB`;
 }
 
 function summarizeSiteAccess(access: SiteAccessResult | null): string {
@@ -159,6 +173,11 @@ export function App() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [controlStatus, setControlStatus] = useState<ControlStatus>('idle');
   const [controlError, setControlError] = useState<string | null>(null);
+  const [resultStatus, setResultStatus] = useState<ResultStatus>('idle');
+  const [captureResult, setCaptureResult] = useState<CaptureJobResult | null>(null);
+  const [resultError, setResultError] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
@@ -250,6 +269,51 @@ export function App() {
 
     return () => browser.runtime.onMessage.removeListener(onMessage);
   }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    if (!captureJob || !['completed', 'failed', 'cancelled'].includes(captureJob.status)) {
+      setResultStatus('idle');
+      setCaptureResult(null);
+      setResultError(null);
+      setDownloadStatus('idle');
+      setDownloadMessage(null);
+      return () => {
+        disposed = true;
+      };
+    }
+
+    setResultStatus('loading');
+    setResultError(null);
+    setDownloadStatus('idle');
+    setDownloadMessage(null);
+    void browser.runtime
+      .sendMessage(createCaptureJobResultGetRequest(captureJob.id))
+      .then((response: unknown) => {
+        if (disposed) return;
+        if (!isCaptureJobResultResponse(response)) {
+          throw new SiteCapsuleError(
+            createCaptureError('protocol-invalid-message', { operation: 'job-read' }),
+          );
+        }
+        if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+        setCaptureResult(response.payload.result);
+        setResultStatus('ready');
+      })
+      .catch((requestError: unknown) => {
+        if (disposed) return;
+        const captureError = toCaptureError(requestError, 'unexpected-error', {
+          operation: 'job-read',
+          jobId: captureJob.id,
+        });
+        setResultError(`${captureError.message} ${captureError.suggestion}`);
+        setResultStatus('error');
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [captureJob?.id, captureJob?.status, captureJob?.updatedAt]);
 
   const readCurrentPage = async () => {
     if (!renderWaitValidation.valid) return;
@@ -426,6 +490,39 @@ export function App() {
       setControlError(`${captureError.message} ${captureError.suggestion}`);
     } finally {
       setControlStatus('idle');
+    }
+  };
+
+  const downloadArchive = async () => {
+    if (
+      !captureResult?.archiveAvailable ||
+      captureResult.archiveByteLength === null ||
+      downloadStatus === 'downloading'
+    ) {
+      return;
+    }
+    setDownloadStatus('downloading');
+    setDownloadMessage(null);
+    try {
+      const archiveBytes = await readCaptureArchiveBytes(
+        captureResult.jobId,
+        captureResult.archiveByteLength,
+        (request) => browser.runtime.sendMessage(request),
+      );
+      const downloaded = await exportArchiveWithChromeDownloads({
+        archiveBytes,
+        fileName: captureResult.fileName,
+        saveAs: true,
+      });
+      setDownloadStatus('started');
+      setDownloadMessage(`Download started · ${downloaded.fileName}`);
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'archive-download-failed', {
+        operation: 'archive-download',
+        jobId: captureResult.jobId,
+      });
+      setDownloadStatus('error');
+      setDownloadMessage(`${captureError.message} ${captureError.suggestion}`);
     }
   };
 
@@ -754,6 +851,148 @@ export function App() {
               <p className="error-text control-error" role="alert">
                 {controlError}
               </p>
+            )}
+          </section>
+        )}
+
+        {captureJob && ['completed', 'failed', 'cancelled'].includes(captureJob.status) && (
+          <section className="capture-result" aria-labelledby="capture-result-title">
+            <div className="result-heading">
+              <div>
+                <p className="result-eyebrow">Task result</p>
+                <h2 id="capture-result-title">
+                  {captureJob.status === 'completed'
+                    ? captureJob.counters.resourcesFailed > 0
+                      ? 'Archive ready with issues'
+                      : 'Archive ready'
+                    : captureJob.status === 'failed'
+                      ? 'Archive failed'
+                      : 'Archive cancelled'}
+                </h2>
+              </div>
+              {resultStatus === 'loading' && <span className="result-loading">Loading...</span>}
+            </div>
+
+            {resultStatus === 'error' && (
+              <p className="error-text result-message" role="alert">
+                {resultError}
+              </p>
+            )}
+
+            {resultStatus === 'ready' && captureResult && (
+              <>
+                <dl className="result-summary">
+                  <div>
+                    <dt>ZIP file</dt>
+                    <dd>{captureResult.fileName}</dd>
+                  </div>
+                  <div>
+                    <dt>ZIP size</dt>
+                    <dd>
+                      {captureResult.archiveByteLength === null
+                        ? 'Unavailable'
+                        : formatByteLength(captureResult.archiveByteLength)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Resources</dt>
+                    <dd>
+                      {captureResult.counters.resourcesSaved.toLocaleString()} saved ·{' '}
+                      {captureResult.counters.resourcesFailed.toLocaleString()} failed ·{' '}
+                      {captureResult.counters.resourcesSkipped.toLocaleString()} skipped
+                    </dd>
+                  </div>
+                </dl>
+
+                {captureResult.status === 'completed' && (
+                  <div className="result-download">
+                    <button
+                      type="button"
+                      className="download-action"
+                      onClick={downloadArchive}
+                      disabled={!captureResult.archiveAvailable || downloadStatus === 'downloading'}
+                    >
+                      {downloadStatus === 'downloading' ? 'Preparing download...' : 'Download ZIP'}
+                    </button>
+                    {!captureResult.archiveAvailable && (
+                      <p className="result-note">
+                        The ZIP is no longer in this browser session. Run the archive again to
+                        download it.
+                      </p>
+                    )}
+                    {downloadMessage && (
+                      <p
+                        className={downloadStatus === 'error' ? 'error-text' : 'success-text'}
+                        role="status"
+                      >
+                        {downloadMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {captureResult.status === 'failed' && (
+                  <div className="task-failure" role="alert">
+                    <strong>
+                      {captureResult.error?.message ?? 'The archive could not be completed.'}
+                    </strong>
+                    <p>
+                      {captureResult.error?.suggestion ??
+                        'Review the resource failures below, then retry the task.'}
+                    </p>
+                    <span>
+                      {captureResult.error?.retryable ? 'Retry available' : 'Create a new task'}
+                      {captureResult.error?.context?.stage
+                        ? ` · ${captureResult.error.context.stage}`
+                        : ''}
+                    </span>
+                  </div>
+                )}
+
+                {captureResult.status === 'cancelled' && (
+                  <p className="result-note">No ZIP was produced for this cancelled task.</p>
+                )}
+
+                {captureResult.failures.length > 0 && (
+                  <details className="failure-details" open={captureResult.status === 'failed'}>
+                    <summary>
+                      Resource failures ({captureResult.failures.length}
+                      {captureResult.omittedFailureCount > 0
+                        ? ` shown, ${captureResult.omittedFailureCount} more`
+                        : ''}
+                      )
+                    </summary>
+                    <div className="failure-list">
+                      {captureResult.failures.map((failure, index) => (
+                        <article
+                          className="failure-item"
+                          key={`${failure.url}-${failure.resourceType}-${index}`}
+                        >
+                          <div className="failure-title">
+                            <strong>{failure.resourceType}</strong>
+                            <span>
+                              {failure.httpStatus
+                                ? `HTTP ${failure.httpStatus}`
+                                : failure.error.code}
+                            </span>
+                          </div>
+                          <p className="failure-url">{failure.url}</p>
+                          <p>{failure.error.message}</p>
+                          <small>
+                            {failure.affectsPrimaryVisual
+                              ? 'May affect the main page'
+                              : 'Secondary resource'}
+                            {failure.error.context?.stage
+                              ? ` · ${failure.error.context.stage}`
+                              : ''}
+                          </small>
+                          {failure.error.suggestion && <p>{failure.error.suggestion}</p>}
+                        </article>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </>
             )}
           </section>
         )}

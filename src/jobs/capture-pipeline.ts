@@ -2,6 +2,7 @@ import {
   SiteCapsuleError,
   createCaptureError,
   toSiteCapsuleError,
+  type CaptureError,
   type CaptureJob,
   type JobCounters,
   type JobStatus,
@@ -22,7 +23,11 @@ export type CapturePipelineRepository = {
   getJob(jobId: string): Promise<CaptureJob | undefined>;
   updateJob(
     jobId: string,
-    update: { status?: JobStatus; counters?: Partial<JobCounters> },
+    update: {
+      status?: JobStatus;
+      counters?: Partial<JobCounters>;
+      error?: CaptureError | null;
+    },
   ): Promise<CaptureJob | undefined>;
 };
 
@@ -127,7 +132,12 @@ export async function runCapturePipeline<TContext>(
     });
     if (job.status !== 'failed' && job.status !== 'completed' && job.status !== 'cancelled') {
       try {
-        await publish(await options.repository.updateJob(options.jobId, { status: 'failed' }));
+        await publish(
+          await options.repository.updateJob(options.jobId, {
+            status: 'failed',
+            error: structured.details,
+          }),
+        );
       } catch {
         // Preserve the stage error when persisting the failed state also fails.
       }

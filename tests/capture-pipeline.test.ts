@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 
-import type { CaptureSettings, JobStatus } from '@sitecapsule/domain';
+import { createCaptureError, type CaptureSettings, type JobStatus } from '@sitecapsule/domain';
 import { cancelConcurrentQueue, pauseConcurrentQueue } from '@sitecapsule/download';
 import { CAPTURE_PIPELINE_STAGES, runCapturePipeline } from '@sitecapsule/jobs';
 import { JobRepository, SiteCapsuleDatabase } from '@sitecapsule/storage';
@@ -135,7 +135,17 @@ describe('capture pipeline coordinator', () => {
         },
       },
     });
-    expect(await repository.getJob(created.id)).toMatchObject({ status: 'failed' });
+    expect(await repository.getJob(created.id)).toMatchObject({
+      status: 'failed',
+      error: {
+        code: 'unexpected-error',
+        context: {
+          operation: 'job-update',
+          jobId: created.id,
+          stage: 'rewriting',
+        },
+      },
+    });
   });
 
   it('pauses cooperatively and resumes from the persisted interrupted stage', async () => {
@@ -247,8 +257,12 @@ describe('capture pipeline coordinator', () => {
       settings,
     });
     await repository.updateJob(created.id, { status: 'preparing' });
-    await repository.updateJob(created.id, { status: 'failed' });
-    await repository.updateJob(created.id, { status: 'retrying' });
+    await repository.updateJob(created.id, {
+      status: 'failed',
+      error: createCaptureError('network-request-failed', { operation: 'resource-download' }),
+    });
+    const retrying = await repository.updateJob(created.id, { status: 'retrying' });
+    expect(retrying).not.toHaveProperty('error');
     const handled: string[] = [];
 
     const completed = await runCapturePipeline({

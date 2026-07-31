@@ -114,6 +114,7 @@ type CaptureJobDetails = {
   counters: JobCounters;
   createdAt: string;
   updatedAt: string;
+  error?: CaptureError;
 };
 
 export type CaptureJob = CaptureJobDetails & JobState;

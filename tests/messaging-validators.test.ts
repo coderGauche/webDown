@@ -1,10 +1,14 @@
 import { createCaptureError, type CaptureJob, type CaptureSettings } from '@sitecapsule/domain';
 import {
   MESSAGE_PROTOCOL_VERSION,
+  createCaptureArchiveChunkGetRequest,
+  createCaptureArchiveChunkResponse,
   createCaptureJobControlRequest,
   createCaptureJobCreateRequest,
   createCaptureJobError,
   createCaptureJobGetRequest,
+  createCaptureJobResultGetRequest,
+  createCaptureJobResultResponse,
   createCaptureJobResponse,
   createCaptureJobUpdatedEvent,
   createPageInfoCollectRequest,
@@ -18,9 +22,13 @@ import {
 } from '@sitecapsule/messaging/protocol';
 import {
   isCaptureJob,
+  isCaptureArchiveChunkGetRequest,
+  isCaptureArchiveChunkResponse,
   isCaptureJobControlRequest,
   isCaptureJobCreateRequest,
   isCaptureJobGetRequest,
+  isCaptureJobResultGetRequest,
+  isCaptureJobResultResponse,
   isCaptureJobResponse,
   isCaptureJobUpdatedEvent,
   isPageInfoCollectRequest,
@@ -190,7 +198,7 @@ const pageInfo: PageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v17 request, response, and event shape', () => {
+  it('accepts every v18 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -206,6 +214,8 @@ describe('message runtime validation', () => {
       createCaptureJobCreateRequest(createInput, 'job-create'),
       createCaptureJobControlRequest(job.id, 'pause', 'job-control'),
       createCaptureJobGetRequest(job.id, 'job-get'),
+      createCaptureJobResultGetRequest(job.id, 'job-result'),
+      createCaptureArchiveChunkGetRequest(job.id, 0, 'archive-chunk'),
     ];
     const responses = [
       createPageInfoResponse(pageInfo, 'page-success'),
@@ -214,6 +224,30 @@ describe('message runtime validation', () => {
       createPageArchiveRewriteError(createCaptureError('unexpected-error'), 'rewrite-error'),
       createCaptureJobResponse(job, 'job-success'),
       createCaptureJobError(createCaptureError('job-not-found'), 'job-error'),
+      createCaptureJobResultResponse(
+        {
+          jobId: job.id,
+          status: 'completed',
+          fileName: settings.archiveFileName,
+          archiveAvailable: true,
+          archiveByteLength: 3,
+          counters: job.counters,
+          error: null,
+          failures: [],
+          omittedFailureCount: 0,
+        },
+        'job-result',
+      ),
+      createCaptureArchiveChunkResponse(
+        {
+          jobId: job.id,
+          offset: 0,
+          totalByteLength: 3,
+          base64: 'AQID',
+          done: true,
+        },
+        'archive-chunk',
+      ),
     ];
     const events = [createCaptureJobUpdatedEvent(job, 'job-updated')];
 
@@ -228,9 +262,13 @@ describe('message runtime validation', () => {
     expect(isCaptureJobCreateRequest(requests[3])).toBe(true);
     expect(isCaptureJobControlRequest(requests[4])).toBe(true);
     expect(isCaptureJobGetRequest(requests[5])).toBe(true);
+    expect(isCaptureJobResultGetRequest(requests[6])).toBe(true);
+    expect(isCaptureArchiveChunkGetRequest(requests[7])).toBe(true);
     expect(isPageInfoResponse(responses[0])).toBe(true);
     expect(isPageArchiveRewriteResponse(responses[2])).toBe(true);
     expect(isCaptureJobResponse(responses[4])).toBe(true);
+    expect(isCaptureJobResultResponse(responses[6])).toBe(true);
+    expect(isCaptureArchiveChunkResponse(responses[7])).toBe(true);
     expect(isCaptureJobUpdatedEvent(events[0])).toBe(true);
   });
 
@@ -285,6 +323,8 @@ describe('message runtime validation', () => {
         payload: { jobId: job.id, command: 'start' },
       },
       { ...createCaptureJobGetRequest(job.id), payload: { jobId: '' } },
+      { ...createCaptureJobResultGetRequest(job.id), payload: { jobId: '', extra: true } },
+      { ...createCaptureArchiveChunkGetRequest(job.id, 0), payload: { jobId: job.id, offset: -1 } },
     ];
 
     for (const message of invalidRequests) {
@@ -306,6 +346,7 @@ describe('message runtime validation', () => {
       { ...job, settings: { ...settings, maxTotalSizeBytes: 0 } },
       { ...job, updatedAt: 'not-a-timestamp' },
       { ...job, unexpected: true },
+      { ...job, error: createCaptureError('unexpected-error') },
     ];
 
     for (const invalidJob of invalidJobs) {
@@ -319,9 +360,72 @@ describe('message runtime validation', () => {
     }
 
     expect(
+      isCaptureJob({
+        ...job,
+        status: 'failed',
+        error: createCaptureError('unexpected-error', { operation: 'job-update' }),
+      }),
+    ).toBe(true);
+
+    expect(
       isPageInfoResponse({
         ...createPageInfoResponse(pageInfo),
         payload: { ok: true, page: pageInfo, error: 'mixed' },
+      }),
+    ).toBe(false);
+
+    const validResultPayload = {
+      jobId: job.id,
+      status: 'completed' as const,
+      fileName: settings.archiveFileName,
+      archiveAvailable: true,
+      archiveByteLength: 3,
+      counters: job.counters,
+      error: null,
+      failures: [],
+      omittedFailureCount: 0,
+    };
+    const validResult = createCaptureJobResultResponse(validResultPayload);
+    expect(
+      isCaptureJobResultResponse({
+        ...validResult,
+        payload: {
+          ...validResult.payload,
+          result: { ...validResultPayload, archiveByteLength: null },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isCaptureJobResultResponse(
+        createCaptureJobResultResponse({
+          ...validResultPayload,
+          status: 'failed',
+          archiveAvailable: false,
+          archiveByteLength: null,
+          error: createCaptureError('unexpected-error', {
+            operation: 'job-update',
+            jobId: job.id,
+          }),
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isCaptureArchiveChunkResponse({
+        ...createCaptureArchiveChunkResponse({
+          jobId: job.id,
+          offset: 0,
+          totalByteLength: 3,
+          base64: 'AQID',
+          done: true,
+        }),
+        payload: {
+          ok: true,
+          jobId: job.id,
+          offset: 0,
+          totalByteLength: 3,
+          base64: 'not-base64',
+          done: true,
+        },
       }),
     ).toBe(false);
 

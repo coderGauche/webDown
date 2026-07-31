@@ -22,3 +22,4 @@ export {
   type CurrentPageCaptureOptions,
   type NumericSettingValidation,
 } from './current-page-task';
+export { readCaptureArchiveBytes, type ArchiveChunkRequestSender } from './archive-download-client';

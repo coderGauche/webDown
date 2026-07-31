@@ -28,11 +28,16 @@ import {
 } from '@sitecapsule/discovery';
 import {
   CAPTURE_JOB_COMMANDS,
+  CAPTURE_RESULT_FAILURE_LIMIT,
   MESSAGE_PROTOCOL_VERSION,
   MESSAGE_TYPES,
+  type CaptureArchiveChunkGetRequest,
+  type CaptureArchiveChunkResponse,
   type CaptureJobControlRequest,
   type CaptureJobCreateRequest,
   type CaptureJobGetRequest,
+  type CaptureJobResultGetRequest,
+  type CaptureJobResultResponse,
   type CaptureJobResponse,
   type CaptureJobUpdatedEvent,
   type MessageType,
@@ -327,7 +332,9 @@ export function isJobCounters(value: unknown): value is JobCounters {
 }
 
 export function isCaptureJob(value: unknown): value is CaptureJob {
-  if (!isRecord(value) || !hasExactKeys(value, CAPTURE_JOB_KEYS, ['resumeStatus'])) return false;
+  if (!isRecord(value) || !hasExactKeys(value, CAPTURE_JOB_KEYS, ['resumeStatus', 'error'])) {
+    return false;
+  }
 
   const hasValidBase =
     isNonEmptyString(value.id) &&
@@ -341,6 +348,8 @@ export function isCaptureJob(value: unknown): value is CaptureJob {
     isTimestamp(value.updatedAt);
 
   if (!hasValidBase || typeof value.status !== 'string') return false;
+  const hasError = Object.prototype.hasOwnProperty.call(value, 'error');
+  if (hasError && (value.status !== 'failed' || !isCaptureError(value.error))) return false;
 
   if (value.status === 'paused') {
     return (
@@ -354,6 +363,75 @@ export function isCaptureJob(value: unknown): value is CaptureJob {
     value.status !== 'paused' &&
     JOB_STATUSES.includes(value.status as (typeof JOB_STATUSES)[number])
   );
+}
+
+function isCaptureResultError(value: unknown): boolean {
+  if (!isCaptureError(value)) return false;
+  const context = value.context;
+  if (!context) return true;
+  if (
+    ['jobId', 'resourceId', 'url', 'field', 'targetStage'].some((key) =>
+      Object.prototype.hasOwnProperty.call(context, key),
+    )
+  ) {
+    return false;
+  }
+  return (
+    context.browserError === undefined ||
+    /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(context.browserError)
+  );
+}
+
+function isCaptureResourceFailure(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['url', 'resourceType', 'httpStatus', 'affectsPrimaryVisual', 'error']) &&
+    isNonEmptyString(value.url) &&
+    RESOURCE_TYPES.includes(value.resourceType as (typeof RESOURCE_TYPES)[number]) &&
+    (value.httpStatus === null ||
+      (Number.isInteger(value.httpStatus) &&
+        (value.httpStatus as number) >= 100 &&
+        (value.httpStatus as number) <= 599)) &&
+    typeof value.affectsPrimaryVisual === 'boolean' &&
+    isCaptureResultError(value.error)
+  );
+}
+
+function isCaptureJobResult(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      'jobId',
+      'status',
+      'fileName',
+      'archiveAvailable',
+      'archiveByteLength',
+      'counters',
+      'error',
+      'failures',
+      'omittedFailureCount',
+    ])
+  ) {
+    return false;
+  }
+  if (
+    !isNonEmptyString(value.jobId) ||
+    !['completed', 'failed', 'cancelled'].includes(value.status as string) ||
+    !isNonEmptyString(value.fileName) ||
+    typeof value.archiveAvailable !== 'boolean' ||
+    !isJobCounters(value.counters) ||
+    (value.error !== null && !isCaptureResultError(value.error)) ||
+    !Array.isArray(value.failures) ||
+    value.failures.length > CAPTURE_RESULT_FAILURE_LIMIT ||
+    !value.failures.every(isCaptureResourceFailure) ||
+    !isNonNegativeSafeInteger(value.omittedFailureCount)
+  ) {
+    return false;
+  }
+  if (value.error !== null && value.status !== 'failed') return false;
+  return value.archiveAvailable
+    ? value.status === 'completed' && isPositiveSafeInteger(value.archiveByteLength)
+    : value.archiveByteLength === null;
 }
 
 export function isPageInfoRequest(message: unknown): message is PageInfoRequest {
@@ -545,6 +623,79 @@ export function isCaptureJobGetRequest(message: unknown): message is CaptureJobG
   );
 }
 
+export function isCaptureJobResultGetRequest(
+  message: unknown,
+): message is CaptureJobResultGetRequest {
+  return (
+    isProtocolMessageEnvelope(message) &&
+    hasMessageType(message, MESSAGE_TYPES.captureJobResultGet) &&
+    isRecord(message.payload) &&
+    hasExactKeys(message.payload, ['jobId']) &&
+    isNonEmptyString(message.payload.jobId)
+  );
+}
+
+export function isCaptureJobResultResponse(message: unknown): message is CaptureJobResultResponse {
+  if (
+    !isProtocolMessageEnvelope(message) ||
+    !hasMessageType(message, MESSAGE_TYPES.captureJobResultResponse) ||
+    !isRecord(message.payload) ||
+    typeof message.payload.ok !== 'boolean'
+  ) {
+    return false;
+  }
+  return message.payload.ok
+    ? hasExactKeys(message.payload, ['ok', 'result']) && isCaptureJobResult(message.payload.result)
+    : hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
+}
+
+export function isCaptureArchiveChunkGetRequest(
+  message: unknown,
+): message is CaptureArchiveChunkGetRequest {
+  return (
+    isProtocolMessageEnvelope(message) &&
+    hasMessageType(message, MESSAGE_TYPES.captureArchiveChunkGet) &&
+    isRecord(message.payload) &&
+    hasExactKeys(message.payload, ['jobId', 'offset']) &&
+    isNonEmptyString(message.payload.jobId) &&
+    isNonNegativeSafeInteger(message.payload.offset)
+  );
+}
+
+function isCanonicalBase64(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length % 4 === 0 &&
+    /^[A-Za-z0-9+/]+={0,2}$/.test(value)
+  );
+}
+
+export function isCaptureArchiveChunkResponse(
+  message: unknown,
+): message is CaptureArchiveChunkResponse {
+  if (
+    !isProtocolMessageEnvelope(message) ||
+    !hasMessageType(message, MESSAGE_TYPES.captureArchiveChunkResponse) ||
+    !isRecord(message.payload) ||
+    typeof message.payload.ok !== 'boolean'
+  ) {
+    return false;
+  }
+  if (!message.payload.ok) {
+    return hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
+  }
+  return (
+    hasExactKeys(message.payload, ['ok', 'jobId', 'offset', 'totalByteLength', 'base64', 'done']) &&
+    isNonEmptyString(message.payload.jobId) &&
+    isNonNegativeSafeInteger(message.payload.offset) &&
+    isPositiveSafeInteger(message.payload.totalByteLength) &&
+    message.payload.offset < message.payload.totalByteLength &&
+    isCanonicalBase64(message.payload.base64) &&
+    typeof message.payload.done === 'boolean'
+  );
+}
+
 export function isCaptureJobResponse(message: unknown): message is CaptureJobResponse {
   if (
     !isProtocolMessageEnvelope(message) ||
@@ -583,7 +734,9 @@ export function isSiteCapsuleRequest(message: unknown): message is SiteCapsuleRe
     isPageArchiveRewriteRequest(message) ||
     isCaptureJobCreateRequest(message) ||
     isCaptureJobControlRequest(message) ||
-    isCaptureJobGetRequest(message)
+    isCaptureJobGetRequest(message) ||
+    isCaptureJobResultGetRequest(message) ||
+    isCaptureArchiveChunkGetRequest(message)
   );
 }
 
@@ -591,7 +744,9 @@ export function isSiteCapsuleResponse(message: unknown): message is SiteCapsuleR
   return (
     isPageInfoResponse(message) ||
     isPageArchiveRewriteResponse(message) ||
-    isCaptureJobResponse(message)
+    isCaptureJobResponse(message) ||
+    isCaptureJobResultResponse(message) ||
+    isCaptureArchiveChunkResponse(message)
   );
 }
 

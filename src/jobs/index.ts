@@ -7,3 +7,4 @@ export {
   type CapturePipelineStage,
   type CapturePipelineStageContext,
 } from './capture-pipeline';
+export { buildCaptureJobResult } from './capture-result';
