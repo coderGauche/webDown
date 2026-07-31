@@ -1,5 +1,6 @@
 import {
   cancelConcurrentQueue,
+  getQueueInterruptionKind,
   interruptConcurrentQueue,
   isConcurrencyLimit,
   pauseConcurrentQueue,
@@ -269,9 +270,12 @@ describe('controlled concurrent queue', () => {
     expect(rawResult).toMatchObject({ status: 'not-started', interruption: 'cancel' });
 
     const controlled = new AbortController();
+    expect(getQueueInterruptionKind(controlled.signal)).toBeNull();
     expect(pauseConcurrentQueue(controlled)).toBe(true);
     expect(cancelConcurrentQueue(controlled)).toBe(false);
     expect(controlled.signal.reason).toMatchObject({ kind: 'pause' });
+    expect(getQueueInterruptionKind(controlled.signal)).toBe('pause');
+    expect(getQueueInterruptionKind(rawController.signal)).toBe('cancel');
     expect(Object.isFrozen(controlled.signal.reason)).toBe(true);
     expect(() => interruptConcurrentQueue(new AbortController(), 'invalid' as never)).toThrow(
       TypeError,

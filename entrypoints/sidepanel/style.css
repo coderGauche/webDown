@@ -234,6 +234,49 @@ h3 {
   text-align: right;
 }
 
+.job-controls {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.job-control-action {
+  min-width: 72px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid #aeb9c8;
+  border-radius: 5px;
+  color: #183b68;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.job-control-action.primary {
+  border-color: #183b68;
+  color: #fff;
+  background: #183b68;
+}
+
+.job-control-action.danger {
+  border-color: #d6a0a0;
+  color: #a32929;
+}
+
+.job-control-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.control-error {
+  margin-top: 6px;
+}
+
 .task-settings {
   margin-top: 14px;
   border-top: 1px solid #dce2eb;

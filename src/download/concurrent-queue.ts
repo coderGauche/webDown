@@ -70,6 +70,10 @@ function interruptionKind(signal: AbortSignal): QueueInterruptionKind {
   return isQueueInterruptionReason(signal.reason) ? signal.reason.kind : 'cancel';
 }
 
+export function getQueueInterruptionKind(signal: AbortSignal): QueueInterruptionKind | null {
+  return signal.aborted ? interruptionKind(signal) : null;
+}
+
 export function interruptConcurrentQueue(
   controller: AbortController,
   kind: QueueInterruptionKind,

@@ -3,15 +3,18 @@ import {
   MAX_RENDER_WAIT_MS,
   SiteCapsuleError,
   createCaptureError,
+  isPausableJobStatus,
   toCaptureError,
   type CaptureJob,
   type JobStatus,
 } from '@sitecapsule/domain';
 import {
   createCaptureJobCreateRequest,
+  createCaptureJobControlRequest,
   createCaptureJobGetRequest,
   createPageInfoRequest,
   type PageInfo,
+  type CaptureJobCommand,
 } from '@sitecapsule/messaging/protocol';
 import {
   isCaptureJobResponse,
@@ -49,6 +52,7 @@ type ReadStatus = 'idle' | 'loading' | 'success' | 'error';
 type ThirdPartyGrantStatus = 'idle' | 'requesting';
 type ThirdPartyCheckStatus = 'idle' | 'checking' | 'ready' | 'error';
 type CreateStatus = 'idle' | 'creating';
+type ControlStatus = 'idle' | CaptureJobCommand;
 
 const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
 const PIPELINE_STAGES = [
@@ -68,7 +72,13 @@ function stageDisplayState(
   stage: (typeof PIPELINE_STAGES)[number]['status'],
 ): 'complete' | 'active' | 'pending' {
   if (job.status === 'completed') return 'complete';
-  const currentIndex = PIPELINE_STAGES.findIndex((item) => item.status === job.status);
+  const effectiveStatus =
+    job.status === 'paused'
+      ? job.resumeStatus
+      : job.status === 'retrying'
+        ? 'preparing'
+        : job.status;
+  const currentIndex = PIPELINE_STAGES.findIndex((item) => item.status === effectiveStatus);
   const stageIndex = PIPELINE_STAGES.findIndex((item) => item.status === stage);
   if (currentIndex < 0) return 'pending';
   if (stageIndex < currentIndex) return 'complete';
@@ -147,6 +157,8 @@ export function App() {
   const [captureJob, setCaptureJob] = useState<CaptureJob | null>(null);
   const [createStatus, setCreateStatus] = useState<CreateStatus>('idle');
   const [createError, setCreateError] = useState<string | null>(null);
+  const [controlStatus, setControlStatus] = useState<ControlStatus>('idle');
+  const [controlError, setControlError] = useState<string | null>(null);
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
@@ -205,6 +217,20 @@ export function App() {
     const onMessage = (message: unknown) => {
       if (!isCaptureJobUpdatedEvent(message)) return;
       setCaptureJob(message.payload.job);
+      setControlStatus((current) => {
+        if (current === 'pause' && message.payload.job.status !== 'paused') return current;
+        if (
+          current === 'cancel' &&
+          message.payload.job.status !== 'cancelling' &&
+          message.payload.job.status !== 'cancelled'
+        ) {
+          return current;
+        }
+        if (current === 'resume' && message.payload.job.status === 'paused') return current;
+        if (current === 'retry' && message.payload.job.status === 'failed') return current;
+        return 'idle';
+      });
+      setControlError(null);
     };
     browser.runtime.onMessage.addListener(onMessage);
 
@@ -374,6 +400,32 @@ export function App() {
       setCreateError(`${captureError.message} ${captureError.suggestion}`);
     } finally {
       setCreateStatus('idle');
+    }
+  };
+
+  const controlCapture = async (command: CaptureJobCommand) => {
+    if (!captureJob || controlStatus !== 'idle') return;
+    setControlStatus(command);
+    setControlError(null);
+    try {
+      const response: unknown = await browser.runtime.sendMessage(
+        createCaptureJobControlRequest(captureJob.id, command),
+      );
+      if (!isCaptureJobResponse(response)) {
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'job-transition' }),
+        );
+      }
+      if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+      setCaptureJob(response.payload.job);
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'unexpected-error', {
+        operation: 'job-transition',
+        jobId: captureJob.id,
+      });
+      setControlError(`${captureError.message} ${captureError.suggestion}`);
+    } finally {
+      setControlStatus('idle');
     }
   };
 
@@ -629,7 +681,9 @@ export function App() {
                       {displayState === 'complete'
                         ? 'Done'
                         : displayState === 'active'
-                          ? 'In progress'
+                          ? captureJob.status === 'paused'
+                            ? 'Paused'
+                            : 'In progress'
                           : 'Waiting'}
                     </small>
                   </li>
@@ -650,6 +704,57 @@ export function App() {
                 <dd>{captureJob.counters.bytesWritten.toLocaleString()} bytes</dd>
               </div>
             </dl>
+            {(isPausableJobStatus(captureJob.status) ||
+              captureJob.status === 'paused' ||
+              captureJob.status === 'failed') && (
+              <div className="job-controls" aria-label="Archive controls">
+                {isPausableJobStatus(captureJob.status) && (
+                  <button
+                    type="button"
+                    className="job-control-action"
+                    onClick={() => controlCapture('pause')}
+                    disabled={controlStatus !== 'idle'}
+                  >
+                    {controlStatus === 'pause' ? 'Pausing...' : 'Pause'}
+                  </button>
+                )}
+                {captureJob.status === 'paused' && (
+                  <button
+                    type="button"
+                    className="job-control-action primary"
+                    onClick={() => controlCapture('resume')}
+                    disabled={controlStatus !== 'idle'}
+                  >
+                    {controlStatus === 'resume' ? 'Resuming...' : 'Resume'}
+                  </button>
+                )}
+                {captureJob.status === 'failed' && (
+                  <button
+                    type="button"
+                    className="job-control-action primary"
+                    onClick={() => controlCapture('retry')}
+                    disabled={controlStatus !== 'idle'}
+                  >
+                    {controlStatus === 'retry' ? 'Retrying...' : 'Retry'}
+                  </button>
+                )}
+                {(isPausableJobStatus(captureJob.status) || captureJob.status === 'paused') && (
+                  <button
+                    type="button"
+                    className="job-control-action danger"
+                    onClick={() => controlCapture('cancel')}
+                    disabled={controlStatus !== 'idle'}
+                  >
+                    {controlStatus === 'cancel' ? 'Cancelling...' : 'Cancel'}
+                  </button>
+                )}
+              </div>
+            )}
+            {controlError && (
+              <p className="error-text control-error" role="alert">
+                {controlError}
+              </p>
+            )}
           </section>
         )}
 

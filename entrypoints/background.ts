@@ -1,6 +1,7 @@
 import {
   SiteCapsuleError,
   createCaptureError,
+  isPausableJobStatus,
   toCaptureError,
   type CaptureError,
   type CaptureJob,
@@ -20,7 +21,9 @@ import {
   checkResourceResponseNetworkPolicy,
   classifyResourceResponse,
   consumeResourceBodyWithLimits,
+  cancelConcurrentQueue,
   createSecureResourceFetchInit,
+  pauseConcurrentQueue,
   runRequestWithRetry,
   runResourceDownloadBatch,
   type ResourceDownloadWorker,
@@ -35,11 +38,13 @@ import {
   createCaptureJobResponse,
   createCaptureJobUpdatedEvent,
   createPageInfoError,
+  type CaptureJobCommand,
   type PageInfo,
   type PageInfoResponse,
 } from '@sitecapsule/messaging/protocol';
 import {
   isCaptureJobCreateRequest,
+  isCaptureJobControlRequest,
   isCaptureJobGetRequest,
   isPageArchiveRewriteResponse,
   isPageInfoRequest,
@@ -55,6 +60,8 @@ import { jobRepository } from '@sitecapsule/storage';
 
 const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
 const archiveArtifacts = new Map<string, Uint8Array>();
+const activeExecutions = new Map<string, RuntimeCaptureExecution>();
+const pausedContexts = new Map<string, RuntimeCaptureContext>();
 
 type RuntimeCaptureContext = {
   page: PageInfo | null;
@@ -63,6 +70,37 @@ type RuntimeCaptureContext = {
   mappings: ResourcePathMapping[];
   rewrittenHtml: string | null;
 };
+
+type RuntimeCaptureExecution = {
+  controller: AbortController;
+  context: RuntimeCaptureContext;
+  promise: Promise<CaptureJob>;
+};
+
+const EMPTY_JOB_COUNTERS = {
+  pagesDiscovered: 0,
+  pagesCaptured: 0,
+  resourcesDiscovered: 0,
+  resourcesSaved: 0,
+  resourcesFailed: 0,
+  resourcesSkipped: 0,
+  bytesWritten: 0,
+} as const;
+
+async function raceWithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) throw signal.reason;
+  let removeAbortListener: () => void = () => undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    removeAbortListener = () => signal.removeEventListener('abort', onAbort);
+  });
+  try {
+    return await Promise.race([operation, aborted]);
+  } finally {
+    removeAbortListener();
+  }
+}
 
 function createMemorySink(onClose: (bytes: Uint8Array) => void) {
   const chunks: Uint8Array[] = [];
@@ -417,11 +455,10 @@ function createRuntimePipelineHandlers(
       }
     },
 
-    discovering: async ({ job, report }) => {
-      const response = await collectPageInfo(
-        job.tabId,
-        job.settings.renderWaitMs,
-        `capture-${job.id}`,
+    discovering: async ({ job, report, signal }) => {
+      const response = await raceWithAbort(
+        collectPageInfo(job.tabId, job.settings.renderWaitMs, `capture-${job.id}`),
+        signal,
       );
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       context.page = response.payload.page;
@@ -436,7 +473,7 @@ function createRuntimePipelineHandlers(
       });
     },
 
-    fetching: async ({ job, report }) => {
+    fetching: async ({ job, report, signal }) => {
       if (!context.page) {
         throw new SiteCapsuleError(
           createCaptureError('unexpected-error', {
@@ -446,20 +483,41 @@ function createRuntimePipelineHandlers(
           }),
         );
       }
+      const primaryResourceId = `${job.id}:document`;
+      const primary = context.resources.find((resource) => resource.id === primaryResourceId);
+      if (!primary) {
+        throw new SiteCapsuleError(
+          createCaptureError('unexpected-error', {
+            operation: 'resource-download',
+            jobId: job.id,
+            stage: 'fetching',
+            field: 'primaryResource',
+          }),
+        );
+      }
       const queued = context.resources.filter((resource) => resource.state === 'queued');
       const skipped = context.resources.filter((resource) => resource.state === 'skipped');
-      const budget = new TaskByteBudget(job.settings.maxTotalSizeBytes);
+      const untouched = context.resources.filter(
+        (resource) =>
+          resource.id !== primaryResourceId &&
+          resource.state !== 'queued' &&
+          resource.state !== 'skipped',
+      );
+      const batchResources = queued.some((resource) => resource.id === primaryResourceId)
+        ? queued
+        : [primary, ...queued];
+      const budget = new TaskByteBudget(job.settings.maxTotalSizeBytes, job.counters.bytesWritten);
       const baseWorker = createDownloadWorker(context, job, budget);
-      let resourcesSaved = 0;
-      let resourcesFailed = 0;
-      let bytesWritten = 0;
+      let resourcesSaved = job.counters.resourcesSaved;
+      let resourcesFailed = job.counters.resourcesFailed;
+      let bytesWritten = job.counters.bytesWritten;
       let progressWrites = Promise.resolve();
       const worker: ResourceDownloadWorker = async (resource, index, signal) => {
         const result = await baseWorker(resource, index, signal);
-        if (result.status === 'saved') {
+        if (result.status === 'saved' && resource.state !== 'saved') {
           resourcesSaved += 1;
           bytesWritten += result.resource.byteLength ?? 0;
-        } else {
+        } else if (result.status === 'failed' && resource.state !== 'failed') {
           resourcesFailed += 1;
         }
         progressWrites = progressWrites.then(async () => {
@@ -475,26 +533,28 @@ function createRuntimePipelineHandlers(
       };
 
       const result = await runResourceDownloadBatch(
-        queued,
+        batchResources,
         job.settings.maxConcurrentRequests,
         worker,
-        { primaryResourceId: `${job.id}:document` },
+        { primaryResourceId, signal },
       );
       await progressWrites;
       await report({
-        resourcesSaved: result.counts.saved,
-        resourcesFailed: result.counts.failed,
-        resourcesSkipped: skipped.length + result.counts.aborted + result.counts.notStarted,
-        bytesWritten: result.counts.bytesWritten,
+        resourcesSaved,
+        resourcesFailed,
+        resourcesSkipped: skipped.length,
+        bytesWritten,
       });
-      context.resources = [...result.results.map((item) => item.resource), ...skipped].sort(
-        (left, right) => left.id.localeCompare(right.id),
-      );
+      context.resources = [
+        ...result.results.map((item) => item.resource),
+        ...untouched,
+        ...skipped,
+      ].sort((left, right) => left.id.localeCompare(right.id));
       await jobRepository.replaceJobResources(job.id, context.resources);
       if (result.fatalError) throw new SiteCapsuleError(result.fatalError);
     },
 
-    rewriting: async ({ job }) => {
+    rewriting: async ({ job, signal }) => {
       if (!context.page) {
         throw new SiteCapsuleError(
           createCaptureError('unexpected-error', {
@@ -535,14 +595,17 @@ function createRuntimePipelineHandlers(
       });
       await jobRepository.replaceJobResources(job.id, context.resources);
 
-      const response: unknown = await browser.tabs.sendMessage(
-        job.tabId,
-        createPageArchiveRewriteRequest({
-          html: context.page.serializedDom,
-          documentUrl: context.page.finalUrl,
-          baseUrl: context.page.baseUrl,
-          savedResourceMappings: context.mappings,
-        }),
+      const response: unknown = await raceWithAbort(
+        browser.tabs.sendMessage(
+          job.tabId,
+          createPageArchiveRewriteRequest({
+            html: context.page.serializedDom,
+            documentUrl: context.page.finalUrl,
+            baseUrl: context.page.baseUrl,
+            savedResourceMappings: context.mappings,
+          }),
+        ),
+        signal,
       );
       if (!isPageArchiveRewriteResponse(response)) {
         throw new SiteCapsuleError(
@@ -588,22 +651,130 @@ async function publishJob(job: CaptureJob): Promise<void> {
   await browser.runtime.sendMessage(createCaptureJobUpdatedEvent(job)).catch(() => undefined);
 }
 
-async function runCreatedJob(job: CaptureJob): Promise<CaptureJob> {
-  const context: RuntimeCaptureContext = {
+function createRuntimeCaptureContext(): RuntimeCaptureContext {
+  return {
     page: null,
     resources: [],
     bodies: new Map(),
     mappings: [],
     rewrittenHtml: null,
   };
-  await publishJob(job);
-  return runCapturePipeline({
+}
+
+function beginJobExecution(
+  job: CaptureJob,
+  context = createRuntimeCaptureContext(),
+): Promise<CaptureJob> {
+  const existing = activeExecutions.get(job.id);
+  if (existing) return existing.promise;
+
+  const controller = new AbortController();
+  const promise = runCapturePipeline({
     jobId: job.id,
     context,
     repository: jobRepository,
     handlers: createRuntimePipelineHandlers(context),
+    signal: controller.signal,
     onJobUpdated: publishJob,
   });
+  const execution: RuntimeCaptureExecution = { controller, context, promise };
+  activeExecutions.set(job.id, execution);
+  void promise.then(
+    (finalJob) => {
+      if (activeExecutions.get(job.id) === execution) activeExecutions.delete(job.id);
+      if (finalJob.status === 'paused') pausedContexts.set(job.id, context);
+      else pausedContexts.delete(job.id);
+    },
+    () => {
+      if (activeExecutions.get(job.id) === execution) activeExecutions.delete(job.id);
+      pausedContexts.delete(job.id);
+    },
+  );
+  return promise;
+}
+
+function invalidControlTransition(job: CaptureJob, command: CaptureJobCommand): SiteCapsuleError {
+  const targetStage =
+    command === 'pause'
+      ? 'paused'
+      : command === 'cancel'
+        ? 'cancelling'
+        : command === 'retry'
+          ? 'retrying'
+          : job.status === 'paused'
+            ? job.resumeStatus
+            : 'preparing';
+  return new SiteCapsuleError(
+    createCaptureError('invalid-job-transition', {
+      operation: 'job-transition',
+      jobId: job.id,
+      stage: job.status,
+      targetStage,
+    }),
+  );
+}
+
+async function requireCaptureJob(jobId: string): Promise<CaptureJob> {
+  const job = await jobRepository.getJob(jobId);
+  if (job) return job;
+  throw new SiteCapsuleError(createCaptureError('job-not-found', { operation: 'job-read', jobId }));
+}
+
+async function persistCancellation(job: CaptureJob): Promise<CaptureJob> {
+  const cancelling = await jobRepository.updateJob(job.id, { status: 'cancelling' });
+  if (!cancelling) throw invalidControlTransition(job, 'cancel');
+  await publishJob(cancelling);
+  const cancelled = await jobRepository.updateJob(job.id, { status: 'cancelled' });
+  if (!cancelled) throw invalidControlTransition(cancelling, 'cancel');
+  await publishJob(cancelled);
+  pausedContexts.delete(job.id);
+  archiveArtifacts.delete(job.id);
+  return cancelled;
+}
+
+async function controlCaptureJob(jobId: string, command: CaptureJobCommand): Promise<CaptureJob> {
+  const job = await requireCaptureJob(jobId);
+  const execution = activeExecutions.get(job.id);
+
+  if (command === 'pause') {
+    if (!isPausableJobStatus(job.status) || !execution) {
+      throw invalidControlTransition(job, command);
+    }
+    if (!pauseConcurrentQueue(execution.controller)) {
+      throw invalidControlTransition(job, command);
+    }
+    return execution.promise;
+  }
+
+  if (command === 'cancel') {
+    if (job.status === 'paused') return persistCancellation(job);
+    if (!isPausableJobStatus(job.status)) throw invalidControlTransition(job, command);
+    if (!execution) return persistCancellation(job);
+    if (!cancelConcurrentQueue(execution.controller)) {
+      throw invalidControlTransition(job, command);
+    }
+    const cancelled = await execution.promise;
+    archiveArtifacts.delete(job.id);
+    return cancelled;
+  }
+
+  if (command === 'resume') {
+    if (job.status !== 'paused') throw invalidControlTransition(job, command);
+    const context = pausedContexts.get(job.id);
+    if (!context) throw invalidControlTransition(job, command);
+    return beginJobExecution(job, context);
+  }
+
+  if (job.status !== 'failed') throw invalidControlTransition(job, command);
+  const retrying = await jobRepository.updateJob(job.id, {
+    status: 'retrying',
+    counters: EMPTY_JOB_COUNTERS,
+  });
+  if (!retrying) throw invalidControlTransition(job, command);
+  await publishJob(retrying);
+  archiveArtifacts.delete(job.id);
+  pausedContexts.delete(job.id);
+  return beginJobExecution(retrying);
 }
 
 export default defineBackground(() => {
@@ -622,10 +793,28 @@ export default defineBackground(() => {
       try {
         const job = await jobRepository.createJob(message.payload);
         await browser.storage.local.set({ [LAST_CAPTURE_JOB_STORAGE_KEY]: job.id });
-        return createCaptureJobResponse(await runCreatedJob(job), message.correlationId);
+        await publishJob(job);
+        return createCaptureJobResponse(await beginJobExecution(job), message.correlationId);
       } catch (error) {
         return createCaptureJobError(
           toCaptureError(error, 'unexpected-error', { operation: 'job-create' }),
+          message.correlationId,
+        );
+      }
+    }
+
+    if (isCaptureJobControlRequest(message)) {
+      try {
+        return createCaptureJobResponse(
+          await controlCaptureJob(message.payload.jobId, message.payload.command),
+          message.correlationId,
+        );
+      } catch (error) {
+        return createCaptureJobError(
+          toCaptureError(error, 'unexpected-error', {
+            operation: 'job-transition',
+            jobId: message.payload.jobId,
+          }),
           message.correlationId,
         );
       }

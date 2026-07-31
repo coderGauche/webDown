@@ -1,6 +1,7 @@
 export {
   QUEUE_INTERRUPTION_KINDS,
   cancelConcurrentQueue,
+  getQueueInterruptionKind,
   interruptConcurrentQueue,
   isConcurrencyLimit,
   pauseConcurrentQueue,
