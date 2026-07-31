@@ -48,6 +48,8 @@ import {
   DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA,
   DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
   getPendingThirdPartyPermissionPatterns,
+  getFirstInvalidArchiveFocusTarget,
+  getPostActionFocusTarget,
   isThirdPartyCaptureReady,
   MAX_CURRENT_PAGE_CONCURRENCY,
   MIN_CURRENT_PAGE_CONCURRENCY,
@@ -83,6 +85,12 @@ const PIPELINE_STAGES = [
   { status: 'rewriting', label: 'rewriting' },
   { status: 'packaging', label: 'packaging' },
 ] as const;
+
+function focusPanelTarget(targetId: string): void {
+  requestAnimationFrame(() => {
+    document.getElementById(targetId)?.focus({ preventScroll: false });
+  });
+}
 
 function isActiveJob(status: JobStatus): boolean {
   return !['completed', 'cancelled', 'failed'].includes(status);
@@ -228,6 +236,10 @@ export function App() {
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>('loading');
   const [historyError, setHistoryError] = useState<CaptureError | null>(null);
   const [historyMutation, setHistoryMutation] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState({ sequence: 0, text: '' });
+  const announce = (text: string) => {
+    setAnnouncement((current) => ({ sequence: current.sequence + 1, text }));
+  };
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
@@ -367,7 +379,7 @@ export function App() {
     return () => browser.runtime.onMessage.removeListener(onMessage);
   }, []);
 
-  async function refreshHistory(): Promise<void> {
+  async function refreshHistory(shouldAnnounce = false): Promise<void> {
     setHistoryStatus('loading');
     setHistoryError(null);
     try {
@@ -382,12 +394,14 @@ export function App() {
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       setHistoryItems(response.payload.items);
       setHistoryStatus('ready');
+      if (shouldAnnounce) announce(t('historyRefreshedAnnouncement'));
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'storage-unavailable', {
         operation: 'job-list',
       });
       setHistoryError(captureError);
       setHistoryStatus('error');
+      if (shouldAnnounce) announce(t('operationFailedAnnouncement'));
     }
   }
 
@@ -507,6 +521,8 @@ export function App() {
       setCurrentTabId(activeTab.id);
       setArchiveName((current) => applyCurrentPageToArchiveName(current, capturedPage.finalUrl));
       setStatus('success');
+      announce(t('pageReadyAnnouncement'));
+      focusPanelTarget('archive-file-name');
 
       try {
         const accessSummary = await summarizeThirdPartySiteAccess(
@@ -534,6 +550,7 @@ export function App() {
       setThirdPartyCheckStatus('idle');
       setError(captureError);
       setStatus('error');
+      announce(t('operationFailedAnnouncement'));
     }
   };
 
@@ -582,7 +599,18 @@ export function App() {
   };
 
   const startCapture = async () => {
-    if (!currentPageTask) return;
+    if (!currentPageTask) {
+      const target = getFirstInvalidArchiveFocusTarget({
+        archiveFileName: archiveNameValidation.valid,
+        renderWait: renderWaitValidation.valid,
+        concurrency: concurrencyValidation.valid,
+      });
+      if (target) {
+        announce(t('focusFixAnnouncement'));
+        focusPanelTarget(target);
+      }
+      return;
+    }
     setCreateStatus('creating');
     setCreateError(null);
     try {
@@ -596,11 +624,16 @@ export function App() {
       }
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       setCaptureJob(response.payload.job);
+      announce(
+        t('taskStatusAnnouncement', { status: jobStatusLabel(response.payload.job.status, t) }),
+      );
+      focusPanelTarget(getPostActionFocusTarget('capture-updated'));
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-create',
       });
       setCreateError(captureError);
+      announce(t('operationFailedAnnouncement'));
     } finally {
       setCreateStatus('idle');
     }
@@ -621,12 +654,17 @@ export function App() {
       }
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       setCaptureJob(response.payload.job);
+      announce(
+        t('taskStatusAnnouncement', { status: jobStatusLabel(response.payload.job.status, t) }),
+      );
+      focusPanelTarget('capture-progress');
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-transition',
         jobId: captureJob.id,
       });
       setControlError(captureError);
+      announce(t('operationFailedAnnouncement'));
     } finally {
       setControlStatus('idle');
     }
@@ -656,6 +694,7 @@ export function App() {
       });
       setDownloadStatus('started');
       setDownloadFileName(downloaded.fileName);
+      announce(t('downloadReadyAnnouncement'));
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'archive-download-failed', {
         operation: 'archive-download',
@@ -663,6 +702,7 @@ export function App() {
       });
       setDownloadStatus('error');
       setDownloadError(captureError);
+      announce(t('operationFailedAnnouncement'));
     }
   };
 
@@ -680,11 +720,22 @@ export function App() {
       }
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       setCaptureJob(response.payload.job);
+      announce(
+        t('historyOpenedAnnouncement', {
+          value: response.payload.job.settings.archiveFileName,
+        }),
+      );
+      focusPanelTarget(
+        ['completed', 'failed', 'cancelled'].includes(response.payload.job.status)
+          ? getPostActionFocusTarget('history-opened')
+          : getPostActionFocusTarget('capture-updated'),
+      );
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-read',
       });
       setHistoryError(captureError);
+      announce(t('operationFailedAnnouncement'));
     } finally {
       setHistoryMutation(null);
     }
@@ -705,11 +756,14 @@ export function App() {
       }
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       await Promise.all([refreshHistory(), reloadLastCaptureJob()]);
+      announce(t('historyDeletedAnnouncement', { value: item.fileName }));
+      focusPanelTarget(getPostActionFocusTarget('history-mutated'));
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-cleanup',
       });
       setHistoryError(captureError);
+      announce(t('operationFailedAnnouncement'));
     } finally {
       setHistoryMutation(null);
     }
@@ -730,11 +784,14 @@ export function App() {
       }
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       await Promise.all([refreshHistory(), reloadLastCaptureJob()]);
+      announce(t('historyClearedAnnouncement'));
+      focusPanelTarget(getPostActionFocusTarget('history-mutated'));
     } catch (requestError) {
       const captureError = toCaptureError(requestError, 'unexpected-error', {
         operation: 'job-cleanup',
       });
       setHistoryError(captureError);
+      announce(t('operationFailedAnnouncement'));
     } finally {
       setHistoryMutation(null);
     }
@@ -742,6 +799,15 @@ export function App() {
 
   return (
     <main className="app-shell" lang={locale}>
+      <p
+        key={announcement.sequence}
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {announcement.text}
+      </p>
       <header className="app-header">
         <div>
           <p className="eyebrow">{EXTENSION_NAME}</p>
@@ -825,6 +891,9 @@ export function App() {
               value={archiveName.value}
               aria-invalid={!archiveNameValidation.valid}
               aria-describedby="archive-file-name-feedback"
+              aria-errormessage={
+                archiveNameValidation.valid ? undefined : 'archive-file-name-feedback'
+              }
               spellCheck="false"
               autoComplete="off"
               onChange={(event) =>
@@ -841,11 +910,12 @@ export function App() {
                     <button
                       className="suggestion-action"
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
                         setArchiveName(
                           editCurrentPageArchiveName(archiveNameValidation.suggestion ?? ''),
-                        )
-                      }
+                        );
+                        focusPanelTarget('archive-file-name');
+                      }}
                     >
                       {t('useSuggestion', { value: archiveNameValidation.suggestion })}
                     </button>
@@ -872,6 +942,9 @@ export function App() {
                     value={renderWaitInput}
                     aria-invalid={!renderWaitValidation.valid}
                     aria-describedby="render-wait-feedback"
+                    aria-errormessage={
+                      renderWaitValidation.valid ? undefined : 'render-wait-feedback'
+                    }
                     onChange={(event) => setRenderWaitInput(event.currentTarget.value)}
                     disabled={status === 'loading'}
                   />
@@ -902,6 +975,9 @@ export function App() {
                   value={concurrencyInput}
                   aria-invalid={!concurrencyValidation.valid}
                   aria-describedby="capture-concurrency-feedback"
+                  aria-errormessage={
+                    concurrencyValidation.valid ? undefined : 'capture-concurrency-feedback'
+                  }
                   onChange={(event) => setConcurrencyInput(event.currentTarget.value)}
                   disabled={status === 'loading'}
                 />
@@ -954,6 +1030,7 @@ export function App() {
           </fieldset>
 
           <p
+            id="task-readiness"
             className={`task-readiness ${currentPageTask ? 'ready' : ''}`}
             role="status"
             aria-live="polite"
@@ -965,8 +1042,10 @@ export function App() {
             className="start-capture-action"
             type="button"
             onClick={startCapture}
+            aria-describedby="task-readiness"
             disabled={
-              currentPageTask === null ||
+              status !== 'success' ||
+              !thirdPartyReady ||
               createStatus === 'creating' ||
               (captureJob !== null && isActiveJob(captureJob.status))
             }
@@ -986,17 +1065,24 @@ export function App() {
         </form>
 
         {captureJob && (
-          <section className="capture-progress" aria-labelledby="capture-progress-title">
+          <section className="capture-progress" aria-labelledby="capture-progress">
             <div className="progress-heading">
               <div>
-                <h3 id="capture-progress-title">{t('archiveProgress')}</h3>
+                <h3 id="capture-progress" tabIndex={-1}>
+                  {t('archiveProgress')}
+                </h3>
                 <p>{captureJob.settings.archiveFileName}</p>
               </div>
-              <span className={`job-state ${captureJob.status}`}>
+              <span
+                className={`job-state ${captureJob.status}`}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 {jobStatusLabel(captureJob.status, t)}
               </span>
             </div>
-            <ol className="progress-stages">
+            <ol className="progress-stages" aria-label={t('archiveStages')}>
               {PIPELINE_STAGES.map((stage) => {
                 const displayState = stageDisplayState(captureJob, stage.status);
                 return (
@@ -1091,11 +1177,11 @@ export function App() {
         )}
 
         {captureJob && ['completed', 'failed', 'cancelled'].includes(captureJob.status) && (
-          <section className="capture-result" aria-labelledby="capture-result-title">
+          <section className="capture-result" aria-labelledby="capture-result">
             <div className="result-heading">
               <div>
                 <p className="result-eyebrow">{t('taskResult')}</p>
-                <h2 id="capture-result-title">
+                <h2 id="capture-result" tabIndex={-1}>
                   {captureJob.status === 'completed'
                     ? captureJob.counters.resourcesFailed > 0
                       ? t('readyIssues')
@@ -1105,7 +1191,11 @@ export function App() {
                       : t('archiveCancelled')}
                 </h2>
               </div>
-              {resultStatus === 'loading' && <span className="result-loading">{t('loading')}</span>}
+              {resultStatus === 'loading' && (
+                <span className="result-loading" role="status">
+                  {t('loading')}
+                </span>
+              )}
             </div>
 
             {resultStatus === 'error' && (
@@ -1240,17 +1330,19 @@ export function App() {
           </section>
         )}
 
-        <section className="task-history" aria-labelledby="task-history-title">
+        <section className="task-history" aria-labelledby="task-history">
           <div className="history-heading">
             <div>
               <p className="result-eyebrow">{t('localTasks')}</p>
-              <h2 id="task-history-title">{t('taskHistory')}</h2>
+              <h2 id="task-history" tabIndex={-1}>
+                {t('taskHistory')}
+              </h2>
             </div>
             <div className="history-heading-actions">
               <button
                 type="button"
                 className="history-action"
-                onClick={() => void refreshHistory()}
+                onClick={() => void refreshHistory(true)}
                 disabled={historyStatus === 'loading' || historyMutation !== null}
               >
                 {t('refresh')}
@@ -1267,7 +1359,9 @@ export function App() {
           </div>
 
           {historyStatus === 'loading' && historyItems.length === 0 && (
-            <p className="history-empty">{t('loadingHistory')}</p>
+            <p className="history-empty" role="status">
+              {t('loadingHistory')}
+            </p>
           )}
           {historyStatus === 'ready' && historyItems.length === 0 && (
             <p className="history-empty">{t('noHistory')}</p>

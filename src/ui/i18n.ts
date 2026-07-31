@@ -167,6 +167,16 @@ const EN_MESSAGES = {
   concurrencyEmpty: 'Enter concurrency.',
   concurrencyWhole: 'Concurrency must be a whole number.',
   concurrencyRange: 'Concurrency must be between {min} and {max}.',
+  archiveStages: 'Archive stages',
+  taskStatusAnnouncement: 'Task status: {status}.',
+  pageReadyAnnouncement: 'Page information is ready. Archive settings are available.',
+  historyOpenedAnnouncement: 'Opened task {value}.',
+  historyDeletedAnnouncement: 'Deleted task {value}.',
+  historyClearedAnnouncement: 'Task history cleared.',
+  historyRefreshedAnnouncement: 'Task history refreshed.',
+  focusFixAnnouncement: 'Fix the first invalid archive setting.',
+  downloadReadyAnnouncement: 'The browser download has started.',
+  operationFailedAnnouncement: 'The operation failed. Review the displayed error.',
 } as const;
 
 export type UiMessageKey = keyof typeof EN_MESSAGES;
@@ -328,6 +338,16 @@ const ZH_MESSAGES = {
   concurrencyEmpty: '请输入并发数。',
   concurrencyWhole: '并发数必须是整数。',
   concurrencyRange: '并发数必须在 {min} 到 {max} 之间。',
+  archiveStages: '归档阶段',
+  taskStatusAnnouncement: '任务状态：{status}。',
+  pageReadyAnnouncement: '页面信息已就绪，可以设置归档。',
+  historyOpenedAnnouncement: '已打开任务 {value}。',
+  historyDeletedAnnouncement: '已删除任务 {value}。',
+  historyClearedAnnouncement: '任务历史已清空。',
+  historyRefreshedAnnouncement: '任务历史已刷新。',
+  focusFixAnnouncement: '请修正第一个无效的归档设置。',
+  downloadReadyAnnouncement: '浏览器下载已开始。',
+  operationFailedAnnouncement: '操作失败，请检查显示的错误。',
 } as const satisfies Record<UiMessageKey, string>;
 
 const ERROR_EN: Record<CaptureErrorCode, readonly [string, string]> = {

@@ -34,3 +34,10 @@ export {
   type UiLocale,
   type UiMessageKey,
 } from './i18n';
+export {
+  SIDE_PANEL_FOCUS_TARGETS,
+  getFirstInvalidArchiveFocusTarget,
+  getPostActionFocusTarget,
+  type ArchiveFieldValidity,
+  type SidePanelFocusTarget,
+} from './focus-management';

@@ -16,6 +16,26 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex='-1']:focus-visible {
+  outline: 3px solid #245ea8;
+  outline-offset: 2px;
+}
+
 body {
   min-width: 280px;
   min-height: 100vh;
@@ -614,7 +634,7 @@ h3 {
 
 .file-name-setting input:focus-visible {
   border-color: #183b68;
-  outline: 2px solid #b9cce5;
+  outline: 3px solid #245ea8;
   outline-offset: 1px;
 }
 
@@ -720,7 +740,7 @@ h3 {
 
 .numeric-setting input:focus-visible {
   border-color: #183b68;
-  outline: 2px solid #b9cce5;
+  outline: 3px solid #245ea8;
   outline-offset: 1px;
 }
 
@@ -826,7 +846,7 @@ h3 {
 }
 
 .switch-control input:focus-visible + span {
-  outline: 2px solid #b9cce5;
+  outline: 3px solid #245ea8;
   outline-offset: 2px;
 }
 
@@ -889,7 +909,7 @@ h3 {
 
 .duration-input input:focus-visible {
   border-color: #183b68;
-  outline: 2px solid #b9cce5;
+  outline: 3px solid #245ea8;
   outline-offset: 1px;
 }
 
