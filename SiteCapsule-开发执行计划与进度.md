@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M9 稳定性、安全与自动化测试
-> 当前状态：M9-T1 已完成并通过验收
-> 下一任务：M9-T2 建立字体、媒体、第三方 CDN fixture
+> 当前状态：M9-T2 已完成并通过验收
+> 下一任务：M9-T3 建立 Playwright 扩展 E2E
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -362,7 +362,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 目标：建立可持续迭代的质量基线。
 
 - [x] **M9-T1** 建立静态、React、Vue、Next 风格 fixture；
-- [ ] **M9-T2** 建立字体、媒体、第三方 CDN fixture；
+- [x] **M9-T2** 建立字体、媒体、第三方 CDN fixture；
 - [ ] **M9-T3** 建立 Playwright 扩展 E2E；
 - [ ] **M9-T4** 自动验证断网环境中的本地请求；
 - [ ] **M9-T5** 验证 Service Worker 重启恢复；
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M9 稳定性、安全与自动化测试 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M9-T1 建立静态、React、Vue、Next 风格 fixture |
-| 下一任务 | M9-T2 建立字体、媒体、第三方 CDN fixture |
+| 最近完成 | M9-T2 建立字体、媒体、第三方 CDN fixture |
+| 下一任务 | M9-T3 建立 Playwright 扩展 E2E |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -553,6 +553,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-31 | M8-T8 | 完成 | 新增 `src/ui/focus-management.ts` 及 UI 模块导出，以纯函数统一首个无效设置、任务进度、结果和历史操作后的确定性焦点目标；Side Panel 补齐键盘可达的按钮、switch、数字/文件名字段和 `details/summary`，统一高对比 `:focus-visible`，字段使用 `aria-invalid`、`aria-describedby` 和 `aria-errormessage` 关联错误；进度步骤、任务状态、加载、错误和操作结果具备明确语义，新增可重复触发的隐藏 live region，为页面读取、任务控制、下载、历史刷新/打开/删除/清空和失败提供中英文播报；校验失败聚焦首个错误字段，采用文件名建议后回到输入，打开活动/终态历史分别聚焦进度/结果，删除或清空后聚焦稳定的历史标题，不将焦点留在被移除或禁用的控件；新增焦点顺序和操作后落点测试，用户在 Chrome 中以键盘完成核心创建、控制、结果和历史流程验收；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（60 个文件、595 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过 |
 | 2026-07-31 | M8-T9 | 完成 | 移除 Side Panel `body` 的固定最小宽度，为文档根、应用根和主要容器建立 `width/max-width/min-width` 收缩边界，长 URL、文件名、计数、错误、状态和按钮文案可安全断行；在 `max-width: 360px` 紧凑边界下将页面、进度、结果、历史、权限和站点访问标题行切换为纵向布局，将任务控制和历史操作放入 `minmax(0, 1fr)` 双列网格，错误建议、汇总值和第三方状态按内容换行；紧凑模式不缩小字号、不隐藏内容，280px Chrome 验收边界下保留 252px 内容宽度和完整焦点边框；新增 `tests/side-panel-layout.test.ts` 锁定根容器收缩、紧凑堆叠/网格和最小内容宽度，用户在 Chrome 最窄 Side Panel 中验收中英文、长内容、任务进度、历史、诊断和第三方权限，无水平滚动、遮挡或按钮截断；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（61 个文件、598 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过，M8 九项任务全部完成 |
 | 2026-07-31 | M9-T1 | 完成 | 复用 M3 的静态 HTML 和真实 React `createRoot` SPA fixture，新增 Vue 编译输出风格和 Next SSR/水合风格页面；Vue 风格页覆盖服务器 fallback、`v-cloak`、scoped data 属性、本地延迟挂载、路由内容、懒加载图片和运行时敏感表单值，明确不执行 Vue 且不宣称 Vue 运行时兼容；Next 风格页保留服务器 HTML、`__NEXT_DATA__`、动态路由形态和 `_next` 资源，使用真实 React `hydrateRoot` 完成水合及延迟内容，不模拟 Next 服务器、Server Components 或路由器；新增 `tests/fixtures/page-profiles.md` 记录四类页面的运行边界、捕获风险和明确限制；`tests/page-fixtures.test.ts` 统一验证标题、tab/final/base URL、最终内容、资源图/合并资源/证据数一致及连续捕获确定性，Vue/Next 均分别验证服务器初始快照和客户端最终快照，四个 HTML 均无公网脚本或样式依赖；定向测试 5 项及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（61 个文件、601 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过 |
+| 2026-07-31 | M9-T2 | 完成 | 新增 `tests/fixtures/media-cdn-page/index.html`、`media-cdn-http.ts` 和 `tests/media-cdn-fixture.integration.test.ts`，以无公网依赖的 `.test` 多 origin 场景覆盖字体、图片/poster、video/audio/source/track 和字幕；页面快照同时从 DOM、CSSTree CSS AST 和 Performance Resource Timing 发现 10 个去重资源节点，验证 hero 的四条来源边以及 font/video/audio/VTT 的资源类型和 MIME 推断；权限汇总按 CDN hostname 保留资源数、来源数和类型，覆盖已授权 CDN 与未授权 private origin；内存 HTTP fixture 将主文档和资源一起送入 M5 真实批次边界，11 项中 9 项保存、未授权和 404 各失败 1 项且任务保持 `completed-with-errors`，poster 跨 CDN 302 后记录 final URL、完整跳转链、HTTP 200 和 `image/webp`；所有 HTML 绝对 URL 均限于 `.test`，不把内存响应当作真实 Chrome 权限或扩展 E2E 证据；定向测试 2 项及用户验收通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（62 个文件、603 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -645,6 +646,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-071 | 2026-07-31 | Side Panel 将可见状态与读屏播报分层，并以稳定 DOM ID 统一管理操作后焦点 | 只依赖颜色或可见文字无法让读屏用户及时得知异步结果；只依赖浏览器默认焦点会在删除历史、修正建议或动态结果挂载时丢失位置；直接禁用无效表单的提交按钮也无法触发首错聚焦 | 保留就地 `role=status/alert` 语义，同时用递增序号的隐藏 live region 保证连续相同消息仍可重新播报；只在页面未就绪、权限未就绪或任务运行时禁用创建，设置无效时允许触发校验并聚焦首错；进度、结果和历史标题可程序聚焦但不进入普通 Tab 顺序，焦点目标由纯函数测试锁定 |
 | D-072 | 2026-07-31 | Side Panel 以 360px CSS 紧凑断点和 280px 浏览器验收边界建立可收缩布局，不依赖缩小字号或隐藏内容 | 根元素的固定最小宽度会直接产生水平滚动；flex 子项默认 `min-width: auto` 会让长文件名、URL、状态和操作按钮撑开容器；仅设置 `overflow-x: hidden` 又会把未解决的内容和焦点边框截断 | 根和主要容器显式 `min-width: 0/max-width: 100%`，长内容可断行；碰撞风险行在紧凑断点改为堆叠或有界网格，两侧 14px 留白保护 3px 焦点轮廓；布局契约测试同时锁定断点、最小内容宽度和紧凑规则中无 `font-size` |
 | D-073 | 2026-07-31 | M9 框架页 fixture 以可观测渲染边界命名，只有实际执行的运行时能作为兼容证据 | 仅复制 Vue/Next 生成的 DOM 特征无法证明扩展与该框架运行时兼容；为测试引入公网 CDN 又会让结果受网络、版本漂移和供应链影响；只测最终 DOM 会漏掉服务器初始 HTML 边界 | 静态与 React SPA 复用已有真实边界；Vue 只称为 compiled-output style 并使用本地适配器；Next 只称为 SSR/hydration style，水合证据来自已锁定的 React `hydrateRoot`；每类边界与限制写入 fixture 说明，服务器/客户端快照及资源图不变量由同一测试契约验证 |
+| D-074 | 2026-07-31 | 多 CDN fixture 分离页面发现、权限汇总和可控 HTTP 响应，以 `.test` origin 提供稳定模块集成证据 | 真实公网字体与媒体会受 CORS、CDN 可用性、大文件和供应链漂移影响；只测页面发现又无法证明权限、重定向、MIME 和部分失败聚合 | HTML 只提供 DOM/CSS/Performance 发现形态，内存 HTTP fixture 返回可重复的状态、跳转和字节，两者经资源图、精确 host 权限和 M5 批次边界串联；未授权资源不触达 fixture，非主资源 404 不中止任务；真实 Chrome 加载、扩展权限对话框和网络栈仍必须由 M9-T3 Playwright E2E 验证 |
 
 ---
 
@@ -665,11 +667,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M9-T2：建立字体、媒体、第三方 CDN fixture**。
+下一步严格只执行 **M9-T3：建立 Playwright 扩展 E2E**。
 
-M9-T2 完成后必须：
+M9-T3 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 建立无公网依赖的字体、图片/poster、audio/video/source/track 和多第三方 origin 场景，覆盖 DOM、CSS AST 和 Performance 三种发现来源；
-3. 第三方 CDN 必须使用 `.test` 形态的可控 origin，覆盖已授权、未授权、重定向和资源失败，不引入真实公网可用性或供应链变量；
-4. 对资源类型、MIME、来源边、权限分组及部分失败不阻断建立集成断言，不提前实现 M9-T3 Playwright 扩展 E2E 或 M9-T4 断网验证。
+2. 使用受控 Chromium 上下文加载 `.output/chrome-mv3`，不依赖用户日常 Chrome profile 或已安装扩展；
+3. 至少自动验证扩展加载、Side Panel 可达、当前页捕获与 ZIP 下载核心路径，证据来自真实扩展上下文；
+4. fixture 保持本地可控，失败时保留可诊断追踪/截图，不提前实现 M9-T4 断网验证或将手工 Chrome 会话冒充自动 E2E。

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base href="https://fixture-main.test/showcase/" />
+    <title>Media CDN fixture</title>
+    <style>
+      @import url('https://fixture-cdn.test/styles/theme.css') layer(theme);
+
+      @font-face {
+        font-family: 'Fixture Display';
+        src: url('https://fixture-cdn.test/fonts/display.woff2') format('woff2');
+      }
+
+      .hero {
+        background-image: url('https://fixture-cdn.test/images/hero.avif');
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 class="hero">Font and media delivery</h1>
+      <picture>
+        <source type="image/avif" srcset="https://fixture-cdn.test/images/hero.avif 1x" />
+        <img src="https://fixture-cdn.test/images/hero.avif" alt="Fixture hero" />
+      </picture>
+      <video controls poster="https://fixture-edge.test/posters/intro.jpg">
+        <source src="https://fixture-media.test/video/intro.mp4" type="video/mp4" />
+        <source src="https://fixture-media.test/video/intro.webm" type="video/webm" />
+        <track src="https://fixture-media.test/captions/en.vtt" kind="captions" srclang="en" />
+      </video>
+      <audio controls>
+        <source src="https://fixture-media.test/audio/theme.mp3" type="audio/mpeg" />
+      </audio>
+      <img src="https://fixture-private.test/images/teaser.jpg" alt="Permission denied" />
+      <img src="https://fixture-cdn.test/images/missing.png" alt="Missing resource" />
+    </main>
+  </body>
+</html>
