@@ -2,9 +2,43 @@ import { createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
-const fixturePath = fileURLToPath(
-  new URL('../tests/e2e/fixtures/archive-page.html', import.meta.url),
-);
+const fixtureRoutes = new Map([
+  [
+    '/archive-page.html',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/archive-page.html', import.meta.url)),
+      contentType: 'text/html; charset=utf-8',
+    },
+  ],
+  [
+    '/offline-page.html',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/offline-page.html', import.meta.url)),
+      contentType: 'text/html; charset=utf-8',
+    },
+  ],
+  [
+    '/assets/offline.css',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/assets/offline.css', import.meta.url)),
+      contentType: 'text/css; charset=utf-8',
+    },
+  ],
+  [
+    '/assets/logo.svg',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/assets/logo.svg', import.meta.url)),
+      contentType: 'image/svg+xml',
+    },
+  ],
+  [
+    '/assets/background.svg',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/assets/background.svg', import.meta.url)),
+      contentType: 'image/svg+xml',
+    },
+  ],
+]);
 const host = '127.0.0.1';
 const port = 4173;
 
@@ -15,12 +49,13 @@ const server = createServer((request, response) => {
     return;
   }
 
-  if (request.url === '/archive-page.html') {
+  const fixture = fixtureRoutes.get(request.url ?? '');
+  if (fixture) {
     response.writeHead(200, {
       'cache-control': 'no-store',
-      'content-type': 'text/html; charset=utf-8',
+      'content-type': fixture.contentType,
     });
-    createReadStream(fixturePath).pipe(response);
+    createReadStream(fixture.path).pipe(response);
     return;
   }
 

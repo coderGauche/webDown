@@ -1,0 +1,17 @@
+body {
+  background: #f3f6fb;
+  color: #172033;
+  font-family: system-ui, sans-serif;
+  margin: 2rem;
+}
+
+.offline-card {
+  background: white url('./background.svg') no-repeat right bottom / 8rem;
+  border: 2px solid #176b53;
+  padding: 2rem;
+}
+
+.offline-logo {
+  height: 3rem;
+  width: 3rem;
+}

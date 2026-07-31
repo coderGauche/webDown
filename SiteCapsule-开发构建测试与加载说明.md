@@ -83,11 +83,11 @@ pnpm test:e2e:install
 pnpm test:e2e
 ```
 
-该命令会生成仅供 E2E 使用的扩展构建，启动绑定在 `127.0.0.1:4173` 的本地 fixture，并在隔离的 Playwright Chromium profile 中加载 `.output/chrome-mv3`。测试自动验证扩展加载、Side Panel 页面、当前页捕获、ZIP 下载、`index.html` 内容和敏感表单值清理。
+该命令会生成仅供 E2E 使用的扩展构建，启动绑定在 `127.0.0.1:4173` 的本地 fixture，并在隔离的 Playwright Chromium profile 中加载 `.output/chrome-mv3`。测试自动验证扩展加载、Side Panel 页面、当前页捕获、ZIP 下载、`index.html` 内容、敏感表单值清理，以及解压归档在浏览器离线模式下通过 `file:` 加载 HTML、CSS 和图片。
 
-测试构建会通过 `SITECAPSULE_E2E=1` 预授予 `http://127.0.0.1/*`，避免无头 Chromium 中无法操作原生扩展权限提示。普通 `pnpm build` 不包含该固定 host 权限，仍只声明产品使用的可选 HTTP/HTTPS host 权限。
+测试构建会通过 `SITECAPSULE_E2E=1` 预授予 `http://127.0.0.1/*` 和 `http://sitecapsule.test/*`，避免无头 Chromium 中无法操作原生扩展权限提示。`sitecapsule.test` 仅由隔离测试 Chromium 映射到本地 fixture，用于在不放宽生产本地网络安全策略的前提下归档 CSS 和图片。普通 `pnpm build` 不包含这两个固定 host 权限，仍只声明产品使用的可选 HTTP/HTTPS host 权限。
 
-失败时检查 `test-results/playwright/` 中保留的 trace、截图和视频；CI 还会生成 `playwright-report/`。本任务不验证断网请求，断网环境自动化由 M9-T4 单独完成。
+失败时检查 `test-results/playwright/` 中保留的 trace、截图和视频；CI 还会生成 `playwright-report/`。离线用例会附加 `offline-request-audit` JSON，记录 offline 状态下的全部页面请求，并拒绝任何 HTTP、HTTPS、WS 或 WSS 请求。
 
 ## 5. 生产构建和 ZIP
 
