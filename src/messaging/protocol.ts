@@ -12,7 +12,7 @@ import {
 import type { PageSnapshot } from '@sitecapsule/page';
 import type { ResourcePathMapping } from '@sitecapsule/archive';
 
-export const MESSAGE_PROTOCOL_VERSION = 18 as const;
+export const MESSAGE_PROTOCOL_VERSION = 19 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -23,6 +23,11 @@ export const MESSAGE_TYPES = {
   captureJobCreate: 'capture-job/create',
   captureJobControl: 'capture-job/control',
   captureJobGet: 'capture-job/get',
+  captureJobHistoryList: 'capture-job/history-list',
+  captureJobHistoryResponse: 'capture-job/history-response',
+  captureJobDelete: 'capture-job/delete',
+  captureJobHistoryClear: 'capture-job/history-clear',
+  captureJobMutationResponse: 'capture-job/mutation-response',
   captureJobResultGet: 'capture-job/result-get',
   captureJobResultResponse: 'capture-job/result-response',
   captureArchiveChunkGet: 'capture-archive/chunk-get',
@@ -33,6 +38,7 @@ export const MESSAGE_TYPES = {
 
 export const CAPTURE_JOB_COMMANDS = ['pause', 'resume', 'cancel', 'retry'] as const;
 export const CAPTURE_RESULT_FAILURE_LIMIT = 100;
+export const CAPTURE_JOB_HISTORY_LIMIT = 20;
 
 export type MessageProtocolVersion = typeof MESSAGE_PROTOCOL_VERSION;
 export type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];
@@ -130,6 +136,40 @@ export type CaptureJobGetRequest = ProtocolMessage<
   }
 >;
 
+export type CaptureJobHistoryItem = {
+  jobId: string;
+  status: Extract<JobStatus, 'completed' | 'failed' | 'cancelled'>;
+  fileName: string;
+  updatedAt: string;
+  counters: JobCounters;
+  archiveAvailable: boolean;
+};
+
+export type CaptureJobHistoryListRequest = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobHistoryList,
+  { limit: number }
+>;
+
+export type CaptureJobHistoryResponse = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobHistoryResponse,
+  { ok: true; items: CaptureJobHistoryItem[] } | { ok: false; error: CaptureError }
+>;
+
+export type CaptureJobDeleteRequest = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobDelete,
+  { jobId: string }
+>;
+
+export type CaptureJobHistoryClearRequest = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobHistoryClear,
+  Record<string, never>
+>;
+
+export type CaptureJobMutationResponse = ProtocolMessage<
+  typeof MESSAGE_TYPES.captureJobMutationResponse,
+  { ok: true; deletedCount: number } | { ok: false; error: CaptureError }
+>;
+
 export type CaptureResultStatus = Extract<JobStatus, 'completed' | 'failed' | 'cancelled'>;
 
 export type CaptureResourceFailure = {
@@ -206,6 +246,9 @@ export type SiteCapsuleRequest =
   | CaptureJobCreateRequest
   | CaptureJobControlRequest
   | CaptureJobGetRequest
+  | CaptureJobHistoryListRequest
+  | CaptureJobDeleteRequest
+  | CaptureJobHistoryClearRequest
   | CaptureJobResultGetRequest
   | CaptureArchiveChunkGetRequest;
 
@@ -213,6 +256,8 @@ export type SiteCapsuleResponse =
   | PageInfoResponse
   | PageArchiveRewriteResponse
   | CaptureJobResponse
+  | CaptureJobHistoryResponse
+  | CaptureJobMutationResponse
   | CaptureJobResultResponse
   | CaptureArchiveChunkResponse;
 export type SiteCapsuleEvent = CaptureJobUpdatedEvent;
@@ -322,6 +367,66 @@ export function createCaptureJobGetRequest(
   correlationId = createCorrelationId(),
 ): CaptureJobGetRequest {
   return createMessage(MESSAGE_TYPES.captureJobGet, { jobId }, correlationId);
+}
+
+export function createCaptureJobHistoryListRequest(
+  limit = CAPTURE_JOB_HISTORY_LIMIT,
+  correlationId = createCorrelationId(),
+): CaptureJobHistoryListRequest {
+  return createMessage(MESSAGE_TYPES.captureJobHistoryList, { limit }, correlationId);
+}
+
+export function createCaptureJobHistoryResponse(
+  items: CaptureJobHistoryItem[],
+  correlationId = createCorrelationId(),
+): CaptureJobHistoryResponse {
+  return createMessage(MESSAGE_TYPES.captureJobHistoryResponse, { ok: true, items }, correlationId);
+}
+
+export function createCaptureJobHistoryError(
+  error: CaptureError,
+  correlationId = createCorrelationId(),
+): CaptureJobHistoryResponse {
+  return createMessage(
+    MESSAGE_TYPES.captureJobHistoryResponse,
+    { ok: false, error },
+    correlationId,
+  );
+}
+
+export function createCaptureJobDeleteRequest(
+  jobId: string,
+  correlationId = createCorrelationId(),
+): CaptureJobDeleteRequest {
+  return createMessage(MESSAGE_TYPES.captureJobDelete, { jobId }, correlationId);
+}
+
+export function createCaptureJobHistoryClearRequest(
+  correlationId = createCorrelationId(),
+): CaptureJobHistoryClearRequest {
+  return createMessage(MESSAGE_TYPES.captureJobHistoryClear, {}, correlationId);
+}
+
+export function createCaptureJobMutationResponse(
+  deletedCount: number,
+  correlationId = createCorrelationId(),
+): CaptureJobMutationResponse {
+  return createMessage(
+    MESSAGE_TYPES.captureJobMutationResponse,
+    { ok: true, deletedCount },
+    correlationId,
+  );
+}
+
+export function createCaptureJobMutationError(
+  error: CaptureError,
+  correlationId = createCorrelationId(),
+): CaptureJobMutationResponse {
+  return createMessage(
+    MESSAGE_TYPES.captureJobMutationResponse,
+    { ok: false, error },
+    correlationId,
+  );
 }
 
 export function createCaptureJobResultGetRequest(

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 
-import type { CaptureSettings, ResourceRecord } from '@sitecapsule/domain';
+import { createCaptureError, type CaptureSettings, type ResourceRecord } from '@sitecapsule/domain';
 import { RECOVERABLE_JOB_STATUSES, JobRepository, SiteCapsuleDatabase } from '@sitecapsule/storage';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -259,5 +259,38 @@ describe('JobRepository', () => {
     expect(await repository.clearAllJobs()).toBe(1);
     expect(await database.jobs.count()).toBe(0);
     expect(await database.resources.count()).toBe(0);
+  });
+
+  it('clears history statuses in one batch while retaining every active job', async () => {
+    const completed = await repository.createJob(createInput);
+    const failed = await repository.createJob(createInput);
+    const cancelled = await repository.createJob(createInput);
+    const active = await repository.createJob(createInput);
+    const paused = await repository.createJob(createInput);
+    const runtimeProtected = await repository.createJob(createInput);
+    await database.jobs.update(completed.id, { status: 'completed' });
+    await database.jobs.update(failed.id, {
+      status: 'failed',
+      error: createCaptureError('unexpected-error'),
+    });
+    await database.jobs.update(cancelled.id, { status: 'cancelled' });
+    await database.jobs.update(active.id, { status: 'fetching' });
+    await database.jobs.update(paused.id, { status: 'paused', resumeStatus: 'fetching' });
+    await database.jobs.update(runtimeProtected.id, { status: 'completed' });
+    await database.resources.bulkAdd(
+      [completed, failed, cancelled, active, paused, runtimeProtected].map((job) =>
+        createResource(`resource-${job.id}`, job.id),
+      ),
+    );
+
+    expect(await repository.clearHistoryJobs([runtimeProtected.id])).toEqual(
+      [cancelled.id, completed.id, failed.id].sort(),
+    );
+    expect((await repository.listJobs()).map((job) => job.id).sort()).toEqual(
+      [active.id, paused.id, runtimeProtected.id].sort(),
+    );
+    expect((await database.resources.toArray()).map((resource) => resource.jobId).sort()).toEqual(
+      [active.id, paused.id, runtimeProtected.id].sort(),
+    );
   });
 });

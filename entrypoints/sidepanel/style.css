@@ -420,6 +420,90 @@ h3 {
   font-size: 9px;
 }
 
+.task-history {
+  padding: 16px 0;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.history-heading,
+.history-heading-actions,
+.history-item-heading,
+.history-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-heading,
+.history-item-heading {
+  justify-content: space-between;
+}
+
+.history-heading-actions,
+.history-item-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.history-action {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid #aeb9c8;
+  border-radius: 4px;
+  color: #183b68;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.history-action.danger {
+  border-color: #d6a0a0;
+  color: #a32929;
+}
+
+.history-action:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.history-empty,
+.history-error {
+  margin-top: 12px;
+  color: #60708b;
+  font-size: 10px;
+}
+
+.history-list {
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid #dce2eb;
+  list-style: none;
+}
+
+.history-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.history-item-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+
+.history-list li > p {
+  margin-top: 4px;
+  color: #60708b;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.history-item-actions {
+  margin-top: 8px;
+}
+
 .failure-item p {
   margin-top: 5px;
   overflow-wrap: anywhere;

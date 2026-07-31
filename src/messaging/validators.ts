@@ -28,6 +28,7 @@ import {
 } from '@sitecapsule/discovery';
 import {
   CAPTURE_JOB_COMMANDS,
+  CAPTURE_JOB_HISTORY_LIMIT,
   CAPTURE_RESULT_FAILURE_LIMIT,
   MESSAGE_PROTOCOL_VERSION,
   MESSAGE_TYPES,
@@ -36,6 +37,11 @@ import {
   type CaptureJobControlRequest,
   type CaptureJobCreateRequest,
   type CaptureJobGetRequest,
+  type CaptureJobDeleteRequest,
+  type CaptureJobHistoryClearRequest,
+  type CaptureJobHistoryListRequest,
+  type CaptureJobHistoryResponse,
+  type CaptureJobMutationResponse,
   type CaptureJobResultGetRequest,
   type CaptureJobResultResponse,
   type CaptureJobResponse,
@@ -623,6 +629,95 @@ export function isCaptureJobGetRequest(message: unknown): message is CaptureJobG
   );
 }
 
+export function isCaptureJobHistoryListRequest(
+  message: unknown,
+): message is CaptureJobHistoryListRequest {
+  return (
+    isProtocolMessageEnvelope(message) &&
+    hasMessageType(message, MESSAGE_TYPES.captureJobHistoryList) &&
+    isRecord(message.payload) &&
+    hasExactKeys(message.payload, ['limit']) &&
+    isPositiveSafeInteger(message.payload.limit) &&
+    message.payload.limit <= CAPTURE_JOB_HISTORY_LIMIT
+  );
+}
+
+export function isCaptureJobDeleteRequest(message: unknown): message is CaptureJobDeleteRequest {
+  return (
+    isProtocolMessageEnvelope(message) &&
+    hasMessageType(message, MESSAGE_TYPES.captureJobDelete) &&
+    isRecord(message.payload) &&
+    hasExactKeys(message.payload, ['jobId']) &&
+    isNonEmptyString(message.payload.jobId)
+  );
+}
+
+export function isCaptureJobHistoryClearRequest(
+  message: unknown,
+): message is CaptureJobHistoryClearRequest {
+  return (
+    isProtocolMessageEnvelope(message) &&
+    hasMessageType(message, MESSAGE_TYPES.captureJobHistoryClear) &&
+    isRecord(message.payload) &&
+    hasExactKeys(message.payload, [])
+  );
+}
+
+function isCaptureJobHistoryItem(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [
+      'jobId',
+      'status',
+      'fileName',
+      'updatedAt',
+      'counters',
+      'archiveAvailable',
+    ]) &&
+    isNonEmptyString(value.jobId) &&
+    ['completed', 'failed', 'cancelled'].includes(value.status as string) &&
+    isNonEmptyString(value.fileName) &&
+    isTimestamp(value.updatedAt) &&
+    isJobCounters(value.counters) &&
+    typeof value.archiveAvailable === 'boolean' &&
+    (!value.archiveAvailable || value.status === 'completed')
+  );
+}
+
+export function isCaptureJobHistoryResponse(
+  message: unknown,
+): message is CaptureJobHistoryResponse {
+  if (
+    !isProtocolMessageEnvelope(message) ||
+    !hasMessageType(message, MESSAGE_TYPES.captureJobHistoryResponse) ||
+    !isRecord(message.payload) ||
+    typeof message.payload.ok !== 'boolean'
+  )
+    return false;
+  return message.payload.ok
+    ? hasExactKeys(message.payload, ['ok', 'items']) &&
+        Array.isArray(message.payload.items) &&
+        message.payload.items.length <= CAPTURE_JOB_HISTORY_LIMIT &&
+        message.payload.items.every(isCaptureJobHistoryItem)
+    : hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
+}
+
+export function isCaptureJobMutationResponse(
+  message: unknown,
+): message is CaptureJobMutationResponse {
+  if (
+    !isProtocolMessageEnvelope(message) ||
+    !hasMessageType(message, MESSAGE_TYPES.captureJobMutationResponse) ||
+    !isRecord(message.payload) ||
+    typeof message.payload.ok !== 'boolean'
+  )
+    return false;
+  return message.payload.ok
+    ? hasExactKeys(message.payload, ['ok', 'deletedCount']) &&
+        isNonNegativeSafeInteger(message.payload.deletedCount)
+    : hasExactKeys(message.payload, ['ok', 'error']) && isCaptureError(message.payload.error);
+}
+
 export function isCaptureJobResultGetRequest(
   message: unknown,
 ): message is CaptureJobResultGetRequest {
@@ -735,6 +830,9 @@ export function isSiteCapsuleRequest(message: unknown): message is SiteCapsuleRe
     isCaptureJobCreateRequest(message) ||
     isCaptureJobControlRequest(message) ||
     isCaptureJobGetRequest(message) ||
+    isCaptureJobHistoryListRequest(message) ||
+    isCaptureJobDeleteRequest(message) ||
+    isCaptureJobHistoryClearRequest(message) ||
     isCaptureJobResultGetRequest(message) ||
     isCaptureArchiveChunkGetRequest(message)
   );
@@ -745,6 +843,8 @@ export function isSiteCapsuleResponse(message: unknown): message is SiteCapsuleR
     isPageInfoResponse(message) ||
     isPageArchiveRewriteResponse(message) ||
     isCaptureJobResponse(message) ||
+    isCaptureJobHistoryResponse(message) ||
+    isCaptureJobMutationResponse(message) ||
     isCaptureJobResultResponse(message) ||
     isCaptureArchiveChunkResponse(message)
   );

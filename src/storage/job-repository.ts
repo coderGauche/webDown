@@ -21,6 +21,11 @@ import { database, type SiteCapsuleDatabase } from './database';
 export const RECOVERABLE_JOB_STATUSES = JOB_STATUSES.filter(
   (status) => !(TERMINAL_JOB_STATUSES as readonly JobStatus[]).includes(status),
 );
+export const HISTORY_JOB_STATUSES = [
+  'completed',
+  'failed',
+  'cancelled',
+] as const satisfies readonly JobStatus[];
 
 export type CreateCaptureJobInput = {
   tabId: number;
@@ -150,7 +155,10 @@ export class JobRepository {
             .toArray()
         : await this.db.jobs.toArray();
 
-      jobs.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      jobs.sort(
+        (left, right) =>
+          right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id),
+      );
 
       return options.limit === undefined ? jobs : jobs.slice(0, options.limit);
     });
@@ -235,6 +243,26 @@ export class JobRepository {
 
       return this.deleteJobs(jobIds);
     });
+  }
+
+  async clearHistoryJobs(excludedJobIds: readonly string[] = []): Promise<string[]> {
+    return this.runStorageOperation('job-cleanup', () =>
+      this.db.transaction('rw', this.db.jobs, this.db.resources, async () => {
+        const excluded = new Set(excludedJobIds);
+        const jobs = await this.db.jobs
+          .where('status')
+          .anyOf([...HISTORY_JOB_STATUSES])
+          .toArray();
+        const jobIds = jobs
+          .map((job) => job.id)
+          .filter((jobId) => !excluded.has(jobId))
+          .sort();
+        if (jobIds.length === 0) return [];
+        await this.db.resources.where('jobId').anyOf(jobIds).delete();
+        await this.db.jobs.bulkDelete(jobIds);
+        return jobIds;
+      }),
+    );
   }
 
   async clearAllJobs(): Promise<number> {

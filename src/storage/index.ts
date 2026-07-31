@@ -7,6 +7,7 @@ export {
 } from './database';
 export {
   RECOVERABLE_JOB_STATUSES,
+  HISTORY_JOB_STATUSES,
   JobRepository,
   jobRepository,
   type CaptureJobUpdate,

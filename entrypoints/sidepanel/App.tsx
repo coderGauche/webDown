@@ -13,14 +13,20 @@ import {
   createCaptureJobCreateRequest,
   createCaptureJobControlRequest,
   createCaptureJobGetRequest,
+  createCaptureJobDeleteRequest,
+  createCaptureJobHistoryClearRequest,
+  createCaptureJobHistoryListRequest,
   createCaptureJobResultGetRequest,
   createPageInfoRequest,
   type PageInfo,
   type CaptureJobCommand,
   type CaptureJobResult,
+  type CaptureJobHistoryItem,
 } from '@sitecapsule/messaging/protocol';
 import {
   isCaptureJobResultResponse,
+  isCaptureJobHistoryResponse,
+  isCaptureJobMutationResponse,
   isCaptureJobResponse,
   isCaptureJobUpdatedEvent,
   isPageInfoResponse,
@@ -60,6 +66,7 @@ type CreateStatus = 'idle' | 'creating';
 type ControlStatus = 'idle' | CaptureJobCommand;
 type ResultStatus = 'idle' | 'loading' | 'ready' | 'error';
 type DownloadStatus = 'idle' | 'downloading' | 'started' | 'error';
+type HistoryStatus = 'loading' | 'ready' | 'error';
 
 const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
 const PIPELINE_STAGES = [
@@ -178,6 +185,10 @@ export function App() {
   const [resultError, setResultError] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<CaptureJobHistoryItem[]>([]);
+  const [historyStatus, setHistoryStatus] = useState<HistoryStatus>('loading');
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyMutation, setHistoryMutation] = useState<string | null>(null);
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
@@ -267,8 +278,47 @@ export function App() {
       })
       .catch(() => undefined);
 
+    void refreshHistory();
+
     return () => browser.runtime.onMessage.removeListener(onMessage);
   }, []);
+
+  async function refreshHistory(): Promise<void> {
+    setHistoryStatus('loading');
+    setHistoryError(null);
+    try {
+      const response: unknown = await browser.runtime.sendMessage(
+        createCaptureJobHistoryListRequest(),
+      );
+      if (!isCaptureJobHistoryResponse(response)) {
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'job-list' }),
+        );
+      }
+      if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+      setHistoryItems(response.payload.items);
+      setHistoryStatus('ready');
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'storage-unavailable', {
+        operation: 'job-list',
+      });
+      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+      setHistoryStatus('error');
+    }
+  }
+
+  async function reloadLastCaptureJob(): Promise<void> {
+    const stored = await browser.storage.local.get(LAST_CAPTURE_JOB_STORAGE_KEY);
+    const jobId = stored[LAST_CAPTURE_JOB_STORAGE_KEY];
+    if (typeof jobId !== 'string' || jobId.trim() === '') {
+      setCaptureJob(null);
+      return;
+    }
+    const response: unknown = await browser.runtime.sendMessage(createCaptureJobGetRequest(jobId));
+    setCaptureJob(
+      isCaptureJobResponse(response) && response.payload.ok ? response.payload.job : null,
+    );
+  }
 
   useEffect(() => {
     let disposed = false;
@@ -299,6 +349,7 @@ export function App() {
         if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
         setCaptureResult(response.payload.result);
         setResultStatus('ready');
+        void refreshHistory();
       })
       .catch((requestError: unknown) => {
         if (disposed) return;
@@ -523,6 +574,85 @@ export function App() {
       });
       setDownloadStatus('error');
       setDownloadMessage(`${captureError.message} ${captureError.suggestion}`);
+    }
+  };
+
+  const openHistoryJob = async (jobId: string) => {
+    setHistoryMutation(`open:${jobId}`);
+    setHistoryError(null);
+    try {
+      const response: unknown = await browser.runtime.sendMessage(
+        createCaptureJobGetRequest(jobId),
+      );
+      if (!isCaptureJobResponse(response)) {
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'job-read' }),
+        );
+      }
+      if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+      setCaptureJob(response.payload.job);
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'unexpected-error', {
+        operation: 'job-read',
+      });
+      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+    } finally {
+      setHistoryMutation(null);
+    }
+  };
+
+  const deleteHistoryJob = async (item: CaptureJobHistoryItem) => {
+    if (!window.confirm(`Delete "${item.fileName}" and its saved task data?`)) return;
+    setHistoryMutation(`delete:${item.jobId}`);
+    setHistoryError(null);
+    try {
+      const response: unknown = await browser.runtime.sendMessage(
+        createCaptureJobDeleteRequest(item.jobId),
+      );
+      if (!isCaptureJobMutationResponse(response)) {
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'job-cleanup' }),
+        );
+      }
+      if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+      await Promise.all([refreshHistory(), reloadLastCaptureJob()]);
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'unexpected-error', {
+        operation: 'job-cleanup',
+      });
+      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+    } finally {
+      setHistoryMutation(null);
+    }
+  };
+
+  const clearHistory = async () => {
+    if (
+      !window.confirm(
+        `Delete all ${historyItems.length} saved history tasks? Active tasks are kept.`,
+      )
+    )
+      return;
+    setHistoryMutation('clear');
+    setHistoryError(null);
+    try {
+      const response: unknown = await browser.runtime.sendMessage(
+        createCaptureJobHistoryClearRequest(),
+      );
+      if (!isCaptureJobMutationResponse(response)) {
+        throw new SiteCapsuleError(
+          createCaptureError('protocol-invalid-message', { operation: 'job-cleanup' }),
+        );
+      }
+      if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
+      await Promise.all([refreshHistory(), reloadLastCaptureJob()]);
+    } catch (requestError) {
+      const captureError = toCaptureError(requestError, 'unexpected-error', {
+        operation: 'job-cleanup',
+      });
+      setHistoryError(`${captureError.message} ${captureError.suggestion}`);
+    } finally {
+      setHistoryMutation(null);
     }
   };
 
@@ -996,6 +1126,81 @@ export function App() {
             )}
           </section>
         )}
+
+        <section className="task-history" aria-labelledby="task-history-title">
+          <div className="history-heading">
+            <div>
+              <p className="result-eyebrow">Local tasks</p>
+              <h2 id="task-history-title">Task history</h2>
+            </div>
+            <div className="history-heading-actions">
+              <button
+                type="button"
+                className="history-action"
+                onClick={() => void refreshHistory()}
+                disabled={historyStatus === 'loading' || historyMutation !== null}
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                className="history-action danger"
+                onClick={() => void clearHistory()}
+                disabled={historyItems.length === 0 || historyMutation !== null}
+              >
+                {historyMutation === 'clear' ? 'Clearing...' : 'Clear history'}
+              </button>
+            </div>
+          </div>
+
+          {historyStatus === 'loading' && historyItems.length === 0 && (
+            <p className="history-empty">Loading local history...</p>
+          )}
+          {historyStatus === 'ready' && historyItems.length === 0 && (
+            <p className="history-empty">No completed, failed, or cancelled tasks yet.</p>
+          )}
+          {historyError && (
+            <p className="error-text history-error" role="alert">
+              {historyError}
+            </p>
+          )}
+          {historyItems.length > 0 && (
+            <ul className="history-list">
+              {historyItems.map((item) => (
+                <li key={item.jobId}>
+                  <div className="history-item-heading">
+                    <strong>{item.fileName}</strong>
+                    <span className={`job-state ${item.status}`}>{item.status}</span>
+                  </div>
+                  <p>{new Date(item.updatedAt).toLocaleString()}</p>
+                  <p>
+                    {item.counters.resourcesSaved.toLocaleString()} saved ·{' '}
+                    {item.counters.resourcesFailed.toLocaleString()} failed ·{' '}
+                    {item.archiveAvailable ? 'ZIP available' : 'metadata only'}
+                  </p>
+                  <div className="history-item-actions">
+                    <button
+                      type="button"
+                      className="history-action"
+                      onClick={() => void openHistoryJob(item.jobId)}
+                      disabled={historyMutation !== null}
+                    >
+                      {historyMutation === `open:${item.jobId}` ? 'Opening...' : 'Open'}
+                    </button>
+                    <button
+                      type="button"
+                      className="history-action danger"
+                      onClick={() => void deleteHistoryJob(item)}
+                      disabled={historyMutation !== null}
+                    >
+                      {historyMutation === `delete:${item.jobId}` ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <div className="capture-setting access-setting">
           <span>Current site access</span>

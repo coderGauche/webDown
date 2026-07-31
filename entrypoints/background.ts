@@ -42,6 +42,10 @@ import {
   createCaptureArchiveChunkError,
   createCaptureArchiveChunkResponse,
   createCaptureJobError,
+  createCaptureJobHistoryError,
+  createCaptureJobHistoryResponse,
+  createCaptureJobMutationError,
+  createCaptureJobMutationResponse,
   createCaptureJobResultError,
   createCaptureJobResultResponse,
   createCaptureJobResponse,
@@ -56,6 +60,9 @@ import {
   isCaptureArchiveChunkGetRequest,
   isCaptureJobControlRequest,
   isCaptureJobGetRequest,
+  isCaptureJobDeleteRequest,
+  isCaptureJobHistoryClearRequest,
+  isCaptureJobHistoryListRequest,
   isCaptureJobResultGetRequest,
   isPageArchiveRewriteResponse,
   isPageInfoRequest,
@@ -67,7 +74,7 @@ import {
   runPageCaptureSession,
   type PageCaptureLifecycleEvent,
 } from '@sitecapsule/page';
-import { jobRepository } from '@sitecapsule/storage';
+import { HISTORY_JOB_STATUSES, jobRepository } from '@sitecapsule/storage';
 
 const LAST_CAPTURE_JOB_STORAGE_KEY = 'sitecapsule.lastCaptureJobId';
 const archiveArtifacts = new Map<string, Uint8Array>();
@@ -731,6 +738,49 @@ async function requireCaptureJob(jobId: string): Promise<CaptureJob> {
   throw new SiteCapsuleError(createCaptureError('job-not-found', { operation: 'job-read', jobId }));
 }
 
+async function clearLastJobPointer(deletedJobIds: readonly string[]): Promise<void> {
+  const stored = await browser.storage.local.get(LAST_CAPTURE_JOB_STORAGE_KEY);
+  if (deletedJobIds.includes(stored[LAST_CAPTURE_JOB_STORAGE_KEY] as string)) {
+    await browser.storage.local.remove(LAST_CAPTURE_JOB_STORAGE_KEY);
+  }
+}
+
+function clearRuntimeJobData(jobIds: readonly string[]): void {
+  for (const jobId of jobIds) {
+    archiveArtifacts.delete(jobId);
+    pausedContexts.delete(jobId);
+  }
+}
+
+async function deleteHistoryJob(jobId: string): Promise<number> {
+  const job = await requireCaptureJob(jobId);
+  if (
+    activeExecutions.has(jobId) ||
+    !(HISTORY_JOB_STATUSES as readonly string[]).includes(job.status)
+  ) {
+    throw new SiteCapsuleError(
+      createCaptureError('invalid-job-transition', {
+        operation: 'job-cleanup',
+        jobId,
+        stage: job.status,
+      }),
+    );
+  }
+  const deleted = await jobRepository.deleteJob(jobId);
+  if (deleted) {
+    clearRuntimeJobData([jobId]);
+    await clearLastJobPointer([jobId]);
+  }
+  return deleted ? 1 : 0;
+}
+
+async function clearHistoryJobs(): Promise<number> {
+  const deletedJobIds = await jobRepository.clearHistoryJobs([...activeExecutions.keys()]);
+  clearRuntimeJobData(deletedJobIds);
+  await clearLastJobPointer(deletedJobIds);
+  return deletedJobIds.length;
+}
+
 async function persistCancellation(job: CaptureJob): Promise<CaptureJob> {
   const cancelling = await jobRepository.updateJob(job.id, { status: 'cancelling' });
   if (!cancelling) throw invalidControlTransition(job, 'cancel');
@@ -846,6 +896,59 @@ export default defineBackground(() => {
       } catch (error) {
         return createCaptureJobError(
           toCaptureError(error, 'storage-unavailable', { operation: 'job-read' }),
+          message.correlationId,
+        );
+      }
+    }
+
+    if (isCaptureJobHistoryListRequest(message)) {
+      try {
+        const jobs = await jobRepository.listJobs({
+          statuses: HISTORY_JOB_STATUSES,
+          limit: message.payload.limit,
+        });
+        return createCaptureJobHistoryResponse(
+          jobs.map((job) => ({
+            jobId: job.id,
+            status: job.status as 'completed' | 'failed' | 'cancelled',
+            fileName: job.settings.archiveFileName,
+            updatedAt: job.updatedAt,
+            counters: job.counters,
+            archiveAvailable: job.status === 'completed' && archiveArtifacts.has(job.id),
+          })),
+          message.correlationId,
+        );
+      } catch (error) {
+        return createCaptureJobHistoryError(
+          toCaptureError(error, 'storage-unavailable', { operation: 'job-list' }),
+          message.correlationId,
+        );
+      }
+    }
+
+    if (isCaptureJobDeleteRequest(message)) {
+      try {
+        return createCaptureJobMutationResponse(
+          await deleteHistoryJob(message.payload.jobId),
+          message.correlationId,
+        );
+      } catch (error) {
+        return createCaptureJobMutationError(
+          toCaptureError(error, 'unexpected-error', {
+            operation: 'job-cleanup',
+            jobId: message.payload.jobId,
+          }),
+          message.correlationId,
+        );
+      }
+    }
+
+    if (isCaptureJobHistoryClearRequest(message)) {
+      try {
+        return createCaptureJobMutationResponse(await clearHistoryJobs(), message.correlationId);
+      } catch (error) {
+        return createCaptureJobMutationError(
+          toCaptureError(error, 'storage-unavailable', { operation: 'job-cleanup' }),
           message.correlationId,
         );
       }

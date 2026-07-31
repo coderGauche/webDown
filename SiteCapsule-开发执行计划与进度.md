@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M8 Side Panel 完整工作流
-> 当前状态：M8-T5 已完成并通过验收
-> 下一任务：M8-T6 实现任务历史和本地清理
+> 当前状态：M8-T6 已完成并通过验收
+> 下一任务：M8-T7 实现中英文文案
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -342,7 +342,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M8-T3** 实现准备、发现、下载、改写、打包进度；
 - [x] **M8-T4** 实现暂停、继续、取消和重试；
 - [x] **M8-T5** 实现结果页和失败详情；
-- [ ] **M8-T6** 实现任务历史和本地清理；
+- [x] **M8-T6** 实现任务历史和本地清理；
 - [ ] **M8-T7** 实现中英文文案；
 - [ ] **M8-T8** 实现键盘操作、焦点和基础无障碍；
 - [ ] **M8-T9** 验证窄 Side Panel 下无文字溢出。
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M8 Side Panel 完整工作流 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M8-T5 实现结果页和失败详情 |
-| 下一任务 | M8-T6 实现任务历史和本地清理 |
+| 最近完成 | M8-T6 实现任务历史和本地清理 |
+| 下一任务 | M8-T7 实现中英文文案 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -548,6 +548,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-29 | M8-T3 | 完成 | 新增 `src/jobs/capture-pipeline.ts` 及导出，以可注入阶段处理器将持久化 `CaptureJob` 严格推进 `preparing → discovering → fetching → rewriting → packaging → completed`，每次状态/计数写入后发布真实事件，不使用前端计时器；阶段异常先转换为结构化错误并尽力持久化 `failed`；Background 接入 `capture-job/create|get`，创建任务后记录最近任务 ID，重新捕获已渲染页面、从资源图生成并持久化资源记录，按用户媒体/脚本/第三方设置筛选，复用 M5 权限、安全策略、并发、重试、响应元数据和流式体积限制执行真实下载，非关键资源失败继续主任务；已保存资源复用 M6 确定性路径和 CSSTree 改写，消息协议升级 v17，新增严格校验的 `page-archive/rewrite|rewrite-response`，由 DOM-capable Content 使用既有 DOMParser 改写器处理 HTML；Background 以改写 HTML 和资源字节生成真实 ZIP，但本任务仅在当前 Service Worker 会话保留产物，不提前实现 M8-T5 下载/结果页或 M10 持久化；Side Panel 新增 Create archive、五阶段状态列表和资源/失败/跳过/字节计数，仅投影持久化任务与版本事件，重开后通过最近任务 ID 和 `capture-job/get` 恢复；仓储新增任务资源原子替换/查询；新增流水线测试并扩展协议、校验和仓储测试，23 项定向测试及用户 Chrome 验收通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（55 个文件、572 项测试）、`pnpm build`（MV3 总计 1.25 MB）与 `git diff --check` 全部通过 |
 | 2026-07-31 | M8-T4 | 完成 | 扩展捕获流水线阶段上下文和 M5 队列中断接口，将同一 `AbortSignal` 贯穿发现、下载与改写阶段，并在每个阶段前后统一检查 pause/cancel；暂停从真实活动执行中止当前轮次，持久化 `paused + resumeStatus`，保留已完成资源、未开始资源、计数、映射和内存字节上下文，继续时只从原阶段重新排队而不重复累计已完成结果；取消固定经过 `cancelling → cancelled` 并清理会话归档；失败任务只允许 `failed → retrying → preparing`，清空旧计数和会话产物后重新捕获；Background 按任务维护独立 `AbortController`、活动 Promise 和暂停上下文，复用 v17 `capture-job/control` 严格校验并返回结构化非法转换错误；Side Panel 只按持久化任务状态显示 Pause/Resume/Cancel/Retry，等待真实状态事件更新，不乐观修改阶段，暂停阶段和 retrying 的进度标记可见；新增暂停恢复、取消、重试和中断原因测试，用户在 Chrome 中完成操作验收；当前限制是恢复所需资源字节仍仅保存在 Service Worker 会话内存，后台被回收后的跨会话完整恢复留给 M10 持久化；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（55 个文件、575 项测试）、`pnpm build`（MV3 总计 1.26 MB）与 `git diff --check` 全部通过 |
 | 2026-07-31 | M8-T5 | 完成 | `CaptureJob` 新增仅在 failed 状态保留的结构化任务错误，流水线失败时将已归一化错误与状态原子持久化，重试进入非失败状态时物理清除旧错误；新增纯 `buildCaptureJobResult`，只接受 completed/failed/cancelled 终态任务、同任务资源记录和可选会话 ZIP，输出文件名、真实 ZIP 字节数、资源计数、任务错误及最多 100 条资源失败，HTTP/HTTPS URL 脱敏常见敏感 query/fragment，data/Blob/其他协议隐藏正文，错误上下文剔除内部 job/resource ID、诊断 URL和不稳定浏览器正文；消息协议升级 v18，增加严格校验的终态结果查询及 ZIP 分块读取，Background 从 IndexedDB 任务/资源和会话产物 Map 生成结果，只有 completed 且 ZIP 仍存在时才允许读取，以 192 KiB 原始字节块编码规范 Base64，偏移、总长、结束标记不一致均拒绝；Side Panel 新增 Archive ready/failed/cancelled 结果区，展示真实 ZIP 大小、saved/failed/skipped、任务建议和可展开失败资源；用户点击后按严格偏移组装 ZIP，并在具备 Blob URL 的 Side Panel 文档上下文调用 M7 `exportArchiveWithChromeDownloads`，仅 Downloads API 返回有效 ID 后显示启动成功；扩展重载导致会话 ZIP 丢失时保留完成元数据但明确显示 Unavailable 并禁用下载；新增结果脱敏、失败上限、Base64/多块组装/篡改拒绝、协议和错误持久化测试，用户 Chrome 验收通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（57 个文件、585 项测试）、`pnpm build`（MV3 总计 1.27 MB）与 `git diff --check` 全部通过 |
+| 2026-07-31 | M8-T6 | 完成 | 消息协议升级 v19，新增严格校验且固定最多 20 条的历史查询、单任务删除、批量清理及删除结果消息；历史响应使用独立轻量 DTO，只包含任务 ID、ZIP 文件名、completed/failed/cancelled 状态、更新时间、计数及当前会话 ZIP 可用性，不复制完整任务设置、起始 URL、DOM、资源正文或 ZIP；仓储列表按 `updatedAt desc + id asc` 确定性排序，新增单事务历史清理，在同一 IndexedDB 事务中删除任务与所属资源，并支持排除 Background 正在执行的任务 ID；Background 单删再次拒绝活动、暂停及其他非历史状态，成功后同步清理会话 ZIP、暂停上下文和最近任务指针；Side Panel 新增确定空状态的 Task history，支持刷新、打开历史结果、单删及清空，所有删除均显示明确确认，成功后重新查询历史和最近任务真实存储状态，不做乐观删除；新增历史协议元数据边界、额外字段拒绝、失败任务 ZIP 拒绝、批量清理包含 failed 且保留 active/paused/运行时保护任务的测试，用户 Chrome 验收通过；`pnpm lint`、`pnpm format:check`、`pnpm exec tsc --noEmit`、`pnpm test`（58 个文件、589 项测试）、`pnpm build`（MV3 总计 1.28 MB）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -635,6 +636,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-066 | 2026-07-29 | 可见捕获进度只由持久化任务状态/计数和 v17 事件驱动；DOM 改写在 Content 执行，下载与 ZIP 装配由 Background 编排 | 前端定时器无法反映真实失败或面板重开状态；MV3 Service Worker 不提供 DOMParser，将 HTML 改写强行放入 Background 会在运行时失败；立即接入下载按钮又会越过结果页和产物生命周期设计 | 通用流水线在每个真实阶段前后原子更新任务并发布事件，Side Panel 重开按本地最近任务 ID 查询；Content 只接收严格校验的快照/映射并返回改写结果，Background 持有资源字节并完成 ZIP；当前 ZIP 仅为会话级产物，M8-T5 再设计结果/导出，M10 处理跨 Service Worker 生命周期持久化 |
 | D-067 | 2026-07-31 | 任务控制使用每任务独立 AbortController 和持久化状态机，暂停通过保留运行上下文后从原阶段重排未完成资源 | 仅切换 UI 会让下载继续产生副作用；AbortController 本身不可恢复，直接重跑整个任务又会重复下载和重复计数；取消与普通失败混用会破坏结果语义 | pause/cancel 中止当前执行并由流水线落库为 paused 或 cancelling/cancelled；resume 只接受 paused 且必须具备对应会话上下文，retry 只接受 failed 并从 retrying 回到 preparing；已完成资源和绝对计数在恢复时保留，aborted/not-started 继续保持 queued；资源字节与改写上下文尚未持久化，因此 MV3 后台回收后的完整恢复明确留给 M10 |
 | D-068 | 2026-07-31 | 终态结果由持久化任务/资源和会话 ZIP 联合生成，ZIP 通过固定小块消息拉取后在 Side Panel 文档上下文调用 M7 下载边界 | 只看 completed 会把后台回收后的丢失产物伪装成可下载；Background 无 Blob URL，整包 Base64 消息又会造成高峰内存和消息尺寸风险；直接展示通用错误上下文可能泄露内部 ID 或敏感 URL | 结果 DTO 明确区分任务完成与 archiveAvailable，任务错误持久化而资源失败从 IndexedDB 投影；结果错误剔除内部标识且 URL 使用既有清单脱敏规则；ZIP 每块 192 KiB、按 jobId/offset/total/done 严格连续校验，Side Panel 重组后使用 Blob/Downloads 并只报告下载已启动；ZIP 本身仍是 Service Worker 会话产物，跨生命周期持久化留给 M10 |
+| D-069 | 2026-07-31 | 历史界面只消费有数量上限的轻量任务元数据，历史删除由 Background 校验状态并通过仓储事务执行，UI 成功后重新查询 | 将完整 CaptureJob 或资源传给历史列表会扩大敏感数据暴露与面板内存；前端直接删 IndexedDB 会绕过活动执行和会话产物；乐观删除可能在事务失败后显示错误状态 | 历史固定只列 completed/failed/cancelled，按真实更新时间和 ID 稳定排序；单删和清空同时删除任务/资源并清理 ZIP、暂停上下文和最近指针，批量清理显式排除活动执行 ID；用户必须确认，Side Panel 仅以删除响应后的真实重查结果更新列表；历史 ZIP 仍是会话级可用性提示而非持久化副本 |
 
 ---
 
@@ -655,11 +657,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M8-T6：实现任务历史和本地清理**。
+下一步严格只执行 **M8-T7：实现中英文文案**。
 
-M8-T6 完成后必须：
+M8-T7 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 历史列表只展示持久化任务元数据和真实终态/更新时间，不复制 DOM、资源正文或会话 ZIP；排序、数量上限和空状态必须确定；
-3. 单任务删除和批量清理必须通过仓储事务同时删除任务与所属资源，并同步清理 Background 会话产物、暂停上下文和最近任务指针；活动任务不得被历史清理误删；
-4. 所有删除动作必须有明确目标和用户确认，完成后重新查询真实存储状态，不乐观伪造；不提前实现 M8-T7 双语、M8-T8 无障碍专项或站点爬取模式。
+2. Side Panel 所有面向用户的固定文案必须从类型安全的中英文文案目录读取，不在 JSX 中继续散落新增硬编码；动态状态、错误建议、确认提示和数量文案必须随当前语言一致切换；
+3. 默认语言依据浏览器语言确定并允许用户显式切换，选择持久化后重开 Side Panel 保持一致；机器协议、状态码、清单字段和 ZIP 内既有格式不得因界面语言变化；
+4. 两种语言必须有键集合一致性和回退测试，并由用户在 Chrome 中分别验证核心创建、控制、结果、历史和删除流程；不提前实现 M8-T8 无障碍专项、M8-T9 窄屏专项或站点爬取模式。
