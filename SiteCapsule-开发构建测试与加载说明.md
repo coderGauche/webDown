@@ -89,6 +89,18 @@ pnpm test:e2e
 
 失败时检查 `test-results/playwright/` 中保留的 trace、截图和视频；CI 还会生成 `playwright-report/`。离线用例会附加 `offline-request-audit` JSON，记录 offline 状态下的全部页面请求，并拒绝任何 HTTP、HTTPS、WS 或 WSS 请求。Service Worker 用例会附加 `service-worker-restart-audit` JSON，记录 Worker 停止和重新唤醒的生命周期证据，并对比重启前后的 IndexedDB 快照。ZIP 字节仅保存在 Worker 内存中，重启后历史元数据仍可查看，但原 ZIP 会正确显示为不可下载，需要重新执行归档才能生成新文件。
 
+### 4.2 大任务体积与流式内存边界
+
+单独运行 M9-T6 确定性压力测试：
+
+```bash
+pnpm exec vitest run tests/large-task-limits.integration.test.ts
+```
+
+用例使用懒生成的 64 KiB 分块，同时覆盖单文件上限、任务总体积上限、低报 `Content-Length`、并发预算租约、失败回滚和真实 ZIP 解压总量。运行后生成 `test-results/vitest/large-task-limit-audit.json`，记录预算快照、失败分类、活动 chunk 峰值、保留正文字节及 ZIP 解压字节。
+
+`maxTotalSizeBytes` 限制的是下载资源正文总量，ZIP 头、目录和压缩容器开销不属于资源预算，因此 ZIP 文件本身可能略大于该上限。审计中的 `active-chunk-bytes` 是可重复的流式读取峰值指标，不代表 Node 或 Chrome 整进程 RSS；JS 引擎、ZIP 编码和扩展其他上下文的进程级内存需要单独的浏览器性能基线才能评估。
+
 ## 5. 生产构建和 ZIP
 
 生成未打包扩展：
