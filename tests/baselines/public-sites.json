@@ -1,0 +1,546 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "m10-public-sites-v1",
+  "purpose": "M10-T1 public-page capture baseline; execution results belong to M10-T2 and later tasks.",
+  "minimumCases": 20,
+  "availabilityPolicy": {
+    "checkedAt": "2026-08-01",
+    "statusMeaning": "Availability is point-in-time external evidence, not a SiteCapsule regression result.",
+    "allowedStatuses": ["reachable", "externally-unavailable"]
+  },
+  "cases": [
+    {
+      "id": "minimal-example-domain",
+      "owner": "IANA",
+      "url": "https://example.com/",
+      "finalUrl": "https://example.com/",
+      "pageType": "minimal-static",
+      "runtimeProfile": "server-html",
+      "keyResources": ["html", "inline-css", "link"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "heading and explanatory copy remain visible",
+          "the archive opens without network access"
+        ]
+      },
+      "knownLimitations": ["IANA documents that the example-domain HTTP service is best effort"],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "iana-example-domains",
+      "owner": "IANA",
+      "url": "https://www.iana.org/help/example-domains",
+      "finalUrl": "https://www.iana.org/help/example-domains",
+      "pageType": "minimal-static",
+      "runtimeProfile": "server-html",
+      "keyResources": ["html", "css", "images", "links"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": ["article and navigation remain readable", "same-page styling is retained"]
+      },
+      "knownLimitations": ["outbound links remain references and are not recursively archived"],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "mdn-html-reference",
+      "owner": "Mozilla",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTML",
+      "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/HTML",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "hydrated-document",
+      "keyResources": ["html", "css", "scripts", "images", "fonts", "svg"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "article, headings, and code examples remain readable",
+          "local images and styles resolve"
+        ]
+      },
+      "knownLimitations": [
+        "search, account, feedback, and other server-backed controls may not work offline"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "w3c-wcag-22",
+      "owner": "W3C",
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "finalUrl": "https://www.w3.org/TR/WCAG22/",
+      "pageType": "standards-document",
+      "runtimeProfile": "long-server-document",
+      "keyResources": ["html", "css", "svg", "fragment-links"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "the full specification remains readable",
+          "in-document fragment navigation remains usable"
+        ]
+      },
+      "knownLimitations": ["external references are not recursively archived"],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "w3c-css-home",
+      "owner": "W3C",
+      "url": "https://www.w3.org/Style/CSS/",
+      "finalUrl": "https://www.w3.org/Style/CSS/",
+      "pageType": "standards-document",
+      "runtimeProfile": "server-html",
+      "keyResources": ["html", "css", "images", "links"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "primary content and navigation remain readable",
+          "CSS presentation remains available offline"
+        ]
+      },
+      "knownLimitations": ["linked specifications are outside the current-page capture boundary"],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "typescript-docs",
+      "owner": "Microsoft",
+      "url": "https://www.typescriptlang.org/docs/",
+      "finalUrl": "https://www.typescriptlang.org/docs/",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "hydrated-document",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": ["documentation index remains readable", "local visual resources resolve"]
+      },
+      "knownLimitations": [
+        "site search and playground-like server features may require network access"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "vite-guide",
+      "owner": "Vite project",
+      "url": "https://vite.dev/guide/",
+      "finalUrl": "https://vite.dev/guide/",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "hydrated-document",
+      "keyResources": ["html", "css", "scripts", "svg", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "guide text and code blocks remain readable",
+          "theme and navigation layout remain recognizable"
+        ]
+      },
+      "knownLimitations": [
+        "client-side search and cross-page navigation are not guaranteed offline"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "react-learn",
+      "owner": "React project",
+      "url": "https://react.dev/learn",
+      "finalUrl": "https://react.dev/learn",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "react-hydrated-document",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "lesson content and examples remain readable",
+          "rendered document structure survives serialization"
+        ]
+      },
+      "knownLimitations": [
+        "interactive sandboxes and cross-route navigation may require online services"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "vue-introduction",
+      "owner": "Vue project",
+      "url": "https://vuejs.org/guide/introduction.html",
+      "finalUrl": "https://vuejs.org/guide/introduction.html",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "vue-hydrated-document",
+      "keyResources": ["html", "css", "scripts", "svg", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "guide content and code blocks remain readable",
+          "rendered navigation and styling are preserved"
+        ]
+      },
+      "knownLimitations": [
+        "search, playgrounds, and cross-page client routing may require network access"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "nextjs-docs",
+      "owner": "Vercel",
+      "url": "https://nextjs.org/docs",
+      "finalUrl": "https://nextjs.org/docs",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "next-hydrated-document",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "server-rendered documentation remains readable",
+          "hydrated page resources are localized where supported"
+        ]
+      },
+      "knownLimitations": [
+        "streaming, route transitions, search, and server actions are not offline guarantees"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "python-home",
+      "owner": "Python Software Foundation",
+      "url": "https://www.python.org/",
+      "finalUrl": "https://www.python.org/",
+      "pageType": "project-homepage",
+      "runtimeProfile": "server-html-with-scripts",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "hero, navigation, and news sections remain visible",
+          "images and styling resolve locally"
+        ]
+      },
+      "knownLimitations": [
+        "search, downloads, and linked documentation remain online destinations"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "rust-home",
+      "owner": "Rust project",
+      "url": "https://www.rust-lang.org/",
+      "finalUrl": "https://rust-lang.org/",
+      "pageType": "project-homepage",
+      "runtimeProfile": "redirected-server-html",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "redirect final URL is recorded",
+          "homepage content and presentation remain visible"
+        ]
+      },
+      "knownLimitations": ["downloads and linked books are outside the current-page archive"],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "go-documentation",
+      "owner": "Go project",
+      "url": "https://go.dev/doc/",
+      "finalUrl": "https://go.dev/doc/",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "server-html-with-scripts",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": ["documentation index remains readable", "local styles and icons resolve"]
+      },
+      "knownLimitations": [
+        "package search, playgrounds, and linked documents may need network access"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "git-reference",
+      "owner": "Git project",
+      "url": "https://git-scm.com/docs",
+      "finalUrl": "https://git-scm.com/docs",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "server-html-with-scripts",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "reference categories remain readable",
+          "page presentation remains recognizable"
+        ]
+      },
+      "knownLimitations": [
+        "search and individual linked manual pages are not recursively captured"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "npm-docs",
+      "owner": "npm",
+      "url": "https://docs.npmjs.com/",
+      "finalUrl": "https://docs.npmjs.com/",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "hydrated-document",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "documentation landing content remains readable",
+          "captured fonts and styles use local paths"
+        ]
+      },
+      "knownLimitations": [
+        "search, account controls, and linked package pages may require network access"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "wikipedia-web-archiving",
+      "owner": "Wikimedia Foundation",
+      "url": "https://en.wikipedia.org/wiki/Web_archiving",
+      "finalUrl": "https://en.wikipedia.org/wiki/Web_archiving",
+      "pageType": "encyclopedic-article",
+      "runtimeProfile": "long-server-document",
+      "keyResources": ["html", "css", "scripts", "images", "srcset", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "article body, references, and inline images remain readable",
+          "responsive image references are rewritten locally"
+        ]
+      },
+      "knownLimitations": [
+        "citation targets, language editions, and edit controls remain online links"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "wikimedia-commons-main",
+      "owner": "Wikimedia Foundation",
+      "url": "https://commons.wikimedia.org/wiki/Main_Page",
+      "finalUrl": "https://commons.wikimedia.org/wiki/Main_Page",
+      "pageType": "media-catalog",
+      "runtimeProfile": "image-heavy-document",
+      "keyResources": ["html", "css", "scripts", "images", "srcset", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "main catalog sections remain visible",
+          "captured thumbnail resources resolve locally"
+        ]
+      },
+      "knownLimitations": [
+        "full-resolution media behind links and search results are outside current-page scope"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "nasa-home",
+      "owner": "NASA",
+      "url": "https://www.nasa.gov/",
+      "finalUrl": "https://www.nasa.gov/",
+      "pageType": "public-institution",
+      "runtimeProfile": "media-rich-hydrated-homepage",
+      "keyResources": ["html", "css", "scripts", "images", "srcset", "fonts", "iframe"],
+      "captureExpectation": {
+        "outcome": "documented-degradation-allowed",
+        "assertions": [
+          "primary navigation and featured content remain visible",
+          "captured hero imagery resolves locally"
+        ]
+      },
+      "knownLimitations": [
+        "third-party iframe, live media, search, and frequently changing news content may degrade offline"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "library-of-congress-home",
+      "owner": "Library of Congress",
+      "url": "https://www.loc.gov/",
+      "finalUrl": "https://www.loc.gov/",
+      "pageType": "public-institution",
+      "runtimeProfile": "media-rich-server-homepage",
+      "keyResources": ["html", "css", "scripts", "images", "srcset", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "homepage sections and collection imagery remain visible",
+          "captured responsive assets resolve locally"
+        ]
+      },
+      "knownLimitations": [
+        "catalog search, collection viewers, and linked records require online services"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "smithsonian-home",
+      "owner": "Smithsonian Institution",
+      "url": "https://www.si.edu/",
+      "finalUrl": "https://www.si.edu/",
+      "pageType": "public-institution",
+      "runtimeProfile": "media-rich-hydrated-homepage",
+      "keyResources": ["html", "css", "scripts", "images", "srcset", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "homepage features and navigation remain visible",
+          "captured image variants resolve locally"
+        ]
+      },
+      "knownLimitations": [
+        "search, ticketing, collection interactions, and rotating content may require network access"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "govuk-home",
+      "owner": "UK Government Digital Service",
+      "url": "https://www.gov.uk/",
+      "finalUrl": "https://www.gov.uk/",
+      "pageType": "public-institution",
+      "runtimeProfile": "server-html-with-scripts",
+      "keyResources": ["html", "css", "scripts", "svg", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "service categories and navigation remain readable",
+          "core layout remains usable without scripts"
+        ]
+      },
+      "knownLimitations": [
+        "search, service transactions, and linked guidance remain online destinations"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "who-home",
+      "owner": "World Health Organization",
+      "url": "https://www.who.int/",
+      "finalUrl": "https://www.who.int/",
+      "pageType": "public-institution",
+      "runtimeProfile": "media-rich-hydrated-homepage",
+      "keyResources": ["html", "css", "scripts", "images", "srcset", "fonts"],
+      "captureExpectation": {
+        "outcome": "documented-degradation-allowed",
+        "assertions": [
+          "primary public-health content and navigation remain visible",
+          "captured imagery and styles resolve locally"
+        ]
+      },
+      "knownLimitations": [
+        "personalization, search, data widgets, consent tooling, and live updates may require network access"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    },
+    {
+      "id": "threejs-manual-fundamentals",
+      "owner": "three.js project",
+      "url": "https://threejs.org/manual/#en/fundamentals",
+      "finalUrl": "https://threejs.org/manual/#en/fundamentals",
+      "pageType": "interactive-webgl",
+      "runtimeProfile": "hash-routed-iframe-webgl",
+      "keyResources": ["html", "css", "scripts", "images", "iframe", "canvas", "webgl"],
+      "captureExpectation": {
+        "outcome": "documented-degradation-allowed",
+        "assertions": [
+          "manual shell and available article text remain visible",
+          "unavailable interactive regions are reported instead of failing the job"
+        ]
+      },
+      "knownLimitations": [
+        "iframe content, WebGL runtime state, generated canvas pixels, and hash-routed examples may not replay offline"
+      ],
+      "availability": {
+        "status": "reachable",
+        "checkedAt": "2026-08-01",
+        "method": "public-page render check"
+      }
+    }
+  ]
+}
