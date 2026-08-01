@@ -3,9 +3,9 @@
 > 文档类型：Implementation Plan + Progress Tracker  
 > 版本：v0.1  
 > 建立日期：2026-07-22  
-> 当前阶段：M9 稳定性、安全与自动化测试
-> 当前状态：M9-T9 已完成并通过自动化验收
-> 下一任务：M9-T10 形成回归测试命令和报告模板
+> 当前阶段：M10 MVP 综合验收与发布包
+> 当前状态：M9 全部完成并通过自动化验收
+> 下一任务：M10-T1 建立不少于 20 个公开测试案例的基线
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -124,7 +124,7 @@
 | M6 | 路径映射与内容改写 | 4-6 工程日 | 已完成 |
 | M7 | ZIP、清单与归档报告 | 3-4 工程日 | 已完成 |
 | M8 | Side Panel 完整工作流 | 4-6 工程日 | 已完成 |
-| M9 | 稳定性、安全与自动化测试 | 5-7 工程日 | 进行中 |
+| M9 | 稳定性、安全与自动化测试 | 5-7 工程日 | 已完成 |
 | M10 | MVP 综合验收与发布包 | 3-5 工程日 | 待开始 |
 
 MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓冲。
@@ -370,7 +370,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M9-T7** 审计页面消息和 URL 安全策略；
 - [x] **M9-T8** 验证敏感表单值不会归档；
 - [x] **M9-T9** 扫描 Chrome Web Store 远程代码和权限风险；
-- [ ] **M9-T10** 形成回归测试命令和报告模板。
+- [x] **M9-T10** 形成回归测试命令和报告模板。
 
 验收门禁：
 
@@ -462,10 +462,10 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 | 项目 | 当前值 |
 |---|---|
-| 当前里程碑 | M9 稳定性、安全与自动化测试 |
+| 当前里程碑 | M10 MVP 综合验收与发布包 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M9-T9 扫描 Chrome Web Store 远程代码和权限风险 |
-| 下一任务 | M9-T10 形成回归测试命令和报告模板 |
+| 最近完成 | M9-T10 形成回归测试命令和报告模板；M9 全部完成 |
+| 下一任务 | M10-T1 建立不少于 20 个公开测试案例的基线 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -561,6 +561,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-01 | M9-T7 | 完成 | 新增 `src/messaging/runtime-policy.ts`，将 11 种请求消息按 Side Panel→Background 与 Background→Content 两条通道建立互斥白名单，并在两个真实 listener 入口同时校验严格 v19 信封和 sender；Side Panel 来源要求本扩展 ID、`chrome-extension:` 协议及精确 `/sidepanel.html` 路径，允许扩展文档作为标签页存在；Content 来源要求本扩展 Background，拒绝网页 tab sender，兼容 MV3 Service Worker 发送消息时省略 URL；新增 `tests/runtime-security-audit.test.ts` 系统覆盖外部扩展 ID、HTTPS 页面伪装、错误路径/query/hash、未知类型、错误版本和额外字段；复用 M5 安全策略审计 javascript/data/blob/file、URL 凭据、loopback/private/local/single-label 地址及公开 URL 重定向到 loopback，证明在读取正文前终止；生成 `test-results/vitest/runtime-security-audit.json`，开发说明记录命令和 MV3 sender 边界；定向测试 3 项、真实扩展 `pnpm test:e2e` 3 项通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（64 个文件、608 项测试）与 `git diff --check` 全部通过 |
 | 2026-08-01 | M9-T8 | 完成 | 新增专用敏感表单 fixture，覆盖密码、隐藏 CSRF Token、普通邮箱/文本、checkbox、select、output、button、敏感 meta 和自定义属性，同时区分初始 HTML attribute 与页面加载后写入的 live property；新增 happy-dom 单元边界，确认深克隆序列化同时清除静态/运行时值且不修改实时页面，并保留 form、label、name、placeholder、option 定义和按钮文字；Playwright 新增真实扩展归档用例，下载并解压 ZIP 后扫描全部条目的 14 个唯一敏感标记，泄漏为 0，字段结构保留且 checked/selected 状态消失；生成不含样本正文的 `sensitive-form-audit.json`，明确不将脚本源码、浏览器存储或关闭 Shadow Root 纳入当前结论；`pnpm test:e2e` 4 项通过，定向测试 17 项通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（65 个文件、609 项测试）与 `git diff --check` 全部通过 |
 | 2026-08-01 | M9-T9 | 完成 | 新增零依赖 `scripts/audit-chrome-web-store.mjs` 和 `pnpm audit:store`，递归读取生产扩展包并输出每个文件的长度/SHA-256，审计 Manifest V3、所需/可选权限、安装期 host 权限、externally_connectable、sandbox、CSP，以及 HTML/JS 中的远程 script、动态 import/importScripts、eval、Function、字符串 timer、动态 script 和 WebAssembly 入口；阻断项返回非零退出，需解释项独立保留为 review；新增安全/恶意包测试，恶意 fixture 同时命中 debugger、全站安装权限、外部连接、远程 CSP/script 和四类字符串执行并正确失败；真实生产包 13 个文件约 1.30 MB，0 errors、3 review、1 info，review 为按精确 host 请求的宽可选能力上限、离线 HTML Service Worker guard 和打包 React DOM 动态 script 分支，均无远程 URL但继续要求发布前人工说明；报告写入 `test-results/audits/chrome-web-store-risk.json`，规则对齐 Chrome 官方 MV3 远程代码、最小权限和 CSP 文档，明确扫描通过不代表商店审批；定向测试 2 项、`pnpm audit:store`、`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（66 个文件、611 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过 |
+| 2026-08-01 | M9-T10 | 完成 | 新增跨平台 Node runner `scripts/run-regression.mjs` 和单条 `pnpm test:regression`，顺序执行格式、lint、类型、Vitest、生产构建、商店扫描和真实 Chromium E2E；首个验证失败即停止并将余项标为 skipped，但 E2E 一旦开始就始终恢复普通生产构建并再次运行商店扫描，避免测试 host 权限残留；每步独立保存日志并生成 schema v1 JSON 与 Markdown 报告，包含 commit/branch/dirty、命令、phase、状态、exit code、耗时、首错及证据路径，`latest` 文件固定指向最近运行；新增成功/受控失败 fixture plan 测试，确认失败返回 1、报告仍落盘且第三步 skipped；新增 `docs/testing/regression-report-template.md`，覆盖自动证据、商店 review、隐私、干净 profile、使用流程和发布决定；最终 `pnpm test:regression` 九步一次通过：67 个测试文件/613 项测试、Playwright 4/4、生产包恢复 1.30 MB、最终商店扫描 0 errors/3 review；报告为 `test-results/regression/2026-08-01T152959-029Z/report.{json,md}`；`git diff --check` 通过，M9 十项全部完成 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -661,6 +662,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-079 | 2026-08-01 | 运行时 listener 在严格消息信封之外再按目标上下文校验 sender，Side Panel 与 Background 使用不同来源策略 | 同一扩展中的 Content Script 所在网页仍属于不可信输入边界，仅验证 type/payload 不能阻止网页或错误扩展上下文调用高权限 Background；但以 `sender.tab` 一刀切会误拒绝标签页中的扩展文档，要求 Service Worker 必须带 URL 也不符合 MV3 实际行为 | Side Panel→Background 必须匹配本扩展 ID 和精确扩展文档路径，可携带 tab；Background→Content 必须匹配本扩展 ID，URL 存在时只接受精确 Background 路径且不得携带网页 tab，URL 省略时只接受无 tab 的 Service Worker sender；未知类型、错误版本和额外字段继续由协议校验拒绝 |
 | D-080 | 2026-08-01 | 敏感表单验收必须同时扫描深克隆序列化结果和真实下载 ZIP 的全部条目，报告不复述测试敏感值 | 只测清理函数无法证明改写、打包或下载链路没有重新引入数据；只检查 `index.html` 又会漏掉清单或其他条目；把测试 Token 原文写入报告会制造新的泄漏样本 | fixture 分离静态 attribute 与 live property，使用唯一标记覆盖标准值、选择状态、meta 和自定义属性；ZIP 解压后逐条目扫描，报告只保存类别、数量和泄漏路径；表单结构/选项定义继续保留，页面脚本源码、浏览器存储和不可访问 DOM 明确不在本任务结论内 |
 | D-081 | 2026-08-01 | 商店风险扫描对生产包实施阻断错误与人工 review 双层结果，不将字符串 URL 或宽可选能力直接等同于远程代码/已授权全站访问 | 网页归档器必须处理任意 HTTP/HTTPS 数据，单纯扫描 URL 字符串会产生大量误报；可选 host 能力上限与安装期 host 权限的用户影响不同；动态 script/WebAssembly 等执行入口又不能因当前无远程字面量而完全忽略 | 未审查 API 权限、安装期 host、外部连接、不安全/远程 CSP、远程 script/import 和字符串执行均阻断；宽 optional host、动态 script、WASM 和 sandbox 进入 review；报告保留包内文件 SHA-256 和官方规则链接，当前解释不能替代发布时隐私披露或 Chrome 人工审核 |
+| D-082 | 2026-08-01 | 完整回归由 Node 顺序调度并将生产包恢复作为 E2E 后的强制 cleanup，机器报告与人工发布模板分离 | shell 串联在首错、跨平台退出码和报告落盘上不稳定；E2E 构建会加入仅测试 host，成功后直接结束会让开发者误拿测试包发布；自动测试也不能替代人工隐私、商店 review 和干净 profile 验收 | `pnpm test:regression` 记录每步日志并首错停止，E2E 已开始时不论结果均执行普通构建与复扫；JSON 供 CI，生成 Markdown 和版本化模板供人审；报告记录运行开始时 dirty 状态但不因此自动失败，发布审批必须绑定明确 commit 并填写人工检查项 |
 
 ---
 
@@ -681,11 +683,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M9-T10：形成回归测试命令和报告模板**。
+下一步严格只执行 **M10-T1：建立不少于 20 个公开测试案例的基线**。
 
-M9-T10 完成后必须：
+M10-T1 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 提供单条回归命令，顺序执行格式、lint、类型、单元、生产构建、商店扫描和真实扩展 E2E；
-3. 无论成功或失败均输出机器可读结果和可填写的人类报告模板，失败时保留首个失败步骤；
-4. 完成全套回归后标记 M9 全部完成，并将下一任务切换到 M10-T1。
+2. 建立至少 20 个公开、可重复访问且类型分布明确的站点案例清单，不保存登录态或私人页面；
+3. 为每个案例记录 URL、页面类型、关键资源、预期结果、已知限制和最近验证日期；
+4. 将公网波动与产品回归失败分开记录，不提前执行 M10-T2 视觉/控制台/资源完整性验收。

@@ -65,6 +65,7 @@ pnpm build
 | `pnpm typecheck`    | 执行 TypeScript 类型检查，不输出 JS  |
 | `pnpm test`         | 执行 Vitest 单元测试                 |
 | `pnpm test:e2e`     | 构建测试扩展并执行 Playwright E2E    |
+| `pnpm test:regression` | 执行完整回归并生成 JSON/Markdown 报告 |
 | `pnpm build`        | 生成 Chrome MV3 生产构建             |
 | `pnpm audit:store`  | 扫描生产扩展的商店权限和远程代码风险 |
 
@@ -151,6 +152,18 @@ pnpm audit:store
 - [Remote hosted code guidance](https://developer.chrome.com/docs/extensions/develop/migrate/remote-hosted-code)
 - [Minimum permission policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq#minimum_permission)
 - [Extension CSP reference](https://developer.chrome.com/docs/extensions/reference/manifest/content-security-policy)
+
+### 4.6 完整回归和报告
+
+执行 M9 全量回归：
+
+```bash
+pnpm test:regression
+```
+
+命令按顺序执行 Prettier、ESLint、TypeScript、Vitest、生产 MV3 构建、商店风险扫描和真实扩展 E2E。首个验证失败后，后续验证步骤标记为 skipped；只要 E2E 已经开始，runner 仍会执行生产构建恢复和最终商店复扫，防止 `.output` 留下仅供测试的 host 权限。
+
+每一步的完整输出保存在 `test-results/regression/<run-id>/`，机器报告和人工报告分别为 `report.json`、`report.md`；`latest.json` 与 `latest.md` 指向最近一次结果。失败命令返回非零状态，但报告仍会落盘并记录 `failedStep`、exit code、耗时和对应日志。长期人工验收模板位于 `docs/testing/regression-report-template.md`，发布前需要填写 reviewer、目标版本、干净 Chrome profile 验证、商店 review 项、隐私披露和已知限制。
 
 ## 5. 生产构建和 ZIP
 
