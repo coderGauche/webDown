@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="m9-static-meta-secret-8c41" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" />
+    <title>SiteCapsule sensitive form fixture</title>
+    <style>
+      body {
+        color: #172033;
+        font-family: system-ui, sans-serif;
+        margin: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main data-access-token="m9-static-data-token-6d20">
+      <h1>Sensitive form archive audit</h1>
+      <p id="safe-structure-marker">m9-sensitive-form-structure-kept</p>
+      <form id="customer-form">
+        <label for="account-password">Password</label>
+        <input
+          id="account-password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          value="m9-static-password-9f0c"
+        />
+
+        <input name="csrf_token" type="hidden" value="m9-static-csrf-4d11" />
+
+        <label for="contact-email">Email</label>
+        <input
+          id="contact-email"
+          name="contact_email"
+          type="email"
+          placeholder="name@example.test"
+          value="m9-static-email-2a73@example.test"
+        />
+
+        <label for="customer-note">Note</label>
+        <textarea id="customer-note" name="customer_note">m9-static-note-17ae</textarea>
+
+        <label>
+          <input id="remember-account" name="remember_account" type="checkbox" checked />
+          Remember account
+        </label>
+
+        <label for="delivery-region">Region</label>
+        <select id="delivery-region" name="delivery_region">
+          <option value="north">North</option>
+          <option value="south" selected>South</option>
+        </select>
+
+        <output id="account-output" name="account_output" value="m9-static-output-e03a">
+          m9-static-output-e03a
+        </output>
+        <button id="submit-button" type="submit" value="m9-static-button-72bf">Continue</button>
+      </form>
+    </main>
+  </body>
+</html>

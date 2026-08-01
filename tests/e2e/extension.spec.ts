@@ -14,6 +14,22 @@ const extensionPath = resolve(process.cwd(), '.output/chrome-mv3');
 const fixtureOrigin = 'http://127.0.0.1:4173';
 const offlineFixtureOrigin = 'http://sitecapsule.test:4173';
 const lastCaptureJobStorageKey = 'sitecapsule.lastCaptureJobId';
+const sensitiveFormValues = [
+  'm9-static-meta-secret-8c41',
+  'm9-static-data-token-6d20',
+  'm9-static-password-9f0c',
+  'm9-static-csrf-4d11',
+  'm9-static-email-2a73@example.test',
+  'm9-static-note-17ae',
+  'm9-static-output-e03a',
+  'm9-static-button-72bf',
+  'm9-runtime-password-5b16',
+  'm9-runtime-csrf-638d',
+  'm9-runtime-email-11ef@example.test',
+  'm9-runtime-note-447c',
+  'm9-runtime-output-b52d',
+  'm9-runtime-button-09a4',
+] as const;
 
 const test = base.extend<ExtensionFixtures>({
   context: async ({}, use, testInfo) => {
@@ -268,6 +284,96 @@ test('loads the extension and exports the current page archive', async ({
   const indexHtml = new TextDecoder().decode(indexBytes);
   expect(indexHtml).toContain('local-e2e-capture-marker');
   expect(indexHtml).not.toContain('must-not-be-archived');
+});
+
+test('removes sensitive form state from every exported ZIP entry', async ({
+  context,
+  extensionId,
+}, testInfo) => {
+  const fixturePage = context.pages()[0] ?? (await context.newPage());
+  await fixturePage.goto(`${fixtureOrigin}/sensitive-form-page.html`);
+  await expect(
+    fixturePage.getByRole('heading', { name: 'Sensitive form archive audit' }),
+  ).toBeVisible();
+  await fixturePage.evaluate(() => {
+    (document.querySelector('#account-password') as HTMLInputElement).value =
+      'm9-runtime-password-5b16';
+    (document.querySelector('[name="csrf_token"]') as HTMLInputElement).value =
+      'm9-runtime-csrf-638d';
+    (document.querySelector('#contact-email') as HTMLInputElement).value =
+      'm9-runtime-email-11ef@example.test';
+    (document.querySelector('#customer-note') as HTMLTextAreaElement).value =
+      'm9-runtime-note-447c';
+    (document.querySelector('#remember-account') as HTMLInputElement).checked = true;
+    (document.querySelector('#delivery-region') as HTMLSelectElement).selectedIndex = 1;
+    (document.querySelector('#account-output') as HTMLOutputElement).value =
+      'm9-runtime-output-b52d';
+    (document.querySelector('#submit-button') as HTMLButtonElement).value =
+      'm9-runtime-button-09a4';
+  });
+
+  const panelPage = await context.newPage();
+  await panelPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  await panelPage.getByLabel('Language').selectOption('en');
+  await panelPage.getByLabel('Render wait').fill('0');
+  await readCurrentPage(panelPage, fixturePage);
+  await expect(
+    panelPage.getByText('SiteCapsule sensitive form fixture', { exact: true }),
+  ).toBeVisible();
+
+  const archivePath = await createAndDownloadArchive(panelPage);
+  const archive = unzipSync(await readFile(archivePath));
+  const decodedEntries = Object.fromEntries(
+    Object.entries(archive).map(([entryPath, bytes]) => [
+      entryPath,
+      new TextDecoder().decode(bytes),
+    ]),
+  );
+  const leakedValues = sensitiveFormValues.flatMap((value) =>
+    Object.entries(decodedEntries)
+      .filter(([, contents]) => contents.includes(value))
+      .map(([entryPath]) => ({ valueCategory: 'sensitive-form-value', entryPath })),
+  );
+  const indexHtml = decodedEntries['index.html'];
+  if (!indexHtml) throw new Error('Downloaded ZIP does not contain index.html.');
+
+  expect(leakedValues).toEqual([]);
+  expect(indexHtml).toContain('m9-sensitive-form-structure-kept');
+  expect(indexHtml).toContain('id="customer-form"');
+  expect(indexHtml).toContain('name="password"');
+  expect(indexHtml).toContain('name="csrf_token"');
+  expect(indexHtml).toContain('placeholder="name@example.test"');
+  expect(indexHtml).toContain('<option value="north">North</option>');
+  expect(indexHtml).toContain('<option value="south">South</option>');
+  expect(indexHtml).toContain('>Continue</button>');
+  expect(indexHtml).not.toMatch(/\s(?:checked|selected)(?:\s|=|>)/i);
+
+  const auditPath = testInfo.outputPath('sensitive-form-audit.json');
+  await writeFile(
+    auditPath,
+    JSON.stringify(
+      {
+        archiveEntryCount: Object.keys(archive).length,
+        scannedValueCategories: [
+          'static form attributes',
+          'live form properties',
+          'sensitive meta content',
+          'sensitive custom attributes',
+        ],
+        scannedValueCount: sensitiveFormValues.length,
+        leakedValues,
+        formStructureRetained: true,
+        selectionStateRemoved: true,
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  );
+  await testInfo.attach('sensitive-form-audit', {
+    path: auditPath,
+    contentType: 'application/json',
+  });
 });
 
 test('opens the exported archive offline without HTTP requests', async ({

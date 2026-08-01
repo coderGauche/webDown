@@ -18,6 +18,15 @@ const fixtureRoutes = new Map([
     },
   ],
   [
+    '/sensitive-form-page.html',
+    {
+      path: fileURLToPath(
+        new URL('../tests/e2e/fixtures/sensitive-form-page.html', import.meta.url),
+      ),
+      contentType: 'text/html; charset=utf-8',
+    },
+  ],
+  [
     '/assets/offline.css',
     {
       path: fileURLToPath(new URL('../tests/e2e/fixtures/assets/offline.css', import.meta.url)),

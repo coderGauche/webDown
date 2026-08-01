@@ -113,6 +113,24 @@ pnpm exec vitest run tests/runtime-security-audit.test.ts
 
 Background 只接受来自本扩展精确 `sidepanel.html` 的已知请求；Content 只接受本扩展 Background 的两种页面请求。扩展文档即使打开在普通标签页中仍可带 `sender.tab`，MV3 Service Worker 发出的消息则可能没有 `sender.url`，因此来源判断同时约束扩展 ID、可用 URL 的协议/路径和目标上下文，不能仅凭 `sender.tab` 是否存在判断可信度。每次修改跨上下文协议、入口页面或资源 URL 策略后都必须重新运行该审计和 `pnpm test:e2e`。
 
+### 4.4 敏感表单归档审计
+
+运行单元级 DOM 克隆清理边界：
+
+```bash
+pnpm exec vitest run tests/sensitive-form-archive.test.ts tests/sanitize-cloned-dom.test.ts
+```
+
+运行真实扩展 ZIP 审计：
+
+```bash
+pnpm test:e2e
+```
+
+`removes sensitive form state from every exported ZIP entry` 用例同时覆盖 HTML 静态属性与页面加载后写入的实时属性，包括密码、隐藏 Token、普通邮箱/文本、checkbox、select、output、button、敏感 meta 和自定义属性。测试会解压下载的 ZIP，扫描每个条目的完整字节，并生成 `test-results/playwright/.../sensitive-form-audit.json`；报告只记录类别、计数和泄漏位置，不记录敏感样本正文。
+
+归档会保留字段名、label、placeholder、option 定义和按钮可见文字，但清除输入值、勾选/选择状态及敏感属性。该审计证明的是序列化 DOM 和最终 ZIP 不包含已覆盖的表单状态，不等同于扫描页面脚本源码、浏览器存储、关闭 Shadow Root 或服务器端数据。
+
 ## 5. 生产构建和 ZIP
 
 生成未打包扩展：
