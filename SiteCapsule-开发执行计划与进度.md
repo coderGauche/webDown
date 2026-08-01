@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M9 稳定性、安全与自动化测试
-> 当前状态：M9-T6 已完成并通过验收
-> 下一任务：M9-T7 审计页面消息和 URL 安全策略
+> 当前状态：M9-T7 已完成并通过自动化验收
+> 下一任务：M9-T8 验证敏感表单值不会归档
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -367,7 +367,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M9-T4** 自动验证断网环境中的本地请求；
 - [x] **M9-T5** 验证 Service Worker 重启恢复；
 - [x] **M9-T6** 验证大任务内存和体积限制；
-- [ ] **M9-T7** 审计页面消息和 URL 安全策略；
+- [x] **M9-T7** 审计页面消息和 URL 安全策略；
 - [ ] **M9-T8** 验证敏感表单值不会归档；
 - [ ] **M9-T9** 扫描 Chrome Web Store 远程代码和权限风险；
 - [ ] **M9-T10** 形成回归测试命令和报告模板。
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M9 稳定性、安全与自动化测试 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M9-T6 验证大任务内存和体积限制 |
-| 下一任务 | M9-T7 审计页面消息和 URL 安全策略 |
+| 最近完成 | M9-T7 审计页面消息和 URL 安全策略 |
+| 下一任务 | M9-T8 验证敏感表单值不会归档 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -558,6 +558,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-07-31 | M9-T4 | 完成 | 新增包含外链 CSS、`img` 和 CSS 背景图的本地离线 fixture，并扩展受控 HTTP 服务提供确定性 HTML/CSS/SVG 响应；复用 M9-T3 的真实扩展链路读取页面、创建任务、下载 ZIP，以带路径穿越保护的测试解压器展开归档；随后将 Chromium context 切换为 offline，通过 `file:` 打开导出入口，断言标题、页面标记、外链样式、logo 固有尺寸和背景图均正常；页面级请求监听将 HTTP/HTTPS/WS/WSS 全部视为违规，显式核对 index、CSS、logo 和背景图四个本地请求，并生成可查看的 `offline-request-audit.json`，实际记录 4 个 `file:` 请求且 `externalRequests` 为空；直接使用 `127.0.0.1` 子资源时 M5-T8 本地网络策略按预期拒绝下载，因此仅在隔离测试 Chromium 中将 `sitecapsule.test` 映射到 loopback，并仅在 `SITECAPSULE_E2E=1` 构建预授予该测试 host，未放宽生产安全策略；开发说明同步测试权限和审计产物；用户运行 `pnpm test:e2e` 验收通过（2 项 E2E）；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（62 个文件、603 项测试）、普通 `pnpm build`（MV3 总计 1.30 MB）、生产 Manifest 权限核对与 `git diff --check` 全部通过 |
 | 2026-07-31 | M9-T5 | 完成 | 扩展 Playwright E2E 新增真实 MV3 Service Worker 重启恢复用例：先创建完成归档，核对下载按钮可用、最近任务指针和 IndexedDB 中的任务/资源快照；通过页面 CDP `ServiceWorker.stopWorker` 主动停止 Background，明确观察到 running 版本进入 `stopped` 且 target 从浏览器目标列表消失，新 Side Panel 消息再次唤醒 target；Chromium 在停止/重启间复用 target ID，因此测试以生命周期状态及 target 消失/再现为权威证据，不错误要求 ID 变化；重启后页面恢复 `Archive ready`、资源计数和历史元数据，最近指针不变，重启前后 IndexedDB 快照完全一致；仅存 Worker 内存的 ZIP 按设计显示 `Unavailable`、禁用下载并标记 metadata only，未伪装为跨会话恢复；生成 `service-worker-restart-audit.json` 记录 Worker 生命周期、target ID 复用、前后快照及 ZIP 可用性，开发说明同步该边界；用户验收通过；`pnpm test:e2e` 3 项全部通过，`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（62 个文件、603 项测试）、普通 `pnpm build`（MV3 总计 1.30 MB）、生产 Manifest 权限核对与 `git diff --check` 全部通过 |
 | 2026-08-01 | M9-T6 | 完成 | 新增无公网依赖的 `LargeResourceHttpFixture`，以懒生成确定性 64 KiB chunk 记录 reader 打开/取消、产出字节和活动 chunk 峰值，不预先分配整批大正文；新增大任务集成测试，34 个资源在并发 6、单文件 1 MiB、任务总量 8 MiB 下稳定得到 16 saved/18 failed，其中 2 个单文件失败（包含低报 `Content-Length` 的真实流式截止）和 16 个总预算失败分类精确；完成字节严格停在 8 MiB，并发活动 chunk 峰值为 384 KiB，结束后 active/reserved 全部归零；第二场景将预算内 8 个正文真实装入 ZIP 并解压，保留正文和解压条目均为 2 MiB，第 9 个超总预算资源未进入归档；明确 ZIP 容器开销不属于资源正文预算，`active-chunk-bytes` 是可重复流式证据而非 Chrome/Node 进程 RSS 承诺；生成 `test-results/vitest/large-task-limit-audit.json`，开发说明补充单项命令与边界；用户验收通过；定向测试连续 4 次稳定通过，`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（63 个文件、605 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过 |
+| 2026-08-01 | M9-T7 | 完成 | 新增 `src/messaging/runtime-policy.ts`，将 11 种请求消息按 Side Panel→Background 与 Background→Content 两条通道建立互斥白名单，并在两个真实 listener 入口同时校验严格 v19 信封和 sender；Side Panel 来源要求本扩展 ID、`chrome-extension:` 协议及精确 `/sidepanel.html` 路径，允许扩展文档作为标签页存在；Content 来源要求本扩展 Background，拒绝网页 tab sender，兼容 MV3 Service Worker 发送消息时省略 URL；新增 `tests/runtime-security-audit.test.ts` 系统覆盖外部扩展 ID、HTTPS 页面伪装、错误路径/query/hash、未知类型、错误版本和额外字段；复用 M5 安全策略审计 javascript/data/blob/file、URL 凭据、loopback/private/local/single-label 地址及公开 URL 重定向到 loopback，证明在读取正文前终止；生成 `test-results/vitest/runtime-security-audit.json`，开发说明记录命令和 MV3 sender 边界；定向测试 3 项、真实扩展 `pnpm test:e2e` 3 项通过；`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（64 个文件、608 项测试）与 `git diff --check` 全部通过 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -655,6 +656,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-076 | 2026-07-31 | 离线 E2E 在归档完成后切换整个 Chromium context 为 offline，以 `file:` 打开真实 ZIP 解压结果并保存请求审计 | 仅静态扫描 HTML/CSS 不能证明浏览器实际解析后不会发起外部请求；继续用本地 HTTP 服务查看归档不是真正断网；直接归档 loopback 子资源又会绕过或破坏 M5 本地网络策略 | fixture 资源经仅测试的 `sitecapsule.test` host 映射进入真实扩展下载，生产安全策略保持不变；offline 在归档下载结束后启用，HTML、CSS 和两张图片必须全部通过本地文件加载；页面观察到的 HTTP/HTTPS/WS/WSS 请求统一失败，完整 URL 清单保存为 JSON；浏览器组件自身流量不纳入页面归档泄漏判定，Service Worker 生命周期另由 M9-T5 验证 |
 | D-077 | 2026-07-31 | Service Worker 重启证据以 CDP 报告的 running 到 stopped 状态过渡、target 消失/再现和重启后持久化快照为准，不要求 target ID 改变 | Chromium 会在 `ServiceWorker.stopWorker` 后重新唤醒同一注册版本时复用 target ID；只比较 ID 会把真实停止/重启误判为未重启，只看 UI 又可能由旧内存状态造成假阳性 | 用例必须先观察 `stopped` 且 target 离开 `Target.getTargets`，再由新 Side Panel 消息触发 target 重现；重启前后直接比较 IndexedDB 任务/资源快照和最近指针；会话 ZIP 必须变为不可用，防止将内存产物伪装成持久化恢复；完整证据写入 `service-worker-restart-audit.json` |
 | D-078 | 2026-08-01 | 大任务内存验收使用可控懒生成 chunk 的活动字节峰值，体积验收使用预算提交值与 ZIP 解压正文总量，不以抖动的进程 RSS 作硬断言 | Node/Chrome RSS 包含 JS 堆、代码、测试框架、压缩库和 GC 时机，小样本的差值不可重复；只测预算计数又不能证明分块流和最终 ZIP 没有绕过限制 | fixture 按需分配固定 64 KiB chunk，每次 sink 消费后释放并记录峰值；低报流必须在真实字节越界时取消且释放租约；已提交正文进入真实 ZIP 并解压后再求和，失败资源路径不得出现；ZIP 容器开销和进程级内存保留为明确限制 |
+| D-079 | 2026-08-01 | 运行时 listener 在严格消息信封之外再按目标上下文校验 sender，Side Panel 与 Background 使用不同来源策略 | 同一扩展中的 Content Script 所在网页仍属于不可信输入边界，仅验证 type/payload 不能阻止网页或错误扩展上下文调用高权限 Background；但以 `sender.tab` 一刀切会误拒绝标签页中的扩展文档，要求 Service Worker 必须带 URL 也不符合 MV3 实际行为 | Side Panel→Background 必须匹配本扩展 ID 和精确扩展文档路径，可携带 tab；Background→Content 必须匹配本扩展 ID，URL 存在时只接受精确 Background 路径且不得携带网页 tab，URL 省略时只接受无 tab 的 Service Worker sender；未知类型、错误版本和额外字段继续由协议校验拒绝 |
 
 ---
 
@@ -675,11 +677,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M9-T7：审计页面消息和 URL 安全策略**。
+下一步严格只执行 **M9-T8：验证敏感表单值不会归档**。
 
-M9-T7 完成后必须：
+M9-T8 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 盘点 Side Panel、Background 与 Content 的所有消息入口，确认版本、类型、payload 和 sender 边界；
-3. 对页面 URL、资源 URL、重定向和本地网络策略建立系统化恶意样本与审计报告；
-4. 修复审计发现的高中风险缺口，保持可选 host 权限模型，不提前实现 M9-T8 敏感表单专项验证。
+2. 使用真实 DOM 属性与运行时表单属性构造密码、Token 和普通输入值样本；
+3. 对序列化 DOM 与最终 ZIP 的全部条目扫描唯一敏感标记，同时确认表单结构仍被保留；
+4. 生成可复现审计报告，不提前实现 M9-T9 Chrome Web Store 风险扫描。

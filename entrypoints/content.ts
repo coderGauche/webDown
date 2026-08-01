@@ -11,6 +11,10 @@ import {
   isPageArchiveRewriteRequest,
   isPageInfoCollectRequest,
 } from '@sitecapsule/messaging/validators';
+import {
+  isContentRuntimeRequest,
+  isTrustedBackgroundSender,
+} from '@sitecapsule/messaging/runtime-policy';
 import { capturePageSnapshot, waitForRender } from '@sitecapsule/page';
 
 export default defineContentScript({
@@ -18,7 +22,13 @@ export default defineContentScript({
   main() {
     console.info(`${RUNTIME_LOG_PREFIX} Content script initialized.`);
 
-    browser.runtime.onMessage.addListener(async (message: unknown) => {
+    browser.runtime.onMessage.addListener(async (message: unknown, sender) => {
+      if (
+        !isTrustedBackgroundSender(sender, browser.runtime.id) ||
+        !isContentRuntimeRequest(message)
+      ) {
+        return;
+      }
       if (isPageArchiveRewriteRequest(message)) {
         try {
           const result = rewriteHtmlResource({

@@ -101,6 +101,18 @@ pnpm exec vitest run tests/large-task-limits.integration.test.ts
 
 `maxTotalSizeBytes` 限制的是下载资源正文总量，ZIP 头、目录和压缩容器开销不属于资源预算，因此 ZIP 文件本身可能略大于该上限。审计中的 `active-chunk-bytes` 是可重复的流式读取峰值指标，不代表 Node 或 Chrome 整进程 RSS；JS 引擎、ZIP 编码和扩展其他上下文的进程级内存需要单独的浏览器性能基线才能评估。
 
+### 4.3 页面消息和 URL 安全审计
+
+单独运行 M9-T7 安全边界测试：
+
+```bash
+pnpm exec vitest run tests/runtime-security-audit.test.ts
+```
+
+运行后生成 `test-results/vitest/runtime-security-audit.json`。报告记录消息协议版本、Background/Content 可接受的请求类型、sender 拒绝矩阵，以及危险协议、内嵌凭据、本地网络地址和公开地址重定向到 loopback 的拦截阶段。
+
+Background 只接受来自本扩展精确 `sidepanel.html` 的已知请求；Content 只接受本扩展 Background 的两种页面请求。扩展文档即使打开在普通标签页中仍可带 `sender.tab`，MV3 Service Worker 发出的消息则可能没有 `sender.url`，因此来源判断同时约束扩展 ID、可用 URL 的协议/路径和目标上下文，不能仅凭 `sender.tab` 是否存在判断可信度。每次修改跨上下文协议、入口页面或资源 URL 策略后都必须重新运行该审计和 `pnpm test:e2e`。
+
 ## 5. 生产构建和 ZIP
 
 生成未打包扩展：

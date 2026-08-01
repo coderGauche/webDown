@@ -68,6 +68,10 @@ import {
   isPageInfoRequest,
   isPageInfoResponse,
 } from '@sitecapsule/messaging/validators';
+import {
+  isBackgroundRuntimeRequest,
+  isTrustedSidePanelSender,
+} from '@sitecapsule/messaging/runtime-policy';
 import { checkCurrentSiteAccess } from '@sitecapsule/permissions';
 import {
   getPageCaptureTimeoutMs,
@@ -849,7 +853,13 @@ export default defineBackground(() => {
       .catch((error) => console.error(`${RUNTIME_LOG_PREFIX} Failed to open side panel.`, error));
   });
 
-  browser.runtime.onMessage.addListener(async (message: unknown) => {
+  browser.runtime.onMessage.addListener(async (message: unknown, sender) => {
+    if (
+      !isTrustedSidePanelSender(sender, browser.runtime.id) ||
+      !isBackgroundRuntimeRequest(message)
+    ) {
+      return;
+    }
     if (isCaptureJobCreateRequest(message)) {
       try {
         const job = await jobRepository.createJob(message.payload);
