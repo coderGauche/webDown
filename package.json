@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:e2e": "SITECAPSULE_E2E=1 pnpm build && playwright test",
     "test:e2e:install": "playwright install chromium",
+    "audit:store": "node scripts/audit-chrome-web-store.mjs",
     "postinstall": "wxt prepare"
   },
   "dependencies": {

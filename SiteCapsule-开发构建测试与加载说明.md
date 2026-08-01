@@ -66,6 +66,7 @@ pnpm build
 | `pnpm test`         | 执行 Vitest 单元测试                 |
 | `pnpm test:e2e`     | 构建测试扩展并执行 Playwright E2E    |
 | `pnpm build`        | 生成 Chrome MV3 生产构建             |
+| `pnpm audit:store`  | 扫描生产扩展的商店权限和远程代码风险 |
 
 当前 TypeScript 版本为 7.0.2，`typescript-eslint` 尚不支持 TypeScript 7。因此 ESLint 暂时覆盖 JS/MJS/CJS；TS/TSX 由 `typecheck` 和 Prettier 负责检查。这个限制已记录在开发进度台账 D-009。
 
@@ -130,6 +131,26 @@ pnpm test:e2e
 `removes sensitive form state from every exported ZIP entry` 用例同时覆盖 HTML 静态属性与页面加载后写入的实时属性，包括密码、隐藏 Token、普通邮箱/文本、checkbox、select、output、button、敏感 meta 和自定义属性。测试会解压下载的 ZIP，扫描每个条目的完整字节，并生成 `test-results/playwright/.../sensitive-form-audit.json`；报告只记录类别、计数和泄漏位置，不记录敏感样本正文。
 
 归档会保留字段名、label、placeholder、option 定义和按钮可见文字，但清除输入值、勾选/选择状态及敏感属性。该审计证明的是序列化 DOM 和最终 ZIP 不包含已覆盖的表单状态，不等同于扫描页面脚本源码、浏览器存储、关闭 Shadow Root 或服务器端数据。
+
+### 4.5 Chrome Web Store 风险扫描
+
+先生成普通生产构建，再运行扫描：
+
+```bash
+pnpm build
+pnpm audit:store
+```
+
+扫描器读取 `.output/chrome-mv3`，核对 Manifest V3、所需/可选权限、安装期 host 权限、外部连接、sandbox 和扩展 CSP，并扫描 JS/HTML 中的远程 script、远程动态 import/importScripts、`eval`、Function 构造器、字符串 timer、动态 script 和 WebAssembly 执行入口。结果写入 `test-results/audits/chrome-web-store-risk.json`，包含全部文件的长度与 SHA-256；存在 `error` 时命令以非零状态退出，`review` 项要求发布前给出人工解释。
+
+当前生产包扫描 13 个文件，阻断错误为 0。保留 3 个 review 项：`http://*/*` 与 `https://*/*` 只是可选能力上限，产品运行时只在用户操作后请求精确 host；Content 中动态 script 用于给导出的离线 HTML 插入本地 Service Worker 防护代码；Side Panel bundle 中的动态 script 分支来自打包的 React DOM 渲染器，当前 UI 不传入远程 script URL。扫描报告不等同于 Chrome Web Store 审批结果，商店隐私披露仍必须说明网页内容和资源在本机被处理。
+
+规则依据：
+
+- [Manifest V3 additional requirements](https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements)
+- [Remote hosted code guidance](https://developer.chrome.com/docs/extensions/develop/migrate/remote-hosted-code)
+- [Minimum permission policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq#minimum_permission)
+- [Extension CSP reference](https://developer.chrome.com/docs/extensions/reference/manifest/content-security-policy)
 
 ## 5. 生产构建和 ZIP
 
