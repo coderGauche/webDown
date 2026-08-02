@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "artifactStatus": "engineering-candidate-blocked",
+  "publicReleaseApproved": false,
+  "blockingAssessment": "docs/testing/mvp-metric-assessment-2026-08-02.md",
+  "generatedAt": "2026-08-02T16:24:38.227Z",
+  "sourceCommit": "0834df155d067bb26545f206686fb81df78c8812",
+  "artifact": {
+    "name": "sitecapsule-0.1.0-engineering-candidate-0834df1.zip",
+    "localPath": "dist/sitecapsule-0.1.0-engineering-candidate-0834df1.zip",
+    "bytes": 384850,
+    "sha256": "f956c24b1f63b3ae3340380eb5830750ad648a424f8ae04887217fb2fd5ada73",
+    "entryCount": 16,
+    "fileCount": 13
+  },
+  "manifest": {
+    "manifestVersion": 3,
+    "name": "SiteCapsule",
+    "version": "0.1.0",
+    "permissions": [
+      "activeTab",
+      "scripting",
+      "storage",
+      "downloads",
+      "offscreen",
+      "sidePanel"
+    ],
+    "optionalHostPermissions": [
+      "http://*/*",
+      "https://*/*"
+    ],
+    "hostPermissions": []
+  },
+  "checks": {
+    "centralDirectory": "passed",
+    "decompression": "passed",
+    "crc32": "passed",
+    "safePaths": "passed",
+    "forbiddenFiles": "passed",
+    "sourceDirectoryMatch": "passed",
+    "manifest": "passed",
+    "chromeWebStoreAudit": "pass",
+    "chromeWebStoreErrors": 0,
+    "chromeWebStoreReviewItems": 3,
+    "sourceMapsPresent": false,
+    "loadability": {
+      "chromiumVersion": "151.0.7922.34",
+      "serviceWorker": "passed",
+      "sidePanel": "passed"
+    }
+  },
+  "files": [
+    {
+      "path": "background.js",
+      "bytes": 511889,
+      "sha256": "422792a6089488110aec0eee4ce9d6a78e2625c056773cec76107d1259a02995"
+    },
+    {
+      "path": "icon-128.png",
+      "bytes": 1105,
+      "sha256": "b2448ead620069025c3bfba290d1eda3621d4545c822abd340814321e02721f7"
+    },
+    {
+      "path": "icon-16.png",
+      "bytes": 190,
+      "sha256": "e5b0284d684ff0e445984ded8d86a891a02a115efa28c97331e6d1517cad5a07"
+    },
+    {
+      "path": "icon-32.png",
+      "bytes": 309,
+      "sha256": "36cb2a38f93744693d0832103cc53c8b562c423ff84e232377b53658ac9e57e7"
+    },
+    {
+      "path": "icon-48.png",
+      "bytes": 439,
+      "sha256": "d8f89f92399c6b17c4219624e5624d5ffbb01925a8108863803394042b823c1c"
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 620,
+      "sha256": "ee043248e07aba583f84df287674c4efa2a3d1ba28e3fc51f9b3d7757032d76c"
+    },
+    {
+      "path": "offscreen.html",
+      "bytes": 391,
+      "sha256": "76ebfc2c1abce31d583591ba1f9b400baeb289de9c046bea60748483f6328ab7"
+    },
+    {
+      "path": "sidepanel.html",
+      "bytes": 477,
+      "sha256": "ae750ab0ac19f778004b063dfbd69502622dbb067681ceb7b2ed36370ebd74fa"
+    },
+    {
+      "path": "assets/sidepanel-vWp877zN.css",
+      "bytes": 15637,
+      "sha256": "1fd071ed54abb7944bb43ca0150d4f42be04a91c8da02bab98ea2811257f46db"
+    },
+    {
+      "path": "chunks/offscreen-_2GWTTD1.js",
+      "bytes": 153,
+      "sha256": "ef914e89cde63bb48311223aeb3af223aca7752154017a703713bfcf22babfb5"
+    },
+    {
+      "path": "chunks/shared-3CRqD_lP.js",
+      "bytes": 751,
+      "sha256": "a38c79e141ef74a24ac29292570cedfa801b4fa7a0df177bf9a67b085725abb5"
+    },
+    {
+      "path": "chunks/sidepanel-DaQHch93.js",
+      "bytes": 397397,
+      "sha256": "1ef67890c33d1a398ebb78f0a232039b0689cdd8288f7ba25bbd2b0944375d2a"
+    },
+    {
+      "path": "content-scripts/content.js",
+      "bytes": 375035,
+      "sha256": "9e31567ad5942dc54237bd23d6f9aad65229698419c34926af87e9db98877102"
+    }
+  ]
+}

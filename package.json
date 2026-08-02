@@ -19,6 +19,7 @@
     "test:e2e:install": "playwright install chromium",
     "test:regression": "node scripts/run-regression.mjs",
     "audit:store": "node scripts/audit-chrome-web-store.mjs",
+    "release:candidate": "node scripts/build-release-candidate.mjs",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
