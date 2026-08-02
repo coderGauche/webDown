@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "assessmentId": "m10-mvp-metrics-2026-08-02",
+  "assessedAt": "2026-08-02",
+  "prdSource": "SiteCapsule-产品需求与技术方案.md#62-建议指标",
+  "publicAcceptance": {
+    "runId": "2026-08-01T162528-376Z",
+    "testedCommit": "40e30dd5158f82d578cf847fa26480f5c43d59fc",
+    "fixedCases": 23,
+    "reachableCases": 22,
+    "externalUnavailableCases": 1,
+    "successfulArchives": 18
+  },
+  "releaseDecision": "blocked",
+  "blockingDeviationIds": ["basic-site-archive-success-rate", "archive-report-generation-rate"],
+  "metrics": [
+    {
+      "id": "basic-site-archive-success-rate",
+      "target": { "operator": ">=", "value": 90, "unit": "percent" },
+      "status": "failed",
+      "measurement": { "numerator": 18, "denominator": 22, "value": 81.82 },
+      "severity": "P0",
+      "evidence": [
+        "test-results/public-acceptance/2026-08-01T162528-376Z/report.json",
+        "docs/testing/public-acceptance-2026-08-02.md"
+      ],
+      "deviation": "Four reachable cases did not produce a usable archive result within 120 seconds.",
+      "releaseImpact": "Blocks the MVP release gate.",
+      "followUp": "Fix completed-job result delivery for MDN, Next.js, and Wikipedia, and bound or resume the NASA download."
+    },
+    {
+      "id": "marketing-page-primary-visual-completeness",
+      "target": { "operator": ">=", "value": 95, "unit": "percent" },
+      "status": "not-measured",
+      "measurement": null,
+      "severity": "P1",
+      "evidence": ["test-results/public-acceptance/2026-08-01T162528-376Z/report.json"],
+      "deviation": "The run proves nonblank screenshots and records image counts, but has no critical-resource inventory or visual comparison denominator.",
+      "releaseImpact": "Blocks a 95 percent completeness claim, but not a restricted internal trial.",
+      "followUp": "Add per-case critical visual selectors or resources and deterministic screenshot comparison."
+    },
+    {
+      "id": "broken-local-resource-request-rate",
+      "target": { "operator": "<=", "value": 5, "unit": "percent" },
+      "status": "not-measured",
+      "measurement": null,
+      "severity": "P1",
+      "evidence": ["test-results/public-acceptance/2026-08-01T162528-376Z/report.json"],
+      "deviation": "The offline audit records 167 external attempts but does not retain all local requests, local failures, or a request denominator.",
+      "releaseImpact": "Blocks a local-resource failure-rate claim.",
+      "followUp": "Record every file or local-HTTP request and failure, then calculate failures divided by local requests."
+    },
+    {
+      "id": "single-resource-failure-explainability",
+      "target": { "operator": "=", "value": 100, "unit": "percent" },
+      "status": "not-measured",
+      "measurement": null,
+      "severity": "P0",
+      "evidence": [
+        "tests/resource-manifests.test.ts",
+        "tests/archive-report.test.ts",
+        "entrypoints/background.ts"
+      ],
+      "deviation": "Structured failures and reports pass unit tests, but the runtime ZIP path does not include the metadata that would make live failures auditable.",
+      "releaseImpact": "Blocks the explainability claim until runtime report integration is complete.",
+      "followUp": "Package failure manifests and the offline report in every runtime archive, then exercise a controlled failed resource."
+    },
+    {
+      "id": "cancel-response-time",
+      "target": { "operator": "<=", "value": 2, "unit": "seconds" },
+      "status": "not-measured",
+      "measurement": null,
+      "severity": "P1",
+      "evidence": ["tests/capture-pipeline.test.ts", "tests/resource-download-batch.test.ts"],
+      "deviation": "Cancellation behavior is covered functionally, but no browser test measures click-to-cancelled latency.",
+      "releaseImpact": "Blocks the two-second response-time claim.",
+      "followUp": "Add a delayed resource fixture and measure the user-visible cancelled state with a two-second assertion."
+    },
+    {
+      "id": "archive-report-generation-rate",
+      "target": { "operator": "=", "value": 100, "unit": "percent" },
+      "status": "failed",
+      "measurement": { "numerator": 0, "denominator": 18, "value": 0 },
+      "severity": "P0",
+      "evidence": [
+        "test-results/public-acceptance/2026-08-01T162528-376Z/report.json",
+        "entrypoints/background.ts"
+      ],
+      "deviation": "None of the 18 downloaded runtime archives contains _sitecapsule/report.html.",
+      "releaseImpact": "Blocks the MVP release gate and machine-readable delivery claim.",
+      "followUp": "Integrate archive, resource, failure, original-URL, report, and offline README entries into runtime packaging."
+    },
+    {
+      "id": "captured-content-uploaded-to-product-server",
+      "target": { "operator": "=", "value": 0, "unit": "requests" },
+      "status": "passed",
+      "measurement": { "numerator": 0, "denominator": 1, "value": 0 },
+      "severity": "P0",
+      "evidence": [
+        "entrypoints/background.ts",
+        "src/download/request-policy.ts",
+        "scripts/audit-chrome-web-store.mjs"
+      ],
+      "deviation": null,
+      "releaseImpact": "No release impact found by source and production-package inspection.",
+      "followUp": "Keep a release-time extension Service Worker network audit as defense in depth."
+    }
+  ]
+}
