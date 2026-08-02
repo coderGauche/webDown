@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-T3 已完成，MVP 指标偏差和发布阻断已记录
-> 下一任务：M10-T4 完成使用说明、隐私说明和已知限制
+> 当前状态：M10-T4 已完成，双语使用、隐私和限制说明已建立
+> 下一任务：M10-T5 生成可加载的发布 ZIP
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -389,7 +389,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-T1** 建立不少于 20 个公开测试案例的基线；
 - [x] **M10-T2** 执行视觉、控制台和资源完整性验收；
 - [x] **M10-T3** 达成 PRD 中的 MVP 指标或记录偏差；
-- [ ] **M10-T4** 完成使用说明、隐私说明和已知限制；
+- [x] **M10-T4** 完成使用说明、隐私说明和已知限制；
 - [ ] **M10-T5** 生成可加载的发布 ZIP；
 - [ ] **M10-T6** 完成版本号、更新日志和演示流程；
 - [ ] **M10-T7** 用户监督验收；
@@ -464,8 +464,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M10-T3 达成 PRD 中的 MVP 指标或记录偏差 |
-| 下一任务 | M10-T4 完成使用说明、隐私说明和已知限制 |
+| 最近完成 | M10-T4 完成使用说明、隐私说明和已知限制 |
+| 下一任务 | M10-T5 生成可加载的发布 ZIP |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -565,6 +565,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-01 | M10-T1 | 完成 | 新增 `tests/baselines/public-sites.json` schema v1 固定公网基线，逐条记录 23 个无需登录的 HTTPS 页面及重定向终点、所有者、页面/运行时类型、关键资源、预期离线结果、已知限制和同日可用性证据；类型覆盖极简静态页、标准长文档、9 个技术文档、项目首页、百科长文、图片目录、5 个公共机构页面及 iframe/canvas/WebGL 允许降级场景，共 22 个 hostname；新增 `docs/testing/public-site-baseline.md` 明确公网可用性与产品回归结果分离、动态内容只比较结构不变量、临时不可用不删除案例，并定义 M10-T2 独立结果交接字段；新增 `tests/public-site-baseline.test.ts` 锁定不少于 20 条、唯一 ID/URL、至少 6 种页面类型/15 个 hostname、禁止凭据/登录/localhost/私网 URL、必填证据、资源风险覆盖和重定向/允许降级案例；本任务仅核查页面时点可访问并建立预期，未提前执行视觉、控制台或归档资源完整性验收；定向 Vitest 4 项通过，`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（68 个文件、617 项测试）、`pnpm build` 与 `git diff --check` 全部通过 |
 | 2026-08-02 | M10-T2 | 完成 | 新增 `tests/e2e/public-acceptance.spec.ts` 与 `pnpm test:public-acceptance`，按 M10-T1 固定集在隔离 Chromium 中逐案采集在线/离线视口截图、DOM 可见度、控制台错误、失败请求/HTTP 状态、真实扩展 ZIP 条目、断网正文保留率和外联请求；`wxt.config.ts` 仅在 `SITECAPSULE_PUBLIC_ACCEPTANCE=1` 时添加 HTTPS 测试 host，`scripts/run-public-acceptance.mjs` 无论验收结果均恢复普通构建并拒绝残留安装期 `host_permissions`；Chrome 151.0.7922.34、commit `40e30dd`、1440x900、5 秒等待/并发 6/媒体和第三方关闭的完整 23 案例运行耗时 13.5 分钟，得到 6 pass、11 allowed-degradation、5 product-failure、1 external-unavailable，保存 39 张有效截图、18 个 ZIP 及 56 MB 本地证据；失败为 MDN/Next/Wikipedia 已 completed 但结果区未出现、NASA 120 秒仍 downloading、TypeScript 绝对 base 导致 `file:///docs/` 且正文保留 1.34%；Smithsonian 403 验证页单列外部不可用；版本化摘要见 `docs/testing/public-acceptance-2026-08-02.md`，原始证据见忽略目录 `test-results/public-acceptance/2026-08-01T162528-376Z/`；Playwright 公网验收 1/1、常规 E2E 4/4（公网套件按预期跳过）、Vitest 68 个文件 617 项测试、lint、format、typecheck、商店审计和 1.30 MB 生产构建均通过，发布 Manifest 无常驻 `host_permissions`；本任务只记录真实偏差，未提前判断 M10-T3 指标 |
 | 2026-08-02 | M10-T3 | 完成 | 新增 `tests/baselines/mvp-metrics.json` 和 `docs/testing/mvp-metric-assessment-2026-08-02.md`，将 PRD 七项指标逐项绑定目标、状态、分子/分母、证据、严重性、发布影响和后续动作；固定集排除 1 个外部不可用后使用全部 22 个可达案例，成功 ZIP 为 18 个，归档成功率 81.82% 低于 90%；18 个真实 ZIP 均无 `_sitecapsule/report.html`，报告生成率 0% 低于 100%，两项列为 P0 并将 MVP 发布决策设为 `blocked`；视觉完整率、失效本地请求率、失败解释率和取消响应时间因缺少合法分母或端到端测量标为 `not-measured`，不冒充通过；源代码与生产包检查未发现产品服务器上传路径，该项为 0 并通过；新增 `tests/mvp-metric-assessment.test.ts` 锁定七项覆盖、完整可达集分母、百分比重算、缺测不得通过及失败 P0 必须阻断；定向 Vitest 3/3、`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（69 个文件、620 项测试）、`pnpm build`（1.30 MB）、商店审计（0 errors/3 review）与 `git diff --check` 全部通过，发布 Manifest 无常驻 `host_permissions` |
+| 2026-08-02 | M10-T4 | 完成 | 新增 `docs/user-guide.zh-CN.md` 与 `docs/user-guide.en.md`，按真实 UI 说明当前页读取、按需站点/第三方授权、0-30,000 ms 渲染等待、1-12 并发、媒体开关、暂停/继续/取消、会话内 ZIP 下载和 loopback 本地 HTTP 查看；新增双语 `docs/privacy.md`，披露页面内容本地处理、资源直接请求且 `credentials: omit`、表单/Token 清理、不读取 Cookie/浏览器存储、六项扩展权限与可选 host 用途、无产品服务器上传和用户版权/隐私责任；新增双语 `docs/known-limitations.md`，明确仅单页、登录/受限页非目标、动态后端/iframe/Shadow DOM/Canvas/WebGL/Blob/CSP/ES Module/`file://`/内存 ZIP/会话恢复边界，并如实保留 81.82% 归档率、0% 运行时报告率及未测指标；更新 README 入口且不再把项目描述为纯脚手架；新增 `tests/release-documentation.test.ts` 锁定双语操作、隐私、权限、合规、P0 和不可支持能力的必要披露；定向 Vitest 4/4、`pnpm lint`、源码与 Markdown 格式检查、`pnpm typecheck`、`pnpm test`（70 个文件、624 项测试）、`pnpm build`（1.30 MB）、商店审计（0 errors/3 review）与 `git diff --check` 全部通过，发布 Manifest 无常驻 `host_permissions`；文档不改变 M10-T3 的 `blocked` 发布决定 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -669,6 +670,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-083 | 2026-08-01 | M10 固定公网基线将站点时点可用性与 SiteCapsule 捕获预期分字段保存，实际运行结果另建记录 | 公网页面会改版、跳转、地域限制或临时失败；把可访问检查直接当产品通过会产生假证据，把临时外部故障当回归又会让固定集频繁漂移 | schema v1 固定 23 个无需登录的 HTTPS 案例和结构性预期；`availability` 只记录外部状态，`captureExpectation` 才定义后续产品断言；M10-T2 按 commit/Chrome/设置生成独立视觉、控制台、资源和离线结果，动态标题与精确资源数不作为稳定基线 |
 | D-084 | 2026-08-02 | 公网综合验收使用隔离 Chromium、测试专用 HTTPS host 权限和生产构建强制恢复，任务完成以证据完整落盘而非案例全绿为准 | 逐案操作原生授权无法稳定自动化，将宽 host 写进生产 Manifest 又违反按需授权；公网控制台/请求错误可能来自站点自身；若发现产品失败就中止，后续案例将没有证据且会掩盖整体分布 | 运行器只在环境开关下预授权 HTTPS 并在 finally 路径恢复普通构建、检查无安装期 host；每个案例独立捕获异常并继续，外部 403 单列；在线视觉、控制台、网络、ZIP 和断网结果分别保存，最终 5 个产品失败如实进入 M10-T3 偏差评估，不以 Playwright 进程成功代替产品全通过 |
 | D-085 | 2026-08-02 | MVP 指标只允许使用有明确定义的分子、分母和端到端证据，缺测项统一记为 `not-measured`，失败 P0 阻断发布但不阻断受限工程试用 | 非空截图、单元测试或代码存在不能分别替代 95% 视觉完整率、两秒取消延迟或真实 ZIP 报告生成率；把不可计算项默认算通过会形成虚假发布结论 | 使用 22 个可达固定案例计算 18/22 归档成功率，检查 18 个下载 ZIP 得到 0/18 报告率；外部不可用不进入产品分母；视觉、本地请求、失败解释和取消时延保留测量缺口；结构化快照由 Vitest 重算并强制失败 P0 与 `blocked` 决策一致 |
+| D-086 | 2026-08-02 | 发布说明按当前运行时行为提供中英文等价披露，并把 P0、缺测指标和会话限制置于用户文档而非仅保留在测试报告 | 工程模块存在不代表运行时已集成，使用理想 PRD 文案会误导用户认为整站、机器报告、大文件保护或完全离线已经可用；只写开发文档也无法满足商店隐私和用户知情要求 | README 直接链接双语指南、双语隐私与双语限制；文档契约测试锁定单页范围、按需权限、零上传、敏感清理、本地 HTTP、安全责任、81.82%/0% P0 证据和不应宣称的指标；后续实现改善可更新数值，但不得在证据前删除披露 |
 
 ---
 
@@ -689,11 +691,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M10-T4：完成使用说明、隐私说明和已知限制**。
+下一步严格只执行 **M10-T5：生成可加载的发布 ZIP**。
 
-M10-T4 完成后必须：
+M10-T5 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 写明当前页归档、按需站点权限、ZIP 下载和本地 HTTP 查看步骤，并覆盖简体中文和英文；
-3. 写明页面内容本地处理、权限用途、敏感表单清理、无产品服务器上传和用户合规责任；
-4. 如实列出 M10-T3 的 P0 阻断、动态功能、外部请求、iframe/Shadow DOM、`file://` 与单页边界，不提前生成 M10-T5 发布 ZIP。
+2. 从普通生产配置生成 Chrome MV3 ZIP，禁止携带测试 `host_permissions`、源码地图、测试证据或开发文件；
+3. 对 ZIP 做解压、Manifest、文件清单、CRC 和商店风险复核，并记录 SHA-256、字节数和生成 commit；
+4. 因 M10-T3 仍为 `blocked`，产物必须标记为工程候选而非可公开发布版本，不提前完成 M10-T6 发布检查清单。
