@@ -5,7 +5,17 @@ export default [
   {
     // TypeScript 7 is not supported by the current typescript-eslint parser.
     // TypeScript sources are covered by `pnpm typecheck` until parser support lands.
-    ignores: ['.output/**', '.wxt/**', 'node_modules/**', 'coverage/**', '**/*.ts', '**/*.tsx'],
+    ignores: [
+      '.output/**',
+      '.wxt/**',
+      'node_modules/**',
+      'coverage/**',
+      'dist/**',
+      'playwright-report/**',
+      'test-results/**',
+      '**/*.ts',
+      '**/*.tsx',
+    ],
   },
   js.configs.recommended,
   {

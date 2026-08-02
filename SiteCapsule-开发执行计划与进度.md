@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-T1 已完成并通过自动化验收
-> 下一任务：M10-T2 执行视觉、控制台和资源完整性验收
+> 当前状态：M10-T2 已完成，公网验收偏差已记录
+> 下一任务：M10-T3 达成 PRD 中的 MVP 指标或记录偏差
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -387,7 +387,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 目标：形成可试用、可演示、可继续迭代的 MVP。
 
 - [x] **M10-T1** 建立不少于 20 个公开测试案例的基线；
-- [ ] **M10-T2** 执行视觉、控制台和资源完整性验收；
+- [x] **M10-T2** 执行视觉、控制台和资源完整性验收；
 - [ ] **M10-T3** 达成 PRD 中的 MVP 指标或记录偏差；
 - [ ] **M10-T4** 完成使用说明、隐私说明和已知限制；
 - [ ] **M10-T5** 生成可加载的发布 ZIP；
@@ -464,12 +464,12 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M10-T1 建立不少于 20 个公开测试案例的基线 |
-| 下一任务 | M10-T2 执行视觉、控制台和资源完整性验收 |
+| 最近完成 | M10-T2 执行视觉、控制台和资源完整性验收 |
+| 下一任务 | M10-T3 达成 PRD 中的 MVP 指标或记录偏差 |
 | 阻塞项 | 无 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
-| 最近验证日期 | 2026-08-01 |
+| 最近验证日期 | 2026-08-02 |
 
 ---
 
@@ -563,6 +563,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-01 | M9-T9 | 完成 | 新增零依赖 `scripts/audit-chrome-web-store.mjs` 和 `pnpm audit:store`，递归读取生产扩展包并输出每个文件的长度/SHA-256，审计 Manifest V3、所需/可选权限、安装期 host 权限、externally_connectable、sandbox、CSP，以及 HTML/JS 中的远程 script、动态 import/importScripts、eval、Function、字符串 timer、动态 script 和 WebAssembly 入口；阻断项返回非零退出，需解释项独立保留为 review；新增安全/恶意包测试，恶意 fixture 同时命中 debugger、全站安装权限、外部连接、远程 CSP/script 和四类字符串执行并正确失败；真实生产包 13 个文件约 1.30 MB，0 errors、3 review、1 info，review 为按精确 host 请求的宽可选能力上限、离线 HTML Service Worker guard 和打包 React DOM 动态 script 分支，均无远程 URL但继续要求发布前人工说明；报告写入 `test-results/audits/chrome-web-store-risk.json`，规则对齐 Chrome 官方 MV3 远程代码、最小权限和 CSP 文档，明确扫描通过不代表商店审批；定向测试 2 项、`pnpm audit:store`、`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（66 个文件、611 项测试）、`pnpm build`（MV3 总计 1.30 MB）与 `git diff --check` 全部通过 |
 | 2026-08-01 | M9-T10 | 完成 | 新增跨平台 Node runner `scripts/run-regression.mjs` 和单条 `pnpm test:regression`，顺序执行格式、lint、类型、Vitest、生产构建、商店扫描和真实 Chromium E2E；首个验证失败即停止并将余项标为 skipped，但 E2E 一旦开始就始终恢复普通生产构建并再次运行商店扫描，避免测试 host 权限残留；每步独立保存日志并生成 schema v1 JSON 与 Markdown 报告，包含 commit/branch/dirty、命令、phase、状态、exit code、耗时、首错及证据路径，`latest` 文件固定指向最近运行；新增成功/受控失败 fixture plan 测试，确认失败返回 1、报告仍落盘且第三步 skipped；新增 `docs/testing/regression-report-template.md`，覆盖自动证据、商店 review、隐私、干净 profile、使用流程和发布决定；最终 `pnpm test:regression` 九步一次通过：67 个测试文件/613 项测试、Playwright 4/4、生产包恢复 1.30 MB、最终商店扫描 0 errors/3 review；报告为 `test-results/regression/2026-08-01T152959-029Z/report.{json,md}`；`git diff --check` 通过，M9 十项全部完成 |
 | 2026-08-01 | M10-T1 | 完成 | 新增 `tests/baselines/public-sites.json` schema v1 固定公网基线，逐条记录 23 个无需登录的 HTTPS 页面及重定向终点、所有者、页面/运行时类型、关键资源、预期离线结果、已知限制和同日可用性证据；类型覆盖极简静态页、标准长文档、9 个技术文档、项目首页、百科长文、图片目录、5 个公共机构页面及 iframe/canvas/WebGL 允许降级场景，共 22 个 hostname；新增 `docs/testing/public-site-baseline.md` 明确公网可用性与产品回归结果分离、动态内容只比较结构不变量、临时不可用不删除案例，并定义 M10-T2 独立结果交接字段；新增 `tests/public-site-baseline.test.ts` 锁定不少于 20 条、唯一 ID/URL、至少 6 种页面类型/15 个 hostname、禁止凭据/登录/localhost/私网 URL、必填证据、资源风险覆盖和重定向/允许降级案例；本任务仅核查页面时点可访问并建立预期，未提前执行视觉、控制台或归档资源完整性验收；定向 Vitest 4 项通过，`pnpm lint`、`pnpm format:check`、`pnpm typecheck`、`pnpm test`（68 个文件、617 项测试）、`pnpm build` 与 `git diff --check` 全部通过 |
+| 2026-08-02 | M10-T2 | 完成 | 新增 `tests/e2e/public-acceptance.spec.ts` 与 `pnpm test:public-acceptance`，按 M10-T1 固定集在隔离 Chromium 中逐案采集在线/离线视口截图、DOM 可见度、控制台错误、失败请求/HTTP 状态、真实扩展 ZIP 条目、断网正文保留率和外联请求；`wxt.config.ts` 仅在 `SITECAPSULE_PUBLIC_ACCEPTANCE=1` 时添加 HTTPS 测试 host，`scripts/run-public-acceptance.mjs` 无论验收结果均恢复普通构建并拒绝残留安装期 `host_permissions`；Chrome 151.0.7922.34、commit `40e30dd`、1440x900、5 秒等待/并发 6/媒体和第三方关闭的完整 23 案例运行耗时 13.5 分钟，得到 6 pass、11 allowed-degradation、5 product-failure、1 external-unavailable，保存 39 张有效截图、18 个 ZIP 及 56 MB 本地证据；失败为 MDN/Next/Wikipedia 已 completed 但结果区未出现、NASA 120 秒仍 downloading、TypeScript 绝对 base 导致 `file:///docs/` 且正文保留 1.34%；Smithsonian 403 验证页单列外部不可用；版本化摘要见 `docs/testing/public-acceptance-2026-08-02.md`，原始证据见忽略目录 `test-results/public-acceptance/2026-08-01T162528-376Z/`；Playwright 公网验收 1/1、常规 E2E 4/4（公网套件按预期跳过）、Vitest 68 个文件 617 项测试、lint、format、typecheck、商店审计和 1.30 MB 生产构建均通过，发布 Manifest 无常驻 `host_permissions`；本任务只记录真实偏差，未提前判断 M10-T3 指标 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -665,6 +666,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-081 | 2026-08-01 | 商店风险扫描对生产包实施阻断错误与人工 review 双层结果，不将字符串 URL 或宽可选能力直接等同于远程代码/已授权全站访问 | 网页归档器必须处理任意 HTTP/HTTPS 数据，单纯扫描 URL 字符串会产生大量误报；可选 host 能力上限与安装期 host 权限的用户影响不同；动态 script/WebAssembly 等执行入口又不能因当前无远程字面量而完全忽略 | 未审查 API 权限、安装期 host、外部连接、不安全/远程 CSP、远程 script/import 和字符串执行均阻断；宽 optional host、动态 script、WASM 和 sandbox 进入 review；报告保留包内文件 SHA-256 和官方规则链接，当前解释不能替代发布时隐私披露或 Chrome 人工审核 |
 | D-082 | 2026-08-01 | 完整回归由 Node 顺序调度并将生产包恢复作为 E2E 后的强制 cleanup，机器报告与人工发布模板分离 | shell 串联在首错、跨平台退出码和报告落盘上不稳定；E2E 构建会加入仅测试 host，成功后直接结束会让开发者误拿测试包发布；自动测试也不能替代人工隐私、商店 review 和干净 profile 验收 | `pnpm test:regression` 记录每步日志并首错停止，E2E 已开始时不论结果均执行普通构建与复扫；JSON 供 CI，生成 Markdown 和版本化模板供人审；报告记录运行开始时 dirty 状态但不因此自动失败，发布审批必须绑定明确 commit 并填写人工检查项 |
 | D-083 | 2026-08-01 | M10 固定公网基线将站点时点可用性与 SiteCapsule 捕获预期分字段保存，实际运行结果另建记录 | 公网页面会改版、跳转、地域限制或临时失败；把可访问检查直接当产品通过会产生假证据，把临时外部故障当回归又会让固定集频繁漂移 | schema v1 固定 23 个无需登录的 HTTPS 案例和结构性预期；`availability` 只记录外部状态，`captureExpectation` 才定义后续产品断言；M10-T2 按 commit/Chrome/设置生成独立视觉、控制台、资源和离线结果，动态标题与精确资源数不作为稳定基线 |
+| D-084 | 2026-08-02 | 公网综合验收使用隔离 Chromium、测试专用 HTTPS host 权限和生产构建强制恢复，任务完成以证据完整落盘而非案例全绿为准 | 逐案操作原生授权无法稳定自动化，将宽 host 写进生产 Manifest 又违反按需授权；公网控制台/请求错误可能来自站点自身；若发现产品失败就中止，后续案例将没有证据且会掩盖整体分布 | 运行器只在环境开关下预授权 HTTPS 并在 finally 路径恢复普通构建、检查无安装期 host；每个案例独立捕获异常并继续，外部 403 单列；在线视觉、控制台、网络、ZIP 和断网结果分别保存，最终 5 个产品失败如实进入 M10-T3 偏差评估，不以 Playwright 进程成功代替产品全通过 |
 
 ---
 
@@ -685,11 +687,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M10-T2：执行视觉、控制台和资源完整性验收**。
+下一步严格只执行 **M10-T3：达成 PRD 中的 MVP 指标或记录偏差**。
 
-M10-T2 完成后必须：
+M10-T3 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 对 M10-T1 固定集的可达案例记录视觉、控制台、资源完整性与离线结果，并绑定测试 commit、Chrome 版本和捕获设置；
-3. 对外部不可用案例单独记录原因，不将其计为产品回归；
-4. 汇总通过、允许降级、产品失败和外部跳过数量，保存可复核证据，不提前宣称 M10-T3 指标达成。
+2. 将 M10-T2 的 6/11/5/1 分类与 PRD 的明确 MVP 指标逐项对照，给出分母、计算方式和证据路径；
+3. 对未达标项记录偏差、严重性、发布影响、处理决定和后续任务，不把外部不可用计为产品失败；
+4. 明确是否存在阻止试用的 P0，不提前完成 M10-T4 使用/隐私/限制文档或 M10-T5 发布 ZIP。

@@ -55,3 +55,9 @@ Chrome version, timestamp, capture settings, visual outcome, console errors, res
 integrity outcome, offline request audit, and archive report path. Test results must not be
 written back into this inventory because the inventory describes stable expectations rather
 than a particular run.
+
+Run the automated handoff with `pnpm test:public-acceptance`. The runner uses an isolated
+Chromium profile and a test-only HTTPS host permission, then always rebuilds the production
+extension and rejects a restored Manifest that still contains `host_permissions`. Evidence is
+written under `test-results/public-acceptance/`; the versioned M10-T2 result summary is
+`docs/testing/public-acceptance-2026-08-02.md`.

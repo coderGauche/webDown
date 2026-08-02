@@ -6,6 +6,8 @@ const e2eHostPermissions =
   process.env.SITECAPSULE_E2E === '1'
     ? ['http://127.0.0.1/*', 'http://sitecapsule.test/*']
     : undefined;
+const publicAcceptanceHostPermissions =
+  process.env.SITECAPSULE_PUBLIC_ACCEPTANCE === '1' ? ['https://*/*'] : undefined;
 
 const extensionIcons = {
   16: 'icon-16.png',
@@ -28,7 +30,11 @@ export default defineConfig({
     description: 'Archive public webpages for structured offline review.',
     permissions: ['activeTab', 'scripting', 'storage', 'downloads', 'offscreen'],
     optional_host_permissions: ['http://*/*', 'https://*/*'],
-    ...(e2eHostPermissions ? { host_permissions: e2eHostPermissions } : {}),
+    ...(publicAcceptanceHostPermissions
+      ? { host_permissions: publicAcceptanceHostPermissions }
+      : e2eHostPermissions
+        ? { host_permissions: e2eHostPermissions }
+        : {}),
     action: {
       default_title: 'Open SiteCapsule',
       default_icon: extensionIcons,
