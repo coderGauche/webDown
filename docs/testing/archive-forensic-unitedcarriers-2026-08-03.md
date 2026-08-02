@@ -65,3 +65,20 @@ of the following:
 M10-T6 and all public-release work remain paused. The existing `0.1.0` ZIP is still an engineering
 candidate for controlled testing only. M10-R1 through M10-R7 must complete before the release
 sequence resumes.
+
+## Regression baseline
+
+M10-R1 now reproduces this failure shape without retaining or requesting the original website:
+
+- `tests/fixtures/archive-integrity-broken/index.html` expands to a final DOM larger than 100 KiB
+  while its test ZIP contains only `index.html` and one resource;
+- `auditArchiveOfflineIntegritySync()` scans the extracted ZIP's HTML, SVG, inline CSS, and
+  standalone CSS resource-loading references;
+- the fixture deterministically fails for missing local entries, residual network references, and
+  extension-protocol contamination;
+- ordinary anchor/area links and form actions are counted as navigation but excluded from resource
+  integrity failures;
+- a fully local counterexample passes, preventing a test that only knows how to reject archives.
+
+This is a test red line, not the runtime fix. M10-R2 through M10-R5 must still change permission,
+sanitization, packaging, and reporting behavior before real archives can pass it.

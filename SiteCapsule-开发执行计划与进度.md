@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-T5 后发现真实归档存在 P0 完整性缺陷，发布流程已暂停
-> 下一任务：M10-R1 固化真实失败样本和 ZIP 完整性回归基线
+> 当前状态：M10-R1 已建立 ZIP 离线完整性红线，真实归档 P0 修复继续进行
+> 下一任务：M10-R2 重做第三方关键资源识别、默认选择和按需授权流程
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -125,7 +125,7 @@
 | M7 | ZIP、清单与归档报告 | 3-4 工程日 | 已完成 |
 | M8 | Side Panel 完整工作流 | 4-6 工程日 | 已完成 |
 | M9 | 稳定性、安全与自动化测试 | 5-7 工程日 | 已完成 |
-| M10 | MVP 综合验收与发布包 | 3-5 工程日 | 待开始 |
+| M10 | MVP 综合验收与发布包 | 3-5 工程日 | 修复中 |
 
 MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓冲。
 
@@ -391,7 +391,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-T3** 达成 PRD 中的 MVP 指标或记录偏差；
 - [x] **M10-T4** 完成使用说明、隐私说明和已知限制；
 - [x] **M10-T5** 生成可加载的发布 ZIP；
-- [ ] **M10-R1** 固化真实失败样本和 ZIP 完整性回归基线；
+- [x] **M10-R1** 固化真实失败样本和 ZIP 完整性回归基线；
 - [ ] **M10-R2** 重做第三方关键资源识别、默认选择和按需授权流程；
 - [ ] **M10-R3** 清理扩展注入、追踪、支付 iframe 和不可离线运行时污染；
 - [ ] **M10-R4** 建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁；
@@ -476,8 +476,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M10-T5 生成可加载的工程候选 ZIP；随后完成 United Carriers 真实归档取证 |
-| 下一任务 | M10-R1 固化真实失败样本和 ZIP 完整性回归基线 |
+| 最近完成 | M10-R1 固化真实失败样本和 ZIP 离线完整性审计基线 |
+| 下一任务 | M10-R2 重做第三方关键资源识别、默认选择和按需授权流程 |
 | 阻塞项 | 真实 ZIP 仅含 HTML、保留 186 个唯一公网资源、出现无文件的本地引用和扩展注入污染；M10-T3 两项 P0 继续阻止发布 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -580,6 +580,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-02 | M10-T4 | 完成 | 新增 `docs/user-guide.zh-CN.md` 与 `docs/user-guide.en.md`，按真实 UI 说明当前页读取、按需站点/第三方授权、0-30,000 ms 渲染等待、1-12 并发、媒体开关、暂停/继续/取消、会话内 ZIP 下载和 loopback 本地 HTTP 查看；新增双语 `docs/privacy.md`，披露页面内容本地处理、资源直接请求且 `credentials: omit`、表单/Token 清理、不读取 Cookie/浏览器存储、六项扩展权限与可选 host 用途、无产品服务器上传和用户版权/隐私责任；新增双语 `docs/known-limitations.md`，明确仅单页、登录/受限页非目标、动态后端/iframe/Shadow DOM/Canvas/WebGL/Blob/CSP/ES Module/`file://`/内存 ZIP/会话恢复边界，并如实保留 81.82% 归档率、0% 运行时报告率及未测指标；更新 README 入口且不再把项目描述为纯脚手架；新增 `tests/release-documentation.test.ts` 锁定双语操作、隐私、权限、合规、P0 和不可支持能力的必要披露；定向 Vitest 4/4、`pnpm lint`、源码与 Markdown 格式检查、`pnpm typecheck`、`pnpm test`（70 个文件、624 项测试）、`pnpm build`（1.30 MB）、商店审计（0 errors/3 review）与 `git diff --check` 全部通过，发布 Manifest 无常驻 `host_permissions`；文档不改变 M10-T3 的 `blocked` 发布决定 |
 | 2026-08-03 | M10-T5 | 完成 | 新增 `scripts/build-release-candidate.mjs` 与 `pnpm release:candidate`，从普通生产配置生成 Chrome MV3 ZIP，使用独立 ZIP 解析器验证中央目录、本地条目、解压、CRC32、安全路径、禁止开发文件、Manifest 和 `.output/chrome-mv3` 逐文件 SHA-256 一致性，并复用商店风险审计；候选包精确包含 13 个生产文件、无 source map、无测试证据、无安装期 `host_permissions`，仅保留 HTTP/HTTPS 可选 host；将同一 ZIP 解压到临时目录后由隔离 Playwright Chromium 151.0.7922.34 实际启动 Service Worker 并打开 Side Panel，二者均通过；生成基于 commit `0834df155d067bb26545f206686fb81df78c8812` 的本地 `dist/sitecapsule-0.1.0-engineering-candidate-0834df1.zip`，384,850 字节，SHA-256 `f956c24b1f63b3ae3340380eb5830750ad648a424f8ae04887217fb2fd5ada73`，版本化校验记录保存在 `docs/releases/sitecapsule-0.1.0-engineering-candidate-0834df1.zip.json`；新增发布目录说明和 4 项 ZIP 防篡改/权限/加载记录测试；`pnpm release:candidate`、定向 Vitest 4/4、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（71 个文件、628 项测试）、`pnpm build`（1.30 MB）、商店审计（0 errors/3 review）与 `git diff --check` 全部通过；二进制留在忽略的 `dist/`，因 M10-T3 两项 P0 仍标记 `engineering-candidate-blocked` 且 `publicReleaseApproved: false`，未冒充公开发布包 |
 | 2026-08-03 | M10-R0 | 缺陷立项 | 用户首次检查真实下载归档 `sitecapsule-unitedcarriers.com-20260803` 后发现目录只有 437,769 字节的 `index.html`；取证统计 326 个资源属性引用、228 个唯一值，其中 229 次/186 个唯一值仍指向公网，唯一被改写为 `assets/` 的引用没有对应文件，并混入一个其他浏览器扩展的 `chrome-extension:` 脚本；页面主体确实已序列化，但第三方 CDN 资源默认关闭、打包前无引用一致性门禁、DOM 所有权未清理且归档报告未接入，使 Side Panel 把不可离线的 HTML 壳显示为完成；新增 `docs/testing/archive-forensic-unitedcarriers-2026-08-03.md`，将其定为发布阻断缺陷，暂停 M10-T6，并插入 M10-R1 至 M10-R7 的回归、授权、净化、一致性、报告、断网 E2E 和基线复测任务；本次只固化证据和修复顺序，不将用户 `downloads/` 样本纳入 Git，也不提前声称缺陷已修复 |
+| 2026-08-03 | M10-R1 | 完成 | 新增 `src/archive/archive-offline-integrity.ts`，直接解压最终 ZIP 并扫描入口/页面 HTML、独立 CSS、inline style、`src`/`href`/`poster`、`srcset` 和 SVG 资源属性；输出归档条目/资源目录统计、本地存在/缺失、残留公网 URL、扩展协议、不支持协议和无效引用，根绝对路径即使存在同名 ZIP 条目也判定为离线错误；普通 `a/area href` 与 `form action` 只计入已忽略导航，不误判为资源；新增无公网请求的多 origin 坏包 fixture，以超过 100 KiB 的最终 DOM 配合仅两个 ZIP 条目稳定复现本地资源缺失、5 个残留公网 URL 和 `chrome-extension:` 污染，并以完整包反例锁定绿灯；定向 Vitest 5/5、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（72 个文件、633 项测试）、`pnpm build`（1.30 MB）与 `git diff --check` 全部通过；本任务只建立可信 ZIP 红线，未提前修复 R2-R5，因此 B-001 至 B-003 和发布暂停状态继续保留 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -689,6 +690,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-086 | 2026-08-02 | 发布说明按当前运行时行为提供中英文等价披露，并把 P0、缺测指标和会话限制置于用户文档而非仅保留在测试报告 | 工程模块存在不代表运行时已集成，使用理想 PRD 文案会误导用户认为整站、机器报告、大文件保护或完全离线已经可用；只写开发文档也无法满足商店隐私和用户知情要求 | README 直接链接双语指南、双语隐私与双语限制；文档契约测试锁定单页范围、按需权限、零上传、敏感清理、本地 HTTP、安全责任、81.82%/0% P0 证据和不应宣称的指标；后续实现改善可更新数值，但不得在证据前删除披露 |
 | D-087 | 2026-08-03 | M10-T5 只生成带完整可复核记录的 `engineering-candidate-blocked`，二进制留在忽略的 `dist/`，不借“可加载”绕过 M10-T3 发布阻断 | 静态构建成功不能证明 ZIP 本身能由 Chromium 加载；直接提交易变二进制会放大仓库体积；把工程验证包称为 release 又会掩盖 81.82% 归档成功率和 0% 运行时报告率两项 P0 | 发布脚本校验中央目录、解压、CRC、路径、禁止文件、Manifest、生产目录逐文件 SHA 和商店风险，再把同一 ZIP 解压到临时目录，由隔离 Chromium 启动 Service Worker 并打开 Side Panel；仓库只保留包含源 commit、字节数、SHA-256、文件清单和加载结果的 JSON 记录，公开发布状态固定为 false |
 | D-088 | 2026-08-03 | 在 M10-T5 与 M10-T6 之间插入七项发布阻断修复，先证明真实 ZIP 完整再继续版本和演示工作 | 扩展包本身可加载只证明 SiteCapsule 能启动，不证明它生成的网页归档可离线；只靠页面能打开或任务状态 completed 会继续漏掉资源空包、外链、污染和报告缺失 | R1 固化失败基线；R2 只为归档关键类型默认选择并显式申请精确 host，不静默扩大权限；R3 通用清理非页面所有运行时；R4 在下载前强制引用与 ZIP 一致；R5 接入报告；R6 以真实 ZIP 断网验收；R7 重算公开指标，全部通过前不恢复 T6 |
+| D-089 | 2026-08-03 | 离线完整性红线直接审计最终 ZIP 内的资源加载引用，不把普通页面导航当作必须打包的资源 | 只验证 ZIP 结构、CRC 或 HTML 大小无法发现 HTML 壳；反过来扫描所有 `href` 会把站内/站外导航误报为缺失资源，并迫使单页 MVP 爬取整站 | 审计覆盖 HTML/SVG/CSS 的实际加载通道，并按本地存在、本地缺失、公网、扩展、内嵌、fragment、不支持和无效分类；`a/area href` 与 `form action` 独立计数但不影响结果；根绝对资源路径在解压归档中不能可靠解析，固定判定失败；R1 API 只建立测试红线，真实打包门禁在 R4 接入 |
 
 ---
 
@@ -709,11 +711,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M10-R1：固化真实失败样本和 ZIP 完整性回归基线**。
+下一步严格只执行 **M10-R2：重做第三方关键资源识别、默认选择和按需授权流程**。
 
-M10-R1 完成后必须：
+M10-R2 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 用仓库内、无公网依赖的多 origin fixture 复现“DOM 很大但 ZIP 资源近乎为空”、外链残留、无文件本地引用和扩展协议污染；
-3. 新增 ZIP 级审计器，输出本地引用缺失、仍外联资源、扩展协议、归档条目和资源类型统计，并让上述失败样本稳定失败；
-4. 明确导航链接与资源 URL 的边界，不能把普通页面链接误判为离线资源缺失；本任务只建立可信红灯，不提前混入 R2 至 R5 的修复。
+2. 从资源图中区分影响离线视觉/运行的关键第三方 CSS、图片、字体、脚本和媒体，与追踪、支付、iframe 等非默认归档运行时；
+3. 关键第三方 host 默认选中但仍只按精确 scheme + hostname 显式请求 Chrome 可选权限，不静默申请全站或所有已发现域名；
+4. 用户未处理关键权限时不得生成普通成功归档：必须阻止创建或提供清楚的降级确认，并以纯模型和 Side Panel 行为测试锁定。

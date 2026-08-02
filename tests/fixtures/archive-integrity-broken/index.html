@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Complex multi-origin archive fixture</title>
+    <link rel="stylesheet" href="https://styles.cdn.test/site.css" />
+    <link
+      rel="preload"
+      as="font"
+      href="assets/origins/https/dns-fonts.cdn.test/default/fonts/main.woff2"
+    />
+    <style>
+      @import 'https://styles.cdn.test/theme.css';
+      .hero {
+        background-image: url('assets/origins/https/dns-images.cdn.test/default/images/missing-bg.webp');
+      }
+    </style>
+  </head>
+  <body>
+    <a href="https://page.example.test/about">About navigation must not be audited as a resource</a>
+    <form action="https://page.example.test/search"><input name="q" /></form>
+    <main id="large-dom-placeholder"></main>
+    <picture>
+      <source
+        srcset="
+          https://images.cdn.test/hero-2x.webp                                       2x,
+          assets/origins/https/dns-images.cdn.test/default/images/missing-small.webp 1x
+        "
+      />
+      <img
+        src="https://images.cdn.test/hero.webp"
+        alt="Fixture hero"
+        style="
+          mask-image: url(assets/origins/https/dns-images.cdn.test/default/images/missing-mask.svg);
+        "
+      />
+    </picture>
+    <video poster="https://payments.example.test/controller"></video>
+    <script src="chrome-extension://fixture-extension/injected.js"></script>
+    <script src="assets/origins/https/dns-page.example.test/default/js/missing-local.js"></script>
+  </body>
+</html>

@@ -82,6 +82,17 @@ export {
   type VerifySiteCapsuleArchiveInput,
 } from './archive-verifier';
 export {
+  ARCHIVE_OFFLINE_REFERENCE_KINDS,
+  auditArchiveOfflineIntegritySync,
+  type ArchiveOfflineEntryCounts,
+  type ArchiveOfflineIntegrityAudit,
+  type ArchiveOfflineIntegrityParser,
+  type ArchiveOfflineReference,
+  type ArchiveOfflineReferenceChannel,
+  type ArchiveOfflineReferenceKind,
+  type AuditArchiveOfflineIntegrityInput,
+} from './archive-offline-integrity';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,
