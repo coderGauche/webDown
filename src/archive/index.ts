@@ -93,6 +93,10 @@ export {
   type AuditArchiveOfflineIntegrityInput,
 } from './archive-offline-integrity';
 export {
+  enforceArchiveOfflineIntegritySync,
+  type EnforceArchiveOfflineIntegrityInput,
+} from './archive-integrity-gate';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,

@@ -5,8 +5,11 @@ import { resolve } from 'node:path';
 import {
   auditArchiveOfflineIntegritySync,
   createZipArchiveSync,
+  enforceArchiveOfflineIntegritySync,
   type ZipArchiveEntry,
 } from '@sitecapsule/archive';
+import { SiteCapsuleError } from '@sitecapsule/domain';
+import { DOMParser as LinkedomDOMParser } from 'linkedom';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 const encoder = new TextEncoder();
@@ -41,6 +44,12 @@ function entry(path: string, contents: string): ZipArchiveEntry {
 function archive(entries: readonly ZipArchiveEntry[]): Uint8Array {
   return createZipArchiveSync(entries);
 }
+
+const linkedomParser = {
+  parseFromString(input: string, mimeType: 'text/html') {
+    return new LinkedomDOMParser().parseFromString(input, mimeType) as unknown as Document;
+  },
+};
 
 async function brokenArchive(): Promise<{ bytes: Uint8Array; htmlBytes: number }> {
   const source = await readFile(brokenFixturePath, 'utf8');
@@ -151,6 +160,80 @@ describe('downloaded ZIP offline integrity audit', () => {
       'unsupported-protocol': 0,
       invalid: 0,
     });
+    expect(report.navigationReferencesIgnored).toBe(1);
+  });
+
+  it('blocks terminal completion when the final ZIP still needs network resources', () => {
+    const bytes = archive([
+      entry(
+        'index.html',
+        '<main>Offline body</main><img src="https://cdn.example.test/missing.png">',
+      ),
+    ]);
+
+    expect(() =>
+      enforceArchiveOfflineIntegritySync({
+        archiveBytes: bytes,
+        parser: linkedomParser,
+        jobId: 'job-integrity-failure',
+      }),
+    ).toThrow(SiteCapsuleError);
+    try {
+      enforceArchiveOfflineIntegritySync({
+        archiveBytes: bytes,
+        parser: linkedomParser,
+        jobId: 'job-integrity-failure',
+      });
+    } catch (error) {
+      expect(error).toMatchObject({
+        details: {
+          code: 'archive-integrity-failed',
+          retryable: true,
+          context: {
+            operation: 'archive-package',
+            jobId: 'job-integrity-failure',
+            stage: 'packaging',
+          },
+        },
+      });
+    }
+  });
+
+  it.each([
+    ['a missing local entry', '<img src="assets/images/missing.png">'],
+    [
+      'an extension resource',
+      '<script src="chrome-extension://abcdefghijklmnop/runtime.js"></script>',
+    ],
+  ])('blocks terminal completion for %s', (_caseName, html) => {
+    expect(() =>
+      enforceArchiveOfflineIntegritySync({
+        archiveBytes: archive([entry('index.html', html)]),
+        parser: linkedomParser,
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        details: expect.objectContaining({ code: 'archive-integrity-failed' }),
+      }),
+    );
+  });
+
+  it('allows encoded local paths with query and fragment while ignoring navigation links', () => {
+    const imagePath = 'assets/images/hero wide.png';
+    const report = enforceArchiveOfflineIntegritySync({
+      archiveBytes: archive([
+        entry(
+          'index.html',
+          `<a href="https://page.example.test/next?q=1">Next</a>
+           <img src="assets/images/hero%20wide.png?cache=1#focus">`,
+        ),
+        entry(imagePath, 'image'),
+      ]),
+      parser: linkedomParser,
+    });
+
+    expect(report.status).toBe('pass');
+    expect(report.referenceCounts['local-present']).toBe(1);
     expect(report.navigationReferencesIgnored).toBe(1);
   });
 

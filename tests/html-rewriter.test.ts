@@ -65,7 +65,7 @@ describe('DOMParser HTML resource rewriting', () => {
       html: `<!doctype html>
         <html><head>
           <base href="${BASE_URL}">
-          <link rel="stylesheet" href="css/site.css">
+          <link rel="stylesheet" href="css/site.css" integrity="sha384-stale-css">
           <link rel="canonical" href="../canonical">
           <style>.hero { background: url(images/leave-for-m6-t5.png); }</style>
         </head><body>
@@ -73,7 +73,7 @@ describe('DOMParser HTML resource rewriting', () => {
           <img id="hero" src="images/image%23hero%20large.png?v=1#focus"
                srcset="images/image-small.png 1x, images/image-large.png 2x">
           <img id="duplicate" src="images/image%23hero%20large.png?v=1#second">
-          <script src="https://static.example.test/app.js"></script>
+          <script src="https://static.example.test/app.js" integrity="sha384-stale-script"></script>
           <video poster="media/poster.jpg"></video>
           <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
             <image id="external-svg" href="icons/sprite.svg#hero"></image>
@@ -97,6 +97,10 @@ describe('DOMParser HTML resource rewriting', () => {
       },
     ]);
     expect(rewritten.querySelector('base')?.hasAttribute('href')).toBe(false);
+    expect(rewritten.querySelector('link[rel="stylesheet"]')?.hasAttribute('integrity')).toBe(
+      false,
+    );
+    expect(rewritten.querySelector('script')?.hasAttribute('integrity')).toBe(false);
     expect(rewritten.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
       '../canonical',
     );
@@ -140,7 +144,7 @@ describe('DOMParser HTML resource rewriting', () => {
     const mappings = await savedMappings([{ url: mappedUrl, resourceType: 'image' }]);
     const source = `<!doctype html><html><body>
       <img id="saved" src="saved.png">
-      <img id="missing" src="missing.png">
+      <img id="missing" src="missing.png" integrity="sha384-original">
       <img id="embedded" src="data:image/png;base64,AAAA">
       <script id="invalid" src="http://["></script>
       <img id="responsive" srcset="small.png 1x, large.png 2x">
@@ -165,6 +169,7 @@ describe('DOMParser HTML resource rewriting', () => {
     ]);
     expect(result.rewrittenCount).toBe(1);
     expect(rewritten.querySelector('#missing')?.getAttribute('src')).toBe('missing.png');
+    expect(rewritten.querySelector('#missing')?.getAttribute('integrity')).toBe('sha384-original');
     expect(rewritten.querySelector('#embedded')?.getAttribute('src')).toBe(
       'data:image/png;base64,AAAA',
     );

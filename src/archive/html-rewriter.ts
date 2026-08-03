@@ -236,6 +236,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         fragment,
       );
       element.setAttribute(attributeName, rewrittenValue);
+      if (element.hasAttribute('integrity')) element.removeAttribute('integrity');
       references.push({
         ...common,
         status: 'rewritten',

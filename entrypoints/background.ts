@@ -9,11 +9,13 @@ import {
   type ResourceRecord,
 } from '@sitecapsule/domain';
 import {
+  enforceArchiveOfflineIntegritySync,
   createArchiveLayoutZipSync,
   createResourcePathMappings,
   rewriteCssResource,
   type ResourcePathMapping,
 } from '@sitecapsule/archive';
+import { DOMParser as LinkedomDOMParser } from 'linkedom';
 import {
   TaskByteBudget,
   applyResourceResponseMetadata,
@@ -664,13 +666,20 @@ function createRuntimePipelineHandlers(
           ? [{ path: resource.localPath, bytes: body }]
           : [];
       });
-      archiveArtifacts.set(
-        job.id,
-        createArchiveLayoutZipSync({
-          indexHtml: new TextEncoder().encode(context.rewrittenHtml),
-          assets,
-        }),
-      );
+      const archiveBytes = createArchiveLayoutZipSync({
+        indexHtml: new TextEncoder().encode(context.rewrittenHtml),
+        assets,
+      });
+      enforceArchiveOfflineIntegritySync({
+        archiveBytes,
+        jobId: job.id,
+        parser: {
+          parseFromString(input, mimeType) {
+            return new LinkedomDOMParser().parseFromString(input, mimeType) as unknown as Document;
+          },
+        },
+      });
+      archiveArtifacts.set(job.id, archiveBytes);
     },
   };
 }

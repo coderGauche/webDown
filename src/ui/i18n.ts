@@ -412,6 +412,10 @@ const ERROR_EN: Record<CaptureErrorCode, readonly [string, string]> = {
     "A resource exceeds this task's size limit.",
     'Increase the size limit or exclude the resource.',
   ],
+  'archive-integrity-failed': [
+    'The archive failed its offline integrity check.',
+    'Some resources were not saved or still require the network. Enable the required resources and try again.',
+  ],
   'archive-download-failed': [
     'The archive download failed.',
     'Check browser download settings and available storage, then try again.',

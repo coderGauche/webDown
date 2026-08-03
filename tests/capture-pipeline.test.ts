@@ -1,9 +1,11 @@
 import 'fake-indexeddb/auto';
 
+import { createZipArchiveSync, enforceArchiveOfflineIntegritySync } from '@sitecapsule/archive';
 import { createCaptureError, type CaptureSettings, type JobStatus } from '@sitecapsule/domain';
 import { cancelConcurrentQueue, pauseConcurrentQueue } from '@sitecapsule/download';
 import { CAPTURE_PIPELINE_STAGES, runCapturePipeline } from '@sitecapsule/jobs';
 import { JobRepository, SiteCapsuleDatabase } from '@sitecapsule/storage';
+import { DOMParser as LinkedomDOMParser } from 'linkedom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const settings: CaptureSettings = {
@@ -145,6 +147,56 @@ describe('capture pipeline coordinator', () => {
           stage: 'rewriting',
         },
       },
+    });
+  });
+
+  it('cannot transition from packaging to completed when the final ZIP fails offline integrity', async () => {
+    const created = await repository.createJob({
+      tabId: 7,
+      startUrl: 'https://example.com/',
+      mode: 'current-page',
+      profile: 'standard',
+      settings,
+    });
+    const archiveBytes = createZipArchiveSync([
+      {
+        path: 'index.html',
+        bytes: new TextEncoder().encode('<img src="assets/images/missing.png">'),
+      },
+    ]);
+
+    await expect(
+      runCapturePipeline({
+        jobId: created.id,
+        context: {},
+        repository,
+        handlers: {
+          preparing: () => undefined,
+          discovering: () => undefined,
+          fetching: () => undefined,
+          rewriting: () => undefined,
+          packaging: () => {
+            enforceArchiveOfflineIntegritySync({
+              archiveBytes,
+              jobId: created.id,
+              parser: {
+                parseFromString(input, mimeType) {
+                  return new LinkedomDOMParser().parseFromString(
+                    input,
+                    mimeType,
+                  ) as unknown as Document;
+                },
+              },
+            });
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      details: { code: 'archive-integrity-failed' },
+    });
+    expect(await repository.getJob(created.id)).toMatchObject({
+      status: 'failed',
+      error: { code: 'archive-integrity-failed' },
     });
   });
 

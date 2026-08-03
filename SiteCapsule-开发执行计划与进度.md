@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-R3 已完成克隆 DOM 运行时污染清理与结构化诊断，真实归档 P0 修复继续进行
-> 下一任务：M10-R4 建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁
+> 当前状态：M10-R4 已完成最终 ZIP 离线完整性强制门禁，真实归档 P0 修复继续进行
+> 下一任务：M10-R5 将结构化清单、失败说明和 `report.html` 接入真实归档
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -394,7 +394,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-R1** 固化真实失败样本和 ZIP 完整性回归基线；
 - [x] **M10-R2** 重做第三方关键资源识别、默认选择和按需授权流程；
 - [x] **M10-R3** 清理扩展注入、追踪、支付 iframe 和不可离线运行时污染；
-- [ ] **M10-R4** 建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁；
+- [x] **M10-R4** 建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁；
 - [ ] **M10-R5** 将结构化清单、失败说明和 `report.html` 接入真实归档；
 - [ ] **M10-R6** 使用多域复杂页执行真实 ZIP、断网外联和视觉回归；
 - [ ] **M10-R7** 重跑公开基线、MVP 指标并重新生成工程候选；
@@ -476,9 +476,9 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M10-R3 克隆 DOM 运行时污染清理、结构化报告和边界披露 |
-| 下一任务 | M10-R4 建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁 |
-| 阻塞项 | 真实 ZIP 仍缺引用一致性门禁和运行时报告；扩展/追踪/支付/iframe 污染已完成代码修复但待 R6 真实断网证明；M10-T3 两项 P0 继续阻止发布 |
+| 最近完成 | M10-R4 最终 ZIP 离线完整性强制门禁与本地 SRI 修复 |
+| 下一任务 | M10-R5 将结构化清单、失败说明和 `report.html` 接入真实归档 |
+| 阻塞项 | 真实 ZIP 已禁止带缺失本地资源、残留公网资源或扩展协议进入普通完成，但运行时报告仍未接入；复杂站点递归依赖与视觉还原待后续修复和 R6 真实断网证明；M10-T3 两项 P0 继续阻止发布 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
 | 最近验证日期 | 2026-08-03 |
@@ -585,6 +585,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-03 | M10-R3 | 完成 | 扩展 `sanitizeClonedDom`，在不修改原标签页的前提下仅处理深克隆 DOM，以通用节点类型、扩展协议和明确 URL 信号移除 `chrome-extension:`/`moz-extension:` 资源节点、tracking/payment 运行时及除自包含 `srcdoc` 外的不可离线 iframe，不引入站点域名特例；普通主体、关键样式、第一方脚本和 Canvas 节点保留；新增 `DomCleanupReport`，固定记录四类移除计数并声明 closed Shadow Root、Canvas bitmap、WebGL state 三项不可观测边界，协议升级 v20 且运行时校验强制总数与分项一致；Side Panel 捕获诊断显示逐原因计数，中英文指南、隐私和限制同步披露；Happy DOM 混合 fixture 证明 7 个污染节点按扩展 2/追踪 2/支付 2/普通 iframe 1 清理，页面主体、样式、脚本、Canvas 与 `srcdoc` 不受损；定向 7 个文件/45 项测试、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（72 个文件、636 项测试）、`pnpm build`（1.31 MB）与 `git diff --check` 全部通过；B-003 代码侧已缓解但在 M10-R6 真实 ZIP 断网验证前不解除，B-001/B-002 与发布暂停继续保留 |
 | 2026-08-03 | M10-R3-D1 | 缺陷修复 | 用户在 United Carriers 生成 15.8 MB ZIP 后点击下载，任务已 completed 且归档 19,628,622 字节，但 Chrome 下载交付失败；定位为 `chrome.downloads.download()` 返回 ID 只表示登记成功，旧实现随即撤销 Blob URL，大文件尚未消费完即失去数据源，小包测试因此形成偶发假绿；`ArchiveDownloadEnvironment` 新增下载终态等待契约，生产适配器同时监听 `downloads.onChanged` 并查询当前状态，只有 `complete`、`interrupted`、下载项丢失或 10 分钟超时后才回收 URL，终态失败继续转为脱敏结构化错误；UI 成功文案改为“下载完成”；新增 16 MiB 延迟消费和终态失败测试，证明等待期间 URL 存活且成功/失败后均回收；定向归档下载/分块传输 2 个文件、24 项测试、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（72 个文件、638 项测试）、`pnpm build`（1.31 MB）与 `git diff --check` 全部通过；B-004 保留为已修复待用户用 15.8 MB 级真实 ZIP 复验 |
 | 2026-08-03 | M10-R3-D2 | 缺陷修复 | D1 保持 Blob URL 至终态后，用户复验 20.3 MB ZIP 仍在最后交付阶段失败；对比自动化小包成功与真实大包失败，定位到 UI 点击后先经 192 KiB 消息分块搬运整包，才调用带 `saveAs` 的 Downloads API，大包搬运可使 Chrome 的短时用户激活上下文失效；Side Panel 改为终态结果返回后立即在后台预组装 ZIP，准备期间按钮明确禁用，只有整包已在文档上下文时才允许点击，从用户点击到 `downloads.download()` 之间不再存在分块消息往返；预准备临时失败可独立重试；Chrome 中断枚举以 `ChromeDownload_<REASON>` 脱敏诊断显示，不再只有笼统的存储空间提示；类型检查、20 项归档下载定向测试和真实 Chromium 扩展下载/离线/后台重启链路 4 项 E2E 通过；B-004 仍需用户在重新加载新构建后以同级真实 ZIP 关闭 |
+| 2026-08-03 | M10-R4 | 完成 | 新增 `enforceArchiveOfflineIntegritySync` 并在 Background 生成最终 ZIP 后、写入会话归档缓存前直接执行 R1 审计；生产 Service Worker 使用固定版本 `linkedom` 解析 ZIP 内 HTML，任何本地引用缺条目、残留 HTTP/HTTPS 资源、`chrome-extension:`/`moz-extension:`、不支持协议、无效资源 URL 或 CSS 解析失败都会抛出专用 `archive-integrity-failed`，任务从 `packaging` 进入 `failed` 且没有可下载 ZIP，不再把不完整 HTML 壳标成普通完成；普通 `a/area` 导航和 `form action` 继续只计数不阻断；HTML 中成功改写成本地的 script/link 等节点同步移除原站 SRI `integrity`，避免 CSS/JS 内容改写后被旧摘要拦截，未映射公网节点保留原属性供门禁识别；加入完整包、缺文件、残留公网、扩展协议、路径编码/query/fragment、普通导航及流水线终态 fixture，定向 5 文件/32 项和全量 72 文件/643 项 Vitest、lint、format、typecheck、1.51 MB 生产构建、真实 Chromium 下载/离线/敏感清理/Service Worker 重启 E2E 4/4 全部通过，公网套件按环境跳过；用户提供的 United Carriers 旧包经取证仍含 13 个唯一外部资源 URL，因此新门禁会明确失败而不会继续交付，CSS/JS 递归依赖抓取与视觉修复仍由后续任务处理；B-001 保留至 R6 真实复杂页断网验收 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -700,6 +701,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-091 | 2026-08-03 | 运行时污染只在归档深克隆 DOM 上按协议、节点类型和明确 URL 信号清理，并以固定原因枚举返回可校验报告 | 修改活页面会破坏用户状态；按站点域名或模糊 class/id 删除容易误伤主体；只停止下载不能移除已序列化外链；iframe 当前又没有递归文档归档能力 | 扩展协议资源优先删除；tracking/payment 只对可加载运行时节点使用明确 URL token；普通非 `srcdoc` iframe 统一删除，内联 `srcdoc` 保留；普通第一方脚本、样式、主体和 Canvas DOM 保留；报告总数必须等于四类分项，Side Panel 可见；closed Shadow Root、Canvas bitmap 和 WebGL state 明确列为限制，最终无外联仍由 R6 证明 |
 | D-092 | 2026-08-03 | Blob URL 生命周期绑定 Chrome 下载终态，而不是绑定 `downloads.download()` 返回下载 ID | Downloads API 返回 ID 时只保证下载项已创建，不能证明浏览器已经消费 Blob；立即 revoke 对小包可能碰巧成功，对 15.8 MB 真实包会稳定暴露竞态 | 导出环境必须提供 `waitForDownload`；生产端在注册 `onChanged` 后用 `downloads.search` 消除快速完成竞态，完成或中断后统一回收，10 分钟超时避免永久泄漏；UI 仅在终态成功后显示下载完成，错误仍保留可重试语义 |
 | D-093 | 2026-08-03 | 大 ZIP 必须在下载按钮可用前完成跨上下文分块组装，用户点击只负责同步创建 Blob 并立即发起 Downloads API | 20 MB 级整包需要超过百次扩展消息往返，点击后才搬运会使 `saveAs` 请求脱离 Chrome 短时用户激活上下文；小包 E2E 很难暴露该延迟 | 结果页先显示“准备下载”并禁用按钮，仅在 ZIP 整体已进入 Side Panel 内存后开放点击；下载过程继续等待 Chrome 终态；安全的 Chrome 中断 reason 进入结构化 `browserError` 便于区分环境问题 |
+| D-094 | 2026-08-03 | 普通完成状态必须由最终 ZIP 的 HTML/CSS 离线引用审计授权，并在本地改写时撤销失效 SRI | 中间资源表和改写计数不能证明压缩包条目完整；Service Worker 没有原生 DOMParser；内容被改写后继续携带原站 `integrity` 会让浏览器主动拒绝本地 CSS/JS | 使用生产依赖 `linkedom` 在 Background 解压并解析刚生成的最终 ZIP，复用 R1 分类规则；审计失败抛出可本地化、可重试的结构化错误且不缓存 ZIP；只有成功改写为本地的节点移除 `integrity`，未映射节点保留原证据；动态脚本导入和视觉一致性不在 HTML/CSS 静态门禁中冒充已解决，继续交由后续递归抓取与 R6 浏览器断网验收 |
 
 ---
 
@@ -720,11 +722,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M10-R4：建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁**。
+下一步严格只执行 **M10-R5：将结构化清单、失败说明和 `report.html` 接入真实归档**。
 
-M10-R4 完成后必须：
+M10-R5 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 在任务进入普通 `completed` 前直接审计最终 ZIP，禁止本地引用缺条目、扩展协议引用和不可解释的资源公网 URL；
-3. 对用户明确关闭关键第三方、资源失败或主动跳过形成可解释的非完整结果，不得把 HTML 壳显示为普通成功；
-4. 以完整包、缺文件包、残留外链包和路径编码/查询冲突 fixture 验证门禁，且不把普通导航链接误判为资源缺失。
+2. 将 archive、resources、failures、original URLs、离线 README 和 `report.html` 接入每个真实运行时 ZIP；
+3. 报告准确解释已保存、失败、跳过、清理和离线限制，不暴露敏感 URL 查询或内部标识；
+4. 以完整与失败任务 fixture 验证 ZIP 元数据条目、清单一致性和可读报告。

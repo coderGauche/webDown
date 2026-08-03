@@ -16,6 +16,7 @@ export const CAPTURE_ERROR_CODES = [
   'permission-denied',
   'network-request-failed',
   'resource-limit-exceeded',
+  'archive-integrity-failed',
   'archive-download-failed',
   'capture-cancelled',
   'unexpected-error',
@@ -141,6 +142,11 @@ export const CAPTURE_ERROR_CATALOG = {
     message: '资源超出当前任务的大小限制。',
     retryable: false,
     suggestion: '请提高体积上限或排除该资源。',
+  },
+  'archive-integrity-failed': {
+    message: '归档离线完整性检查未通过。',
+    retryable: true,
+    suggestion: '部分资源未保存或归档仍依赖网络，请启用所需资源后重试。',
   },
   'archive-download-failed': {
     message: '归档文件下载失败。',

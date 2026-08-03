@@ -20,6 +20,9 @@ importers:
       fflate:
         specifier: 0.8.3
         version: 0.8.3
+      linkedom:
+        specifier: 0.18.13
+        version: 0.18.13
       react:
         specifier: 19.2.8
         version: 19.2.8
