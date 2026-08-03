@@ -97,6 +97,11 @@ export {
   type EnforceArchiveOfflineIntegrityInput,
 } from './archive-integrity-gate';
 export {
+  createCaptureArchivePackage,
+  type CaptureArchivePackageInput,
+  type CaptureArchivePackageResult,
+} from './capture-archive-package';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,

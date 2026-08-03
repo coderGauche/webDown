@@ -105,9 +105,20 @@ async function createAndDownloadArchive(panelPage: Page): Promise<string> {
 
 async function createArchive(panelPage: Page): Promise<void> {
   await panelPage.getByRole('button', { name: 'Create archive' }).click();
-  await expect(
-    panelPage.getByRole('heading', { name: 'Archive ready', exact: true }),
-  ).toBeVisible();
+  const outcome = await Promise.race([
+    panelPage
+      .getByRole('heading', { name: 'Archive ready', exact: true })
+      .waitFor()
+      .then(() => 'completed' as const),
+    panelPage
+      .getByRole('heading', { name: 'Archive failed', exact: true })
+      .waitFor()
+      .then(() => 'failed' as const),
+  ]);
+  if (outcome === 'completed') return;
+  const jobId = await readLastCaptureJobId(panelPage);
+  const snapshot = jobId ? await readPersistedCaptureSnapshot(panelPage, jobId) : null;
+  throw new Error(`Archive failed: ${JSON.stringify(snapshot?.job?.error ?? null)}`);
 }
 
 async function readLastCaptureJobId(panelPage: Page): Promise<string | null> {
@@ -137,13 +148,21 @@ async function readPersistedCaptureSnapshot(panelPage: Page, jobId: string) {
             id: string;
             status: string;
             counters: Record<string, number>;
+            error?: unknown;
           }
         | undefined;
       const resources = (await read(
         transaction.objectStore('resources').index('jobId').getAll(requestedJobId),
       )) as Array<{ id: string; state: string; originalUrl: string }>;
       return {
-        job: job ? { id: job.id, status: job.status, counters: { ...job.counters } } : null,
+        job: job
+          ? {
+              id: job.id,
+              status: job.status,
+              counters: { ...job.counters },
+              error: job.error,
+            }
+          : null,
         resources: resources
           .map(({ id, state, originalUrl }) => ({ id, state, originalUrl }))
           .sort((left, right) => left.id.localeCompare(right.id)),
@@ -284,6 +303,46 @@ test('loads the extension and exports the current page archive', async ({
   const indexHtml = new TextDecoder().decode(indexBytes);
   expect(indexHtml).toContain('local-e2e-capture-marker');
   expect(indexHtml).not.toContain('must-not-be-archived');
+  for (const metadataPath of [
+    '_sitecapsule/archive.json',
+    '_sitecapsule/resources.json',
+    '_sitecapsule/failures.json',
+    '_sitecapsule/original-urls.json',
+    '_sitecapsule/report.html',
+    '_sitecapsule/README_OFFLINE.md',
+  ]) {
+    expect(
+      archive[metadataPath],
+      `missing runtime archive metadata: ${metadataPath}`,
+    ).toBeDefined();
+  }
+  const archiveManifest = JSON.parse(
+    new TextDecoder().decode(archive['_sitecapsule/archive.json']!),
+  );
+  const resourceManifest = JSON.parse(
+    new TextDecoder().decode(archive['_sitecapsule/resources.json']!),
+  );
+  const failureManifest = JSON.parse(
+    new TextDecoder().decode(archive['_sitecapsule/failures.json']!),
+  );
+  const reportHtml = new TextDecoder().decode(archive['_sitecapsule/report.html']!);
+  expect(archiveManifest).toMatchObject({
+    product: 'SiteCapsule',
+    pages: 1,
+    resources: 1,
+    failedResources: 0,
+  });
+  expect(resourceManifest.resources).toHaveLength(1);
+  expect(resourceManifest.resources[0]).toMatchObject({
+    localPath: 'index.html',
+    resourceType: 'document',
+  });
+  expect(resourceManifest.resources[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(failureManifest.failures).toHaveLength(0);
+  expect(failureManifest.skipped).toHaveLength(1);
+  expect(reportHtml).toContain('SiteCapsule archive report');
+  expect(reportHtml).toContain('DOM snapshot cleanup removed');
+  expect(reportHtml).not.toMatch(/<script\b/i);
 });
 
 test('removes sensitive form state from every exported ZIP entry', async ({

@@ -9,8 +9,7 @@ import {
   type ResourceRecord,
 } from '@sitecapsule/domain';
 import {
-  enforceArchiveOfflineIntegritySync,
-  createArchiveLayoutZipSync,
+  createCaptureArchivePackage,
   createResourcePathMappings,
   rewriteCssResource,
   type ResourcePathMapping,
@@ -619,7 +618,13 @@ function createRuntimePipelineHandlers(
             sourcePath: mapping.relativePath,
             savedResourceMappings: context.mappings,
           });
-          context.bodies.set(resource.id, new TextEncoder().encode(rewritten.cssText));
+          const rewrittenBytes = new TextEncoder().encode(rewritten.cssText);
+          context.bodies.set(resource.id, rewrittenBytes);
+          return {
+            ...resource,
+            localPath: mapping.relativePath,
+            byteLength: rewrittenBytes.byteLength,
+          };
         }
         return { ...resource, localPath: mapping.relativePath };
       });
@@ -648,9 +653,23 @@ function createRuntimePipelineHandlers(
       }
       if (!response.payload.ok) throw new SiteCapsuleError(response.payload.error);
       context.rewrittenHtml = response.payload.html;
+      const rewrittenHtmlBytes = new TextEncoder().encode(response.payload.html);
+      context.bodies.set(`${job.id}:document`, rewrittenHtmlBytes);
+      context.resources = context.resources.map((resource) =>
+        resource.id === `${job.id}:document` && resource.state === 'saved'
+          ? {
+              ...resource,
+              finalUrl: context.page!.finalUrl,
+              localPath: 'index.html',
+              mimeType: 'text/html',
+              byteLength: rewrittenHtmlBytes.byteLength,
+            }
+          : resource,
+      );
+      await jobRepository.replaceJobResources(job.id, context.resources);
     },
 
-    packaging: ({ job }) => {
+    packaging: async ({ job }) => {
       if (!context.rewrittenHtml) {
         throw new SiteCapsuleError(
           createCaptureError('unexpected-error', {
@@ -662,24 +681,63 @@ function createRuntimePipelineHandlers(
       }
       const assets = context.resources.flatMap((resource) => {
         const body = context.bodies.get(resource.id);
-        return resource.state === 'saved' && resource.localPath && body
+        return resource.state === 'saved' &&
+          resource.type !== 'document' &&
+          resource.localPath &&
+          body
           ? [{ path: resource.localPath, bytes: body }]
           : [];
       });
-      const archiveBytes = createArchiveLayoutZipSync({
-        indexHtml: new TextEncoder().encode(context.rewrittenHtml),
+      const indexHtml = context.bodies.get(`${job.id}:document`);
+      if (!indexHtml) {
+        throw new SiteCapsuleError(
+          createCaptureError('unexpected-error', {
+            operation: 'archive-package',
+            jobId: job.id,
+            stage: 'packaging',
+            field: 'indexHtml',
+          }),
+        );
+      }
+      const locale = browser.i18n.getUILanguage().toLowerCase().startsWith('zh') ? 'zh-CN' : 'en';
+      const cleanup = context.page?.cleanupReport;
+      const cleanupSummary = cleanup
+        ? locale === 'zh-CN'
+          ? `DOM 快照清理已移除 ${cleanup.removedElements} 个运行时节点（扩展注入 ${cleanup.reasonCounts['extension-injection']}、追踪 ${cleanup.reasonCounts['tracking-runtime']}、支付 ${cleanup.reasonCounts['payment-runtime']}、不可离线 iframe ${cleanup.reasonCounts['nonportable-iframe']}）。`
+          : `DOM snapshot cleanup removed ${cleanup.removedElements} runtime elements (extension injection ${cleanup.reasonCounts['extension-injection']}, tracking ${cleanup.reasonCounts['tracking-runtime']}, payment ${cleanup.reasonCounts['payment-runtime']}, nonportable iframe ${cleanup.reasonCounts['nonportable-iframe']}).`
+        : locale === 'zh-CN'
+          ? 'DOM 快照清理计数不可用。'
+          : 'DOM snapshot cleanup counts are unavailable.';
+      const knownLimitations =
+        locale === 'zh-CN'
+          ? [
+              cleanupSummary,
+              '当前页模式不会递归归档普通导航目标。',
+              '依赖原站后端、登录会话或实时 API 的交互可能无法离线运行。',
+              'Closed Shadow Root、Canvas 位图和 WebGL 运行时状态无法从 DOM 快照恢复。',
+            ]
+          : [
+              cleanupSummary,
+              'Current-page mode does not recursively archive normal navigation targets.',
+              'Interactions that require the original backend, login session, or live API may not work offline.',
+              'Closed shadow roots, canvas pixels, and WebGL runtime state cannot be restored from a DOM snapshot.',
+            ];
+      const packaged = await createCaptureArchivePackage({
+        job,
+        finalUrl: context.page?.finalUrl ?? job.startUrl,
+        resourceRecords: context.resources,
+        pathMappings: context.mappings,
+        indexHtml,
         assets,
-      });
-      enforceArchiveOfflineIntegritySync({
-        archiveBytes,
-        jobId: job.id,
+        locale,
+        knownLimitations,
         parser: {
           parseFromString(input, mimeType) {
             return new LinkedomDOMParser().parseFromString(input, mimeType) as unknown as Document;
           },
         },
       });
-      archiveArtifacts.set(job.id, archiveBytes);
+      archiveArtifacts.set(job.id, packaged.archiveBytes);
     },
   };
 }
