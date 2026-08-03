@@ -1442,6 +1442,30 @@ export function App() {
                   </dd>
                 </div>
                 <div>
+                  <dt>{t('domCleanup')}</dt>
+                  <dd>
+                    {t('cleanupCounts', {
+                      total: pageInfo.cleanupReport.removedElements.toLocaleString(locale),
+                      extension:
+                        pageInfo.cleanupReport.reasonCounts['extension-injection'].toLocaleString(
+                          locale,
+                        ),
+                      tracking:
+                        pageInfo.cleanupReport.reasonCounts['tracking-runtime'].toLocaleString(
+                          locale,
+                        ),
+                      payment:
+                        pageInfo.cleanupReport.reasonCounts['payment-runtime'].toLocaleString(
+                          locale,
+                        ),
+                      iframes:
+                        pageInfo.cleanupReport.reasonCounts['nonportable-iframe'].toLocaleString(
+                          locale,
+                        ),
+                    })}
+                  </dd>
+                </div>
+                <div>
                   <dt>{t('specialRegions')}</dt>
                   <dd>{summarizeRegions(pageInfo, t)}</dd>
                 </div>

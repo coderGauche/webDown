@@ -23,6 +23,8 @@ server.
   from the cloned DOM before serialization.
 - Attributes and metadata identified as tokens, secrets, credentials, authorization data, API keys,
   session identifiers, or similar sensitive values are removed or redacted.
+- Other-extension resource nodes, explicit tracking/payment runtime, and nonportable iframes are
+  removed from the cloned DOM with structured reason counts; the live source page is not modified.
 - Resource fetches use `credentials: omit`; SiteCapsule does not copy cookies into those requests.
 - The extension does not read or archive source-page cookies, `localStorage`, or `sessionStorage`.
 - Public pages are the product target. Login pages and bypassing access controls are not supported.
@@ -70,6 +72,8 @@ SiteCapsule 在 Chrome 扩展内部处理捕获内容。当前产品没有 SiteC
 - 序列化前清除克隆 DOM 中的表单当前值、密码、勾选/选中状态和输出值。
 - 对识别为 Token、Secret、Credential、Authorization、API Key、Session ID 等敏感含义
   的属性和元数据进行删除或脱敏。
+- 从克隆 DOM 中删除其他扩展资源节点、明确的追踪/支付运行时和不可离线 iframe，并按原因
+  记录结构化计数；原始页面不会被修改。
 - 资源下载使用 `credentials: omit`，不会把 Cookie 带入扩展发起的资源请求。
 - 扩展不读取或归档原页面 Cookie、`localStorage` 或 `sessionStorage`。
 - 产品目标是公开页面，不支持登录页面或绕过访问控制。

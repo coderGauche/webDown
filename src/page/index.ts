@@ -1,6 +1,7 @@
 export {
   capturePageSnapshot,
   serializeDocument,
+  serializeDocumentWithCleanup,
   serializeDocumentType,
   type DocumentSnapshotSource,
   type DocumentTypeSource,
@@ -91,4 +92,12 @@ export {
   type ShadowRootRegionDiagnostic,
 } from './page-regions';
 export { waitForRender, type RenderWaitScheduler } from './render-wait';
-export { isSensitiveFieldIdentifier, sanitizeClonedDom } from './sanitize-cloned-dom';
+export {
+  DOM_CLEANUP_LIMITATIONS,
+  DOM_CLEANUP_REASONS,
+  isSensitiveFieldIdentifier,
+  sanitizeClonedDom,
+  type DomCleanupLimitation,
+  type DomCleanupReason,
+  type DomCleanupReport,
+} from './sanitize-cloned-dom';

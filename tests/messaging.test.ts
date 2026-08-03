@@ -42,6 +42,20 @@ describe('page info messaging protocol', () => {
     baseUrl: 'https://cdn.example.com/assets/',
     finalUrl: 'https://example.com/final',
     serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
+    cleanupReport: {
+      removedElements: 0,
+      reasonCounts: {
+        'extension-injection': 0,
+        'tracking-runtime': 0,
+        'payment-runtime': 0,
+        'nonportable-iframe': 0,
+      },
+      limitations: [
+        'closed-shadow-roots-unobservable',
+        'canvas-bitmap-unserialized',
+        'webgl-state-unserialized',
+      ],
+    },
     domResources: [],
     cssSources: [],
     cssResources: [],
@@ -93,7 +107,7 @@ describe('page info messaging protocol', () => {
     expect(success).toMatchObject({ payload: { ok: true, rewrittenCount: 3 } });
   });
 
-  it('adds protocol v18 and a correlation ID to requests', () => {
+  it('adds protocol v20 and a correlation ID to requests', () => {
     const request = createPageInfoRequest(42, 1_500, 'request-42');
 
     expect(request).toEqual({

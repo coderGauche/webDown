@@ -33,7 +33,8 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 - 归档关键第三方资源默认开启并按精确主机授权；媒体默认关闭。追踪、支付、iframe 和其他
   仅运行时资源默认排除。未授权、分类启发式、CORS/响应策略限制、限流、地域限制或防机器
   人页面仍可能造成资源缺失。
-- 跨域 iframe 内容不可直接读取；开放 Shadow DOM 可记录，关闭的 Shadow Root 无法访问。
+- 跨域 iframe 内容不可直接读取；除自包含 `srcdoc` 外，iframe 会从离线 DOM 中移除，因为
+  当前不会递归归档 frame 文档。开放 Shadow DOM 可记录，关闭的 Shadow Root 无法观察或清理。
 - Canvas/WebGL 的最终像素不会作为 DOM 序列化。模型、WASM、decoder 或 GPU 特定纹理变体
   只有在被发现并成功下载时才可能工作，换设备可能黑屏或材质缺失。
 - Blob URL 依赖原文档会话，不能作为普通网络资源重新下载；不支持的协议会被记录或跳过。
@@ -89,8 +90,9 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
   media remains off by default. Tracking, payment, iframe, and other runtime-only resources are
   excluded by default. Missing permission, classification heuristics, response restrictions,
   throttling, geography, or anti-bot pages can still leave assets unavailable.
-- Cross-origin iframe content cannot be read directly. Open Shadow DOM can be recorded; closed
-  shadow roots cannot be accessed.
+- Cross-origin iframe content cannot be read directly. Except for self-contained `srcdoc`, iframes
+  are removed from the offline DOM because frame documents are not recursively archived. Open
+  Shadow DOM can be recorded; closed shadow roots cannot be observed or sanitized.
 - Final Canvas/WebGL pixels are not serialized as DOM. Models, WASM, decoders, and GPU-specific
   texture variants work only when discovered and downloaded; another device may show missing
   materials or a blank scene.

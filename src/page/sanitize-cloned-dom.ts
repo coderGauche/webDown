@@ -29,6 +29,37 @@ const FORM_VALUE_ATTRIBUTES = ['value', 'checked', 'selected'] as const;
 const SENSITIVE_FIELD_ATTRIBUTES = ['id', 'name', 'autocomplete'] as const;
 const META_DESCRIPTOR_ATTRIBUTES = ['name', 'property', 'http-equiv'] as const;
 
+export const DOM_CLEANUP_REASONS = [
+  'extension-injection',
+  'tracking-runtime',
+  'payment-runtime',
+  'nonportable-iframe',
+] as const;
+
+export const DOM_CLEANUP_LIMITATIONS = [
+  'closed-shadow-roots-unobservable',
+  'canvas-bitmap-unserialized',
+  'webgl-state-unserialized',
+] as const;
+
+export type DomCleanupReason = (typeof DOM_CLEANUP_REASONS)[number];
+export type DomCleanupLimitation = (typeof DOM_CLEANUP_LIMITATIONS)[number];
+
+export type DomCleanupReport = {
+  removedElements: number;
+  reasonCounts: Record<DomCleanupReason, number>;
+  limitations: DomCleanupLimitation[];
+};
+
+const URL_ATTRIBUTES = ['src', 'href', 'data', 'action', 'formaction', 'poster'] as const;
+const EXTENSION_PROTOCOLS = new Set(['chrome-extension:', 'moz-extension:']);
+const TRACKING_URL_SIGNAL =
+  /(?:^|[./?&=_-])(analytics?|tracking|tracker|telemetry|beacon|collect|pixel|doubleclick|tagmanager|gtm)(?:[./?&=_-]|$)/i;
+const PAYMENT_URL_SIGNAL =
+  /(?:^|[./?&=_-])(payment|payments|checkout|billing|stripe|paypal|adyen|braintree)(?:[./?&=_-]|$)/i;
+const TRACKING_ELEMENT_TAGS = new Set(['script', 'iframe', 'img', 'embed', 'object']);
+const PAYMENT_ELEMENT_TAGS = new Set(['script', 'iframe', 'embed', 'object']);
+
 function identifierWords(identifier: string): string[] {
   return identifier
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -128,11 +159,78 @@ function removeSensitiveElementData(element: Element): void {
   }
 }
 
-export function sanitizeClonedDom(root: Element): void {
+function createDomCleanupReport(): DomCleanupReport {
+  return {
+    removedElements: 0,
+    reasonCounts: {
+      'extension-injection': 0,
+      'tracking-runtime': 0,
+      'payment-runtime': 0,
+      'nonportable-iframe': 0,
+    },
+    limitations: [...DOM_CLEANUP_LIMITATIONS],
+  };
+}
+
+function readElementUrls(element: Element, documentUrl: string): URL[] {
+  const urls: URL[] = [];
+
+  for (const attribute of URL_ATTRIBUTES) {
+    const value = element.getAttribute(attribute)?.trim();
+    if (!value) continue;
+
+    try {
+      urls.push(new URL(value, documentUrl));
+    } catch {
+      // Invalid URLs are left for the archive rewrite and integrity stages to report.
+    }
+  }
+
+  return urls;
+}
+
+function classifyRuntimeElement(element: Element, documentUrl: string): DomCleanupReason | null {
+  const tagName = element.tagName.toLowerCase();
+  const urls = readElementUrls(element, documentUrl);
+
+  if (urls.some((url) => EXTENSION_PROTOCOLS.has(url.protocol))) return 'extension-injection';
+  if (
+    ['script', 'style'].includes(tagName) &&
+    Array.from(EXTENSION_PROTOCOLS).some((protocol) => element.textContent?.includes(protocol))
+  ) {
+    return 'extension-injection';
+  }
+
+  if (
+    TRACKING_ELEMENT_TAGS.has(tagName) &&
+    urls.some((url) => TRACKING_URL_SIGNAL.test(url.href))
+  ) {
+    return 'tracking-runtime';
+  }
+  if (PAYMENT_ELEMENT_TAGS.has(tagName) && urls.some((url) => PAYMENT_URL_SIGNAL.test(url.href))) {
+    return 'payment-runtime';
+  }
+  if (tagName === 'iframe' && !element.hasAttribute('srcdoc')) return 'nonportable-iframe';
+
+  return null;
+}
+
+export function sanitizeClonedDom(root: Element, documentUrl = 'about:blank'): DomCleanupReport {
+  const report = createDomCleanupReport();
   const elements = [root, ...Array.from(root.querySelectorAll('*'))];
 
   for (const element of elements) {
+    const removalReason = classifyRuntimeElement(element, documentUrl);
+    if (removalReason) {
+      element.remove();
+      report.removedElements += 1;
+      report.reasonCounts[removalReason] += 1;
+      continue;
+    }
+
     clearFormValue(element);
     removeSensitiveElementData(element);
   }
+
+  return report;
 }

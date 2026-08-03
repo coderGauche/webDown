@@ -113,6 +113,20 @@ describe('document snapshot', () => {
       baseUrl: 'https://cdn.example.com/assets/',
       finalUrl: 'https://example.com/final',
       serializedDom: '<!DOCTYPE html>\n<html><body><main>Rendered content</main></body></html>',
+      cleanupReport: {
+        removedElements: 0,
+        reasonCounts: {
+          'extension-injection': 0,
+          'tracking-runtime': 0,
+          'payment-runtime': 0,
+          'nonportable-iframe': 0,
+        },
+        limitations: [
+          'closed-shadow-roots-unobservable',
+          'canvas-bitmap-unserialized',
+          'webgl-state-unserialized',
+        ],
+      },
       domResources: [],
       cssSources: [],
       cssResources: [],

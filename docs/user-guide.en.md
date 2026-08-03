@@ -30,6 +30,11 @@ access only for archive-critical origins discovered for the current task. An ord
 start while a critical host remains unapproved. You may explicitly turn off archive-critical
 third-party resources and continue, but the UI warns that the archive may be incomplete.
 
+When reading a page, SiteCapsule sanitizes only the cloned DOM used by the archive. It removes
+resource nodes injected by other browser extensions, explicit tracking or payment runtime, and
+ordinary iframes that cannot work independently offline; self-contained `srcdoc` iframes remain.
+**Capture diagnostics** reports removal counts by reason. The source tab is not modified.
+
 ## View an archive offline
 
 1. Extract the ZIP into a normal local directory.

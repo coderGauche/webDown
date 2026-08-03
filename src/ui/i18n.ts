@@ -121,6 +121,9 @@ const EN_MESSAGES = {
   baseUrl: 'Base URL',
   domSnapshot: 'DOM snapshot',
   chars: '{count} chars',
+  domCleanup: 'DOM cleanup',
+  cleanupCounts:
+    '{total} removed · {extension} extension · {tracking} tracking · {payment} payment · {iframes} iframe',
   specialRegions: 'Special regions',
   regionCounts: '{iframes} iframe / {shadows} shadow / {inaccessible} inaccessible',
   runtimeResources: 'Runtime resources',
@@ -294,6 +297,9 @@ const ZH_MESSAGES = {
   baseUrl: '基础地址',
   domSnapshot: 'DOM 快照',
   chars: '{count} 个字符',
+  domCleanup: 'DOM 清理',
+  cleanupCounts:
+    '移除 {total} 个 · 扩展 {extension} · 追踪 {tracking} · 支付 {payment} · iframe {iframes}',
   specialRegions: '特殊区域',
   regionCounts: '{iframes} 个 iframe / {shadows} 个 Shadow DOM / {inaccessible} 个不可访问区域',
   runtimeResources: '运行时资源',

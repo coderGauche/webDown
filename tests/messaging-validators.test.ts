@@ -96,6 +96,20 @@ const pageInfoWithoutMerged = {
   baseUrl: 'https://cdn.example.com/assets/',
   finalUrl: job.startUrl,
   serializedDom: '<!DOCTYPE html>\n<html><body>Example</body></html>',
+  cleanupReport: {
+    removedElements: 0,
+    reasonCounts: {
+      'extension-injection': 0,
+      'tracking-runtime': 0,
+      'payment-runtime': 0,
+      'nonportable-iframe': 0,
+    },
+    limitations: [
+      'closed-shadow-roots-unobservable',
+      'canvas-bitmap-unserialized',
+      'webgl-state-unserialized',
+    ],
+  },
   domResources: [
     {
       source: 'dom',
@@ -198,7 +212,7 @@ const pageInfo: PageInfo = {
 };
 
 describe('message runtime validation', () => {
-  it('accepts every v18 request, response, and event shape', () => {
+  it('accepts every v20 request, response, and event shape', () => {
     const requests = [
       createPageInfoRequest(7, 1_000, 'page-request'),
       createPageInfoCollectRequest(pageInfo.tabUrl, 1_000, 'page-collect'),
@@ -585,6 +599,30 @@ describe('message runtime validation', () => {
         },
       }),
     ).toBe(false);
+    for (const cleanupReport of [
+      { ...pageInfo.cleanupReport, removedElements: 1 },
+      {
+        ...pageInfo.cleanupReport,
+        reasonCounts: {
+          ...pageInfo.cleanupReport.reasonCounts,
+          'tracking-runtime': -1,
+        },
+      },
+      {
+        ...pageInfo.cleanupReport,
+        limitations: ['closed-shadow-roots-unobservable'],
+      },
+    ]) {
+      expect(
+        isPageInfoResponse({
+          ...createPageInfoResponse(pageInfo),
+          payload: {
+            ok: true,
+            page: { ...pageInfo, cleanupReport },
+          },
+        }),
+      ).toBe(false);
+    }
     expect(
       isPageInfoResponse({
         ...createPageInfoResponse(pageInfo),

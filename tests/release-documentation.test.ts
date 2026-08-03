@@ -42,6 +42,9 @@ describe('M10 release documentation', () => {
     expect(englishGuide).toContain('does not crawl');
     expect(englishGuide).toContain('Archive-critical third-party resources: on by default');
     expect(englishGuide).toContain('archive may be incomplete');
+    expect(englishGuide).toContain('Capture diagnostics');
+    expect(englishGuide).toContain('source tab is not modified');
+    expect(chineseGuide).toContain('原标签页不会被修改');
   });
 
   it('discloses local processing, sensitive-data handling, permissions, and user responsibility', () => {
@@ -61,6 +64,8 @@ describe('M10 release documentation', () => {
       '不得用本扩展绕过技术访问控制',
       'exact preselected hosts',
       '追踪、支付和 iframe',
+      'structured reason counts',
+      '结构化计数',
     ]) {
       expect(privacy).toContain(required);
     }

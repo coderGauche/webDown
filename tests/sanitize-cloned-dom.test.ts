@@ -3,6 +3,7 @@ import {
   sanitizeClonedDom,
   serializeDocument,
 } from '@sitecapsule/page';
+import { Window } from 'happy-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 class ElementFixture {
@@ -185,5 +186,56 @@ describe('cloned DOM sanitization', () => {
     expect(clonedInput.hasAttribute('value')).toBe(false);
     expect(liveInput.value).toBe('live-secret');
     expect(liveInput.getAttribute('value')).toBe('live-secret');
+  });
+
+  it('removes extension, tracking, payment, and nonportable iframe runtime without harming page content', () => {
+    const window = new Window({ url: 'https://example.test/page' });
+    const document = window.document;
+    document.documentElement.innerHTML = `
+      <head>
+        <link id="page-style" rel="stylesheet" href="/assets/site.css">
+        <link id="extension-style" rel="stylesheet" href="chrome-extension://abc/theme.css">
+        <script id="page-script" src="/assets/app.js"></script>
+        <script id="tracking-script" src="https://metrics.example/analytics/collect.js"></script>
+        <script id="payment-script" src="https://js.stripe.com/checkout.js"></script>
+      </head>
+      <body>
+        <main id="page-content"><h1>Archive me</h1><canvas id="hero-canvas"></canvas></main>
+        <img id="tracking-pixel" src="https://metrics.example/pixel.gif">
+        <iframe id="payment-frame" src="https://checkout.example/payment/session"></iframe>
+        <iframe id="ordinary-frame" src="/embedded/report"></iframe>
+        <iframe id="inline-frame" srcdoc="<p>Portable inline frame</p>"></iframe>
+        <div id="extension-shell"><script src="moz-extension://xyz/injected.js"></script></div>
+      </body>
+    `;
+
+    const clonedRoot = document.documentElement.cloneNode(true) as unknown as Element;
+    const report = sanitizeClonedDom(clonedRoot, document.URL);
+
+    expect(report).toEqual({
+      removedElements: 7,
+      reasonCounts: {
+        'extension-injection': 2,
+        'tracking-runtime': 2,
+        'payment-runtime': 2,
+        'nonportable-iframe': 1,
+      },
+      limitations: [
+        'closed-shadow-roots-unobservable',
+        'canvas-bitmap-unserialized',
+        'webgl-state-unserialized',
+      ],
+    });
+    expect(clonedRoot.querySelector('#extension-style')).toBeNull();
+    expect(clonedRoot.querySelector('#tracking-script')).toBeNull();
+    expect(clonedRoot.querySelector('#tracking-pixel')).toBeNull();
+    expect(clonedRoot.querySelector('#payment-frame')).toBeNull();
+    expect(clonedRoot.querySelector('#ordinary-frame')).toBeNull();
+    expect(clonedRoot.querySelector('#extension-shell script')).toBeNull();
+    expect(clonedRoot.querySelector('#page-content h1')?.textContent).toBe('Archive me');
+    expect(clonedRoot.querySelector('#hero-canvas')).not.toBeNull();
+    expect(clonedRoot.querySelector('#page-style')).not.toBeNull();
+    expect(clonedRoot.querySelector('#page-script')).not.toBeNull();
+    expect(clonedRoot.querySelector('#inline-frame')).not.toBeNull();
   });
 });

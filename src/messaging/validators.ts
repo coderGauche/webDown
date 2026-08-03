@@ -13,6 +13,8 @@ import {
 import {
   matchesMergedResourceCandidates,
   matchesResourceGraph,
+  DOM_CLEANUP_LIMITATIONS,
+  DOM_CLEANUP_REASONS,
   PAGE_REGION_LIMITATIONS,
   PERFORMANCE_RESOURCE_INITIATORS,
   type PerformanceResourceRecord,
@@ -225,6 +227,34 @@ function isPageRegionDiagnostics(value: unknown): boolean {
   return (
     limitations.length === PAGE_REGION_LIMITATIONS.length &&
     PAGE_REGION_LIMITATIONS.every((limitation) => limitations.includes(limitation))
+  );
+}
+
+function isDomCleanupReport(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, ['removedElements', 'reasonCounts', 'limitations']) ||
+    !isNonNegativeSafeInteger(value.removedElements) ||
+    !isRecord(value.reasonCounts) ||
+    !Array.isArray(value.limitations)
+  ) {
+    return false;
+  }
+
+  const reasonCounts = value.reasonCounts;
+  const limitations = value.limitations;
+  if (
+    !hasExactKeys(reasonCounts, DOM_CLEANUP_REASONS) ||
+    !DOM_CLEANUP_REASONS.every((reason) => isNonNegativeSafeInteger(reasonCounts[reason])) ||
+    limitations.length !== DOM_CLEANUP_LIMITATIONS.length ||
+    !DOM_CLEANUP_LIMITATIONS.every((limitation) => limitations.includes(limitation))
+  ) {
+    return false;
+  }
+
+  return (
+    DOM_CLEANUP_REASONS.reduce((total, reason) => total + Number(reasonCounts[reason]), 0) ===
+    value.removedElements
   );
 }
 
@@ -486,6 +516,7 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
         'baseUrl',
         'finalUrl',
         'serializedDom',
+        'cleanupReport',
         'domResources',
         'cssSources',
         'cssResources',
@@ -500,6 +531,7 @@ export function isPageInfoResponse(message: unknown): message is PageInfoRespons
       isAbsoluteUrl(message.payload.page.baseUrl) &&
       isAbsoluteUrl(message.payload.page.finalUrl) &&
       isNonEmptyString(message.payload.page.serializedDom) &&
+      isDomCleanupReport(message.payload.page.cleanupReport) &&
       Array.isArray(message.payload.page.cssSources) &&
       message.payload.page.cssSources.every(isEmbeddedCssSource) &&
       isPageRegionDiagnostics(message.payload.page.regionDiagnostics) &&

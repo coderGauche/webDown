@@ -20,7 +20,7 @@ import {
 } from './page-regions';
 import { mergeResourceCandidates, type MergedResourceCandidate } from './resource-discovery';
 import { buildResourceGraph, type ResourceGraph } from './resource-graph';
-import { sanitizeClonedDom } from './sanitize-cloned-dom';
+import { sanitizeClonedDom, type DomCleanupReport } from './sanitize-cloned-dom';
 
 export type DocumentTypeSource = Pick<DocumentType, 'name' | 'publicId' | 'systemId'>;
 
@@ -33,6 +33,7 @@ export type DocumentSnapshotSource = PageMetadataSource &
 
 export type PageSnapshot = PageMetadata & {
   serializedDom: string;
+  cleanupReport: DomCleanupReport;
   domResources: DomResourceCandidate[];
   cssSources: EmbeddedCssSource[];
   cssResources: CssResourceCandidate[];
@@ -67,11 +68,19 @@ export function serializeDocumentType(doctype: DocumentTypeSource | null): strin
 export function serializeDocument(
   source: Pick<DocumentSnapshotSource, 'doctype' | 'documentElement'>,
 ): string {
-  const clonedRoot = source.documentElement.cloneNode(true) as Element;
-  sanitizeClonedDom(clonedRoot);
-  const doctype = serializeDocumentType(source.doctype);
+  return serializeDocumentWithCleanup(source).serializedDom;
+}
 
-  return doctype ? `${doctype}\n${clonedRoot.outerHTML}` : clonedRoot.outerHTML;
+export function serializeDocumentWithCleanup(
+  source: Pick<DocumentSnapshotSource, 'doctype' | 'documentElement'> &
+    Partial<Pick<DocumentSnapshotSource, 'URL'>>,
+): Pick<PageSnapshot, 'serializedDom' | 'cleanupReport'> {
+  const clonedRoot = source.documentElement.cloneNode(true) as Element;
+  const cleanupReport = sanitizeClonedDom(clonedRoot, source.URL ?? 'about:blank');
+  const doctype = serializeDocumentType(source.doctype);
+  const serializedDom = doctype ? `${doctype}\n${clonedRoot.outerHTML}` : clonedRoot.outerHTML;
+
+  return { serializedDom, cleanupReport };
 }
 
 export function capturePageSnapshot(
@@ -89,10 +98,11 @@ export function capturePageSnapshot(
     performanceResources,
   });
   const metadata = readPageMetadata(source, tabUrl);
+  const serialized = serializeDocumentWithCleanup(source);
 
   return {
     ...metadata,
-    serializedDom: serializeDocument(source),
+    ...serialized,
     domResources,
     ...embeddedResources,
     cssResources,
