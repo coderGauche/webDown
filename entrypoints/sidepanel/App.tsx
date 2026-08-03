@@ -74,6 +74,7 @@ type ThirdPartyCheckStatus = 'idle' | 'checking' | 'ready' | 'error';
 type CreateStatus = 'idle' | 'creating';
 type ControlStatus = 'idle' | CaptureJobCommand;
 type ResultStatus = 'idle' | 'loading' | 'ready' | 'error';
+type ArchivePreparationStatus = 'idle' | 'preparing' | 'ready' | 'error';
 type DownloadStatus = 'idle' | 'downloading' | 'started' | 'error';
 type HistoryStatus = 'loading' | 'ready' | 'error';
 
@@ -229,6 +230,13 @@ export function App() {
   const [resultStatus, setResultStatus] = useState<ResultStatus>('idle');
   const [captureResult, setCaptureResult] = useState<CaptureJobResult | null>(null);
   const [resultError, setResultError] = useState<CaptureError | null>(null);
+  const [archivePreparationStatus, setArchivePreparationStatus] =
+    useState<ArchivePreparationStatus>('idle');
+  const [preparedArchive, setPreparedArchive] = useState<{
+    jobId: string;
+    bytes: Uint8Array;
+  } | null>(null);
+  const [archivePreparationAttempt, setArchivePreparationAttempt] = useState(0);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
   const [downloadFileName, setDownloadFileName] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<CaptureError | null>(null);
@@ -469,6 +477,55 @@ export function App() {
     };
   }, [captureJob?.id, captureJob?.status, captureJob?.updatedAt]);
 
+  useEffect(() => {
+    let disposed = false;
+    setPreparedArchive(null);
+
+    if (
+      !captureResult?.archiveAvailable ||
+      captureResult.archiveByteLength === null ||
+      captureResult.status !== 'completed'
+    ) {
+      setArchivePreparationStatus('idle');
+      return () => {
+        disposed = true;
+      };
+    }
+
+    setArchivePreparationStatus('preparing');
+    setDownloadStatus('idle');
+    setDownloadFileName(null);
+    setDownloadError(null);
+    void readCaptureArchiveBytes(captureResult.jobId, captureResult.archiveByteLength, (request) =>
+      browser.runtime.sendMessage(request),
+    )
+      .then((bytes) => {
+        if (disposed) return;
+        setPreparedArchive({ jobId: captureResult.jobId, bytes });
+        setArchivePreparationStatus('ready');
+      })
+      .catch((requestError: unknown) => {
+        if (disposed) return;
+        const captureError = toCaptureError(requestError, 'archive-download-failed', {
+          operation: 'archive-download',
+          jobId: captureResult.jobId,
+        });
+        setArchivePreparationStatus('error');
+        setDownloadStatus('error');
+        setDownloadError(captureError);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [
+    captureResult?.jobId,
+    captureResult?.status,
+    captureResult?.archiveAvailable,
+    captureResult?.archiveByteLength,
+    archivePreparationAttempt,
+  ]);
+
   const readCurrentPage = async () => {
     if (!renderWaitValidation.valid) return;
     const renderWaitMs = renderWaitValidation.value;
@@ -674,9 +731,14 @@ export function App() {
   };
 
   const downloadArchive = async () => {
+    if (captureResult?.archiveAvailable && archivePreparationStatus === 'error') {
+      setArchivePreparationAttempt((current) => current + 1);
+      return;
+    }
     if (
       !captureResult?.archiveAvailable ||
-      captureResult.archiveByteLength === null ||
+      archivePreparationStatus !== 'ready' ||
+      preparedArchive?.jobId !== captureResult.jobId ||
       downloadStatus === 'downloading'
     ) {
       return;
@@ -685,13 +747,8 @@ export function App() {
     setDownloadFileName(null);
     setDownloadError(null);
     try {
-      const archiveBytes = await readCaptureArchiveBytes(
-        captureResult.jobId,
-        captureResult.archiveByteLength,
-        (request) => browser.runtime.sendMessage(request),
-      );
       const downloaded = await exportArchiveWithChromeDownloads({
-        archiveBytes,
+        archiveBytes: preparedArchive.bytes,
         fileName: captureResult.fileName,
         saveAs: true,
       });
@@ -1240,9 +1297,18 @@ export function App() {
                       type="button"
                       className="download-action"
                       onClick={downloadArchive}
-                      disabled={!captureResult.archiveAvailable || downloadStatus === 'downloading'}
+                      disabled={
+                        !captureResult.archiveAvailable ||
+                        archivePreparationStatus === 'idle' ||
+                        archivePreparationStatus === 'preparing' ||
+                        downloadStatus === 'downloading'
+                      }
                     >
-                      {downloadStatus === 'downloading' ? t('preparingDownload') : t('downloadZip')}
+                      {archivePreparationStatus === 'preparing' || downloadStatus === 'downloading'
+                        ? t('preparingDownload')
+                        : archivePreparationStatus === 'error'
+                          ? t('retry')
+                          : t('downloadZip')}
                     </button>
                     {!captureResult.archiveAvailable && (
                       <p className="result-note">{t('zipSessionGone')}</p>

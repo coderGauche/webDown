@@ -87,7 +87,7 @@ async function createAndDownloadArchive(panelPage: Page): Promise<string> {
   await createArchive(panelPage);
 
   await panelPage.getByRole('button', { name: 'Download ZIP' }).click();
-  await expect(panelPage.getByText(/Download started/)).toBeVisible();
+  await expect(panelPage.getByText(/Download completed/)).toBeVisible();
 
   const completedDownloads = await panelPage.evaluate(async () => {
     const downloads = await browser.downloads.search({ state: 'complete' });

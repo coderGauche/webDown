@@ -173,7 +173,13 @@ export function exportArchiveWithChromeDownloads(
 const ARCHIVE_DOWNLOAD_COMPLETION_TIMEOUT_MS = 10 * 60 * 1_000;
 
 class ChromeDownloadInterrupted extends Error {
-  override readonly name = 'ChromeDownloadInterrupted';
+  constructor(reason?: string) {
+    super(reason ?? 'Chrome interrupted the download.');
+    this.name =
+      reason && /^[A-Z][A-Z0-9_]{0,47}$/.test(reason)
+        ? `ChromeDownload_${reason}`
+        : 'ChromeDownloadInterrupted';
+  }
 }
 
 class ChromeDownloadMissing extends Error {
