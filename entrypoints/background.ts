@@ -72,7 +72,7 @@ import {
   isBackgroundRuntimeRequest,
   isTrustedSidePanelSender,
 } from '@sitecapsule/messaging/runtime-policy';
-import { checkCurrentSiteAccess } from '@sitecapsule/permissions';
+import { checkCurrentSiteAccess, classifyThirdPartyResourcePolicy } from '@sitecapsule/permissions';
 import {
   getPageCaptureTimeoutMs,
   runPageCaptureSession,
@@ -172,7 +172,13 @@ function shouldSkipResource(
   ) {
     return true;
   }
-  return !job.settings.includeThirdPartyResources && isThirdPartyUrl(node.url, page.finalUrl);
+  if (
+    classifyThirdPartyResourcePolicy(node, page.resourceGraph.edges).policy !== 'archive-critical'
+  ) {
+    return true;
+  }
+  if (!isThirdPartyUrl(node.url, page.finalUrl)) return false;
+  return !job.settings.includeThirdPartyResources;
 }
 
 function createResourceRecords(page: PageInfo, job: CaptureJob): ResourceRecord[] {

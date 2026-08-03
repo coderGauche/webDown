@@ -14,11 +14,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 const ROOT_URL = 'https://www.example.test/page';
 
-function domResource(resolvedUrl: string): DomResourceCandidate {
+function domResource(
+  resolvedUrl: string,
+  tagName = 'img',
+  attributeName: DomResourceCandidate['attributeName'] = 'src',
+): DomResourceCandidate {
   return {
     source: 'dom',
-    tagName: 'img',
-    attributeName: 'src',
+    tagName,
+    attributeName,
     attributeValue: resolvedUrl,
     rawUrl: resolvedUrl,
     resolvedUrl,
@@ -86,6 +90,10 @@ describe('third-party site access', () => {
         provenanceCount: 3,
         discoverySources: ['dom', 'performance'],
         resourceTypes: ['image', 'script'],
+        criticalResourceCount: 2,
+        excludedResourceCount: 0,
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
       },
       {
         status: 'not-granted',
@@ -97,6 +105,10 @@ describe('third-party site access', () => {
         provenanceCount: 1,
         discoverySources: ['performance'],
         resourceTypes: ['stylesheet'],
+        criticalResourceCount: 1,
+        excludedResourceCount: 0,
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
       },
       {
         status: 'granted',
@@ -108,12 +120,32 @@ describe('third-party site access', () => {
         provenanceCount: 1,
         discoverySources: ['performance'],
         resourceTypes: ['font'],
+        criticalResourceCount: 1,
+        excludedResourceCount: 0,
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
+      },
+      {
+        status: 'not-granted',
+        permissionPattern: 'http://www.example.test/*',
+        scheme: 'http:',
+        hostname: 'www.example.test',
+        origins: ['http://www.example.test'],
+        resourceCount: 1,
+        provenanceCount: 1,
+        discoverySources: ['performance'],
+        resourceTypes: ['image'],
+        criticalResourceCount: 1,
+        excludedResourceCount: 0,
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
       },
     ]);
     expect(contains.mock.calls).toEqual([
       [{ origins: ['https://cdn.example.test/*'] }],
       [{ origins: ['http://cdn.example.test/*'] }],
       [{ origins: ['https://assets.example.test/*'] }],
+      [{ origins: ['http://www.example.test/*'] }],
     ]);
   });
 
@@ -151,6 +183,64 @@ describe('third-party site access', () => {
 
     await expect(summarizeThirdPartySiteAccess(graph, contains)).resolves.toEqual([]);
     expect(contains).not.toHaveBeenCalled();
+  });
+
+  it('defaults only archive-critical hosts and excludes tracking, payment, iframe, and beacons', async () => {
+    const graph = buildResourceGraph(
+      ROOT_URL,
+      mergeResourceCandidates({
+        domResources: [
+          domResource('https://images.cdn.test/hero.webp'),
+          domResource('https://analytics.vendor.test/collect.js', 'script'),
+          domResource('https://payments.vendor.test/controller.js', 'script'),
+          domResource('https://frames.vendor.test/checkout', 'iframe'),
+        ],
+        svgResources: [],
+        cssResources: [],
+        performanceResources: [performanceResource('https://runtime.vendor.test/beacon', 'beacon')],
+      }),
+    );
+    const summaries = await summarizeThirdPartySiteAccess(graph, async () => false);
+
+    expect(
+      summaries.map(({ hostname, defaultSelected, policyReasons }) => ({
+        hostname,
+        defaultSelected,
+        policyReasons,
+      })),
+    ).toEqual([
+      {
+        hostname: 'images.cdn.test',
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
+      },
+      {
+        hostname: 'analytics.vendor.test',
+        defaultSelected: false,
+        policyReasons: ['tracking-runtime'],
+      },
+      {
+        hostname: 'payments.vendor.test',
+        defaultSelected: false,
+        policyReasons: ['payment-runtime'],
+      },
+      {
+        hostname: 'frames.vendor.test',
+        defaultSelected: false,
+        policyReasons: ['iframe-document'],
+      },
+      {
+        hostname: 'runtime.vendor.test',
+        defaultSelected: false,
+        policyReasons: ['tracking-runtime'],
+      },
+    ]);
+    expect(
+      createThirdPartyAccessRequest(
+        summaries,
+        summaries.map(({ permissionPattern }) => permissionPattern),
+      ),
+    ).toEqual({ origins: ['https://images.cdn.test/*'] });
   });
 
   it('rejects invalid graphs, non-network roots, and permission API failures', async () => {

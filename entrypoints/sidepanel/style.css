@@ -1160,6 +1160,10 @@ h3 {
   color: #087052;
 }
 
+.access-state.runtime-excluded {
+  color: #60708b;
+}
+
 .access-summary {
   flex: 0 0 auto;
   font-size: 10px;

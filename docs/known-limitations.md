@@ -30,8 +30,9 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 
 - 原站后端、搜索、表单提交、支付、账号、实时 API、WebSocket 和服务端渲染功能无法保证
   离线运行。
-- 第三方资源和媒体默认关闭。未授权、CORS/响应策略限制、限流、地域限制或防机器人页面会
-  造成资源缺失。
+- 归档关键第三方资源默认开启并按精确主机授权；媒体默认关闭。追踪、支付、iframe 和其他
+  仅运行时资源默认排除。未授权、分类启发式、CORS/响应策略限制、限流、地域限制或防机器
+  人页面仍可能造成资源缺失。
 - 跨域 iframe 内容不可直接读取；开放 Shadow DOM 可记录，关闭的 Shadow Root 无法访问。
 - Canvas/WebGL 的最终像素不会作为 DOM 序列化。模型、WASM、decoder 或 GPU 特定纹理变体
   只有在被发现并成功下载时才可能工作，换设备可能黑屏或材质缺失。
@@ -84,8 +85,10 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 
 - Source backends, search, form submission, payments, accounts, live APIs, WebSockets, and
   server-rendered actions are not guaranteed offline.
-- Third-party resources and media are off by default. Missing permission, response restrictions,
-  throttling, geography, or anti-bot pages can leave assets unavailable.
+- Archive-critical third-party resources are enabled by default and require exact-host grants;
+  media remains off by default. Tracking, payment, iframe, and other runtime-only resources are
+  excluded by default. Missing permission, classification heuristics, response restrictions,
+  throttling, geography, or anti-bot pages can still leave assets unavailable.
 - Cross-origin iframe content cannot be read directly. Open Shadow DOM can be recorded; closed
   shadow roots cannot be accessed.
 - Final Canvas/WebGL pixels are not serialized as DOM. Models, WASM, decoders, and GPU-specific

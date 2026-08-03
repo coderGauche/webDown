@@ -36,8 +36,12 @@ describe('M10 release documentation', () => {
 
     expect(chineseGuide).toContain('授权所选项');
     expect(chineseGuide).toContain('只归档当前页面');
+    expect(chineseGuide).toContain('归档关键第三方资源：默认开启');
+    expect(chineseGuide).toContain('归档可能不完整');
     expect(englishGuide).toContain('Grant selected');
     expect(englishGuide).toContain('does not crawl');
+    expect(englishGuide).toContain('Archive-critical third-party resources: on by default');
+    expect(englishGuide).toContain('archive may be incomplete');
   });
 
   it('discloses local processing, sensitive-data handling, permissions, and user responsibility', () => {
@@ -55,6 +59,8 @@ describe('M10 release documentation', () => {
       'copyright law',
       '不会把 HTML',
       '不得用本扩展绕过技术访问控制',
+      'exact preselected hosts',
+      '追踪、支付和 iframe',
     ]) {
       expect(privacy).toContain(required);
     }

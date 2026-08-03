@@ -242,6 +242,9 @@ export function App() {
   };
   const pendingThirdPartyPatterns = getPendingThirdPartyPermissionPatterns(thirdPartyAccess);
   const pendingThirdPartyCount = pendingThirdPartyPatterns.length;
+  const criticalThirdPartyCount = thirdPartyAccess.filter(
+    ({ defaultSelected }) => defaultSelected,
+  ).length;
   const archiveNameValidation = validateCurrentPageArchiveFileName(archiveName.value);
   const renderWaitValidation = validateRenderWaitInput(renderWaitInput);
   const concurrencyValidation = validateConcurrencyInput(concurrencyInput);
@@ -286,13 +289,13 @@ export function App() {
         ? t('checkingHostAccess')
         : thirdPartyCheckStatus === 'error'
           ? t('hostAccessFailed')
-          : thirdPartyAccess.length === 0
+          : criticalThirdPartyCount === 0
             ? t('noThirdPartyHosts')
             : !includeThirdPartyResources
-              ? t('hostsFoundOff', { count: thirdPartyAccess.length })
+              ? t('hostsFoundOff', { count: criticalThirdPartyCount })
               : pendingThirdPartyCount > 0
                 ? t('hostsNeedAccess', { count: pendingThirdPartyCount })
-                : t('hostsReady', { count: thirdPartyAccess.length });
+                : t('hostsReady', { count: criticalThirdPartyCount });
 
   const captureErrorText = (captureError: CaptureError): string => {
     const localized = localizeCaptureError(captureError, locale);
@@ -586,7 +589,7 @@ export function App() {
         (permissionRequest) => browser.permissions.contains(permissionRequest),
       );
       setThirdPartyAccess(refreshed);
-      setSelectedThirdParties([]);
+      setSelectedThirdParties(getPendingThirdPartyPermissionPatterns(refreshed));
       setThirdPartyCheckStatus('ready');
     } catch (permissionError) {
       setThirdPartyError({
@@ -1524,7 +1527,7 @@ export function App() {
                     </button>
                   ) : (
                     <span className="access-summary">
-                      {thirdPartyAccess.length > 0 ? t('allGranted') : t('noneRequired')}
+                      {criticalThirdPartyCount > 0 ? t('allGranted') : t('noneRequired')}
                     </span>
                   )}
                 </div>
@@ -1539,11 +1542,14 @@ export function App() {
                           <input
                             type="checkbox"
                             checked={
-                              access.status === 'granted' ||
-                              selectedThirdParties.includes(access.permissionPattern)
+                              access.defaultSelected &&
+                              (access.status === 'granted' ||
+                                selectedThirdParties.includes(access.permissionPattern))
                             }
                             disabled={
-                              access.status === 'granted' || thirdPartyGrantStatus === 'requesting'
+                              !access.defaultSelected ||
+                              access.status === 'granted' ||
+                              thirdPartyGrantStatus === 'requesting'
                             }
                             onChange={(event) =>
                               toggleThirdParty(
@@ -1558,13 +1564,21 @@ export function App() {
                               {t('accessDetails', {
                                 resources: access.resourceCount.toLocaleString(locale),
                                 discoveries: access.provenanceCount.toLocaleString(locale),
+                                critical: access.criticalResourceCount.toLocaleString(locale),
+                                excluded: access.excludedResourceCount.toLocaleString(locale),
                                 sources: access.discoverySources.join(', '),
                                 types: access.resourceTypes.join(', '),
                               })}
                             </span>
                           </span>
-                          <span className={`access-state ${access.status}`}>
-                            {access.status === 'granted' ? t('granted') : t('pending')}
+                          <span
+                            className={`access-state ${access.defaultSelected ? access.status : 'runtime-excluded'}`}
+                          >
+                            {!access.defaultSelected
+                              ? t('runtimeExcluded')
+                              : access.status === 'granted'
+                                ? t('granted')
+                                : t('pending')}
                           </span>
                         </label>
                       </li>

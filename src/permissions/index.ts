@@ -15,8 +15,14 @@ export {
   type SiteAccessTarget,
 } from './page-access';
 export {
+  THIRD_PARTY_RESOURCE_POLICIES,
+  THIRD_PARTY_RESOURCE_POLICY_REASONS,
+  classifyThirdPartyResourcePolicy,
   createThirdPartyAccessRequest,
   summarizeThirdPartySiteAccess,
+  type ThirdPartyResourcePolicy,
+  type ThirdPartyResourcePolicyReason,
+  type ThirdPartyResourcePolicyResult,
   type ThirdPartySiteAccessStatus,
   type ThirdPartySiteAccessSummary,
 } from './third-party-access';

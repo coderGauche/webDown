@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-R1 已建立 ZIP 离线完整性红线，真实归档 P0 修复继续进行
-> 下一任务：M10-R2 重做第三方关键资源识别、默认选择和按需授权流程
+> 当前状态：M10-R2 已完成关键第三方资源分级与精确授权闭环，真实归档 P0 修复继续进行
+> 下一任务：M10-R3 清理扩展注入、追踪、支付 iframe 和不可离线运行时污染
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -392,7 +392,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-T4** 完成使用说明、隐私说明和已知限制；
 - [x] **M10-T5** 生成可加载的发布 ZIP；
 - [x] **M10-R1** 固化真实失败样本和 ZIP 完整性回归基线；
-- [ ] **M10-R2** 重做第三方关键资源识别、默认选择和按需授权流程；
+- [x] **M10-R2** 重做第三方关键资源识别、默认选择和按需授权流程；
 - [ ] **M10-R3** 清理扩展注入、追踪、支付 iframe 和不可离线运行时污染；
 - [ ] **M10-R4** 建立 HTML/CSS 本地引用与 ZIP 条目的强一致性门禁；
 - [ ] **M10-R5** 将结构化清单、失败说明和 `report.html` 接入真实归档；
@@ -476,8 +476,8 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
 | 当前任务 | 无进行中任务 |
-| 最近完成 | M10-R1 固化真实失败样本和 ZIP 离线完整性审计基线 |
-| 下一任务 | M10-R2 重做第三方关键资源识别、默认选择和按需授权流程 |
+| 最近完成 | M10-R2 关键第三方资源分级、默认选择和精确按需授权 |
+| 下一任务 | M10-R3 清理扩展注入、追踪、支付 iframe 和不可离线运行时污染 |
 | 阻塞项 | 真实 ZIP 仅含 HTML、保留 186 个唯一公网资源、出现无文件的本地引用和扩展注入污染；M10-T3 两项 P0 继续阻止发布 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
@@ -581,6 +581,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-03 | M10-T5 | 完成 | 新增 `scripts/build-release-candidate.mjs` 与 `pnpm release:candidate`，从普通生产配置生成 Chrome MV3 ZIP，使用独立 ZIP 解析器验证中央目录、本地条目、解压、CRC32、安全路径、禁止开发文件、Manifest 和 `.output/chrome-mv3` 逐文件 SHA-256 一致性，并复用商店风险审计；候选包精确包含 13 个生产文件、无 source map、无测试证据、无安装期 `host_permissions`，仅保留 HTTP/HTTPS 可选 host；将同一 ZIP 解压到临时目录后由隔离 Playwright Chromium 151.0.7922.34 实际启动 Service Worker 并打开 Side Panel，二者均通过；生成基于 commit `0834df155d067bb26545f206686fb81df78c8812` 的本地 `dist/sitecapsule-0.1.0-engineering-candidate-0834df1.zip`，384,850 字节，SHA-256 `f956c24b1f63b3ae3340380eb5830750ad648a424f8ae04887217fb2fd5ada73`，版本化校验记录保存在 `docs/releases/sitecapsule-0.1.0-engineering-candidate-0834df1.zip.json`；新增发布目录说明和 4 项 ZIP 防篡改/权限/加载记录测试；`pnpm release:candidate`、定向 Vitest 4/4、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（71 个文件、628 项测试）、`pnpm build`（1.30 MB）、商店审计（0 errors/3 review）与 `git diff --check` 全部通过；二进制留在忽略的 `dist/`，因 M10-T3 两项 P0 仍标记 `engineering-candidate-blocked` 且 `publicReleaseApproved: false`，未冒充公开发布包 |
 | 2026-08-03 | M10-R0 | 缺陷立项 | 用户首次检查真实下载归档 `sitecapsule-unitedcarriers.com-20260803` 后发现目录只有 437,769 字节的 `index.html`；取证统计 326 个资源属性引用、228 个唯一值，其中 229 次/186 个唯一值仍指向公网，唯一被改写为 `assets/` 的引用没有对应文件，并混入一个其他浏览器扩展的 `chrome-extension:` 脚本；页面主体确实已序列化，但第三方 CDN 资源默认关闭、打包前无引用一致性门禁、DOM 所有权未清理且归档报告未接入，使 Side Panel 把不可离线的 HTML 壳显示为完成；新增 `docs/testing/archive-forensic-unitedcarriers-2026-08-03.md`，将其定为发布阻断缺陷，暂停 M10-T6，并插入 M10-R1 至 M10-R7 的回归、授权、净化、一致性、报告、断网 E2E 和基线复测任务；本次只固化证据和修复顺序，不将用户 `downloads/` 样本纳入 Git，也不提前声称缺陷已修复 |
 | 2026-08-03 | M10-R1 | 完成 | 新增 `src/archive/archive-offline-integrity.ts`，直接解压最终 ZIP 并扫描入口/页面 HTML、独立 CSS、inline style、`src`/`href`/`poster`、`srcset` 和 SVG 资源属性；输出归档条目/资源目录统计、本地存在/缺失、残留公网 URL、扩展协议、不支持协议和无效引用，根绝对路径即使存在同名 ZIP 条目也判定为离线错误；普通 `a/area href` 与 `form action` 只计入已忽略导航，不误判为资源；新增无公网请求的多 origin 坏包 fixture，以超过 100 KiB 的最终 DOM 配合仅两个 ZIP 条目稳定复现本地资源缺失、5 个残留公网 URL 和 `chrome-extension:` 污染，并以完整包反例锁定绿灯；定向 Vitest 5/5、`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（72 个文件、633 项测试）、`pnpm build`（1.30 MB）与 `git diff --check` 全部通过；本任务只建立可信 ZIP 红线，未提前修复 R2-R5，因此 B-001 至 B-003 和发布暂停状态继续保留 |
+| 2026-08-03 | M10-R2 | 完成 | 扩展 `src/permissions/third-party-access.ts`，以资源类型、资源图证据和通用 URL 信号将网络节点分为 `archive-critical` 与 `runtime-excluded`：CSS、图片、字体、脚本、媒体、模型、纹理和 WASM 默认关键，iframe/document、明确追踪/支付 URL、beacon/ping 与未知运行时默认排除；同一 host 保留关键/排除数量与原因，跨 scheme 同 hostname 仍按独立精确权限处理；关键第三方开关改为默认开启，未授权关键 host 默认勾选并阻止创建，权限请求只接受显式选中的 pending 关键模式，运行时 host 即使已有权限也不会被 Background 下载；用户主动关闭关键第三方后可继续但界面明确提示归档可能不完整；Side Panel 显示关键/排除计数和中性运行时状态，分批授权后剩余关键 host 继续默认选中；同步中英文指南、隐私与限制说明；定向权限/CDN 集成、任务模型、文档和布局测试通过，`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（72 个文件、635 项测试）、`pnpm build`（1.31 MB）与 `git diff --check` 全部通过；R2 不清理已序列化 DOM 中的污染节点，B-001/B-003 与发布暂停继续保留，交由 R3/R4/R6 闭环 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -691,6 +692,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-087 | 2026-08-03 | M10-T5 只生成带完整可复核记录的 `engineering-candidate-blocked`，二进制留在忽略的 `dist/`，不借“可加载”绕过 M10-T3 发布阻断 | 静态构建成功不能证明 ZIP 本身能由 Chromium 加载；直接提交易变二进制会放大仓库体积；把工程验证包称为 release 又会掩盖 81.82% 归档成功率和 0% 运行时报告率两项 P0 | 发布脚本校验中央目录、解压、CRC、路径、禁止文件、Manifest、生产目录逐文件 SHA 和商店风险，再把同一 ZIP 解压到临时目录，由隔离 Chromium 启动 Service Worker 并打开 Side Panel；仓库只保留包含源 commit、字节数、SHA-256、文件清单和加载结果的 JSON 记录，公开发布状态固定为 false |
 | D-088 | 2026-08-03 | 在 M10-T5 与 M10-T6 之间插入七项发布阻断修复，先证明真实 ZIP 完整再继续版本和演示工作 | 扩展包本身可加载只证明 SiteCapsule 能启动，不证明它生成的网页归档可离线；只靠页面能打开或任务状态 completed 会继续漏掉资源空包、外链、污染和报告缺失 | R1 固化失败基线；R2 只为归档关键类型默认选择并显式申请精确 host，不静默扩大权限；R3 通用清理非页面所有运行时；R4 在下载前强制引用与 ZIP 一致；R5 接入报告；R6 以真实 ZIP 断网验收；R7 重算公开指标，全部通过前不恢复 T6 |
 | D-089 | 2026-08-03 | 离线完整性红线直接审计最终 ZIP 内的资源加载引用，不把普通页面导航当作必须打包的资源 | 只验证 ZIP 结构、CRC 或 HTML 大小无法发现 HTML 壳；反过来扫描所有 `href` 会把站内/站外导航误报为缺失资源，并迫使单页 MVP 爬取整站 | 审计覆盖 HTML/SVG/CSS 的实际加载通道，并按本地存在、本地缺失、公网、扩展、内嵌、fragment、不支持和无效分类；`a/area href` 与 `form action` 独立计数但不影响结果；根绝对资源路径在解压归档中不能可靠解析，固定判定失败；R1 API 只建立测试红线，真实打包门禁在 R4 接入 |
+| D-090 | 2026-08-03 | 第三方权限只为归档关键资源默认选择精确 host，资源下载再次使用同一策略排除运行时节点 | 将旧开关直接默认打开会把已有权限的追踪、支付或 iframe 资源一并下载；将所有 Performance-only 脚本排除又会丢失 SPA 动态 chunk；按 hostname 比较还会漏掉跨 scheme origin | 普通 CSS/图片/字体/脚本/媒体及 3D 依赖默认关键；明确 tracking/payment URL、beacon/ping、document/iframe 和未知类型默认排除；脚本除明确运行时信号外保持关键；summary 对每个 scheme + hostname 保存关键/排除计数，只有含关键资源的未授权 host 默认勾选并阻断创建；用户可关闭整个关键第三方选项接受可见降级；Background 对同源和跨域节点统一执行运行时排除，跨域关键资源再受开关与 Chrome 精确权限双重约束 |
 
 ---
 
@@ -711,11 +713,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M10-R2：重做第三方关键资源识别、默认选择和按需授权流程**。
+下一步严格只执行 **M10-R3：清理扩展注入、追踪、支付 iframe 和不可离线运行时污染**。
 
-M10-R2 完成后必须：
+M10-R3 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 从资源图中区分影响离线视觉/运行的关键第三方 CSS、图片、字体、脚本和媒体，与追踪、支付、iframe 等非默认归档运行时；
-3. 关键第三方 host 默认选中但仍只按精确 scheme + hostname 显式请求 Chrome 可选权限，不静默申请全站或所有已发现域名；
-4. 用户未处理关键权限时不得生成普通成功归档：必须阻止创建或提供清楚的降级确认，并以纯模型和 Side Panel 行为测试锁定。
+2. 使用通用规则从克隆 DOM 中移除 `chrome-extension:`/`moz-extension:` 注入节点、明确追踪或支付运行时和不可离线 iframe，不按 United Carriers 域名写特例；
+3. 保留页面主体、关键样式和普通第一方脚本，所有移除动作形成结构化计数与原因，不能静默丢内容；
+4. 以混合 fixture 验证扩展注入、tracking/payment/iframe 被清理且普通页面结构不受损，并明确 closed Shadow Root、Canvas/WebGL 等仍不可观测边界。

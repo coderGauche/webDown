@@ -18,14 +18,17 @@ or mirror an entire website.
    - Render wait: 0-30,000 ms. Increase it for a page that renders late.
    - Concurrent downloads: 1-12; the default is 6.
    - Media files: off by default. Enabling video or audio can use substantial memory and time.
-   - Third-party resources: off by default. When enabled, select hosts and choose **Grant selected**.
+   - Archive-critical third-party resources: on by default. Critical CSS, image, font, script, and
+     related hosts are preselected; choose **Grant selected** to let Chrome request only those exact
+     hosts. Tracking, payment, iframe, and other runtime-only hosts remain excluded.
 6. Choose **Create archive**. A running task can be paused, resumed, or cancelled; a failed task can
    be retried when the UI offers that action.
 7. When **Archive ready** appears, choose **Download ZIP** before reloading or closing the extension.
 
-A third-party host grant is not permission to crawl that host. SiteCapsule requests access only for
-origins discovered for the current task and selected by the user. Unapproved resources are failed or
-skipped, which can reduce offline styling or behavior.
+A third-party host grant is not permission to crawl that host. SiteCapsule requests exact host
+access only for archive-critical origins discovered for the current task. An ordinary task cannot
+start while a critical host remains unapproved. You may explicitly turn off archive-critical
+third-party resources and continue, but the UI warns that the archive may be incomplete.
 
 ## View an archive offline
 
@@ -58,8 +61,8 @@ site; offline content is not automatically trusted content.
 - **This page does not allow the content script**: switch to a normal HTTP/HTTPS page. `chrome://`,
   Chrome Web Store, extension pages, and some protected pages cannot be captured.
 - **The page navigated during capture**: wait for a stable page, read it again, and create a new task.
-- Missing third-party assets: enable third-party resources, select only required hosts, grant them,
-  and retry.
+- Missing third-party assets: enable archive-critical third-party resources, grant the preselected
+  required hosts, and retry.
 - A large page remains in downloading: disable media, reduce third-party resources, or lower
   concurrency and retry.
 - The extracted page is blank or resolves an incorrect path: use the local HTTP server above and

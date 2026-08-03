@@ -1,7 +1,7 @@
 # SiteCapsule Privacy Notice / 隐私说明
 
 > Applies to / 适用版本：SiteCapsule 0.1.0 engineering trial / 工程试用版
-> Updated / 更新日期：2026-08-02
+> Updated / 更新日期：2026-08-03
 
 ## English
 
@@ -42,9 +42,10 @@ confidential information. Review an archive before sharing it.
 | `sidePanel`                     | Show the SiteCapsule controls beside the current page.                        |
 | Optional HTTP/HTTPS host access | Read the selected page and fetch only user-approved source origins.           |
 
-Site access is requested at use time. Third-party resource access is off by default and requires a
-separate user selection. The production Manifest does not install with permanent all-site host
-access.
+Site access is requested at use time. Archive-critical third-party resources are enabled by
+default, but Chrome still requires the user to approve the exact preselected hosts. Tracking,
+payment, iframe, and other runtime-only hosts remain excluded; an existing host grant does not add
+them to an archive. The production Manifest does not install with permanent all-site host access.
 
 ### User responsibility
 
@@ -88,8 +89,9 @@ SiteCapsule 在 Chrome 扩展内部处理捕获内容。当前产品没有 SiteC
 | `sidePanel`              | 在当前页面旁显示 SiteCapsule 控件。                  |
 | 可选 HTTP/HTTPS 站点权限 | 读取所选页面并仅下载用户批准来源的资源。             |
 
-站点权限在使用时申请；第三方资源默认关闭，必须由用户另行选择。生产 Manifest 不会在
-安装时获得永久全站访问权限。
+站点权限在使用时申请；归档关键第三方资源默认开启，但仍必须由用户在 Chrome 中对界面
+默认选中的精确主机逐次确认。追踪、支付和 iframe 等运行时主机默认排除，已有权限不会使
+它们自动进入归档。生产 Manifest 不会在安装时获得永久全站访问权限。
 
 ### 用户责任
 

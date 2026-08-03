@@ -13,7 +13,7 @@ export const DEFAULT_CURRENT_PAGE_CONCURRENCY = 6;
 export const MIN_CURRENT_PAGE_CONCURRENCY = 1;
 export const MAX_CURRENT_PAGE_CONCURRENCY = 12;
 export const DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA = false;
-export const DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES = false;
+export const DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES = true;
 
 export type ArchiveFileNameValidation =
   | { valid: true; fileName: string; message: null; suggestion: null }
@@ -143,7 +143,7 @@ export function getPendingThirdPartyPermissionPatterns(
   access: readonly ThirdPartySiteAccessSummary[],
 ): string[] {
   return access
-    .filter((entry) => entry.status === 'not-granted')
+    .filter((entry) => entry.status === 'not-granted' && entry.defaultSelected)
     .map((entry) => entry.permissionPattern);
 }
 

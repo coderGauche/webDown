@@ -60,7 +60,7 @@ describe('current-page task settings', () => {
       maxConcurrentRequests: 6,
       includeMedia: false,
       includeScripts: true,
-      includeThirdPartyResources: false,
+      includeThirdPartyResources: true,
     });
   });
 
@@ -146,7 +146,7 @@ describe('current-page task settings', () => {
     }
   });
 
-  it('requires every discovered third-party host to be granted when inclusion is enabled', () => {
+  it('requires every archive-critical third-party host to be granted when inclusion is enabled', () => {
     const access: ThirdPartySiteAccessSummary[] = [
       {
         status: 'granted',
@@ -158,6 +158,10 @@ describe('current-page task settings', () => {
         provenanceCount: 1,
         discoverySources: ['dom'],
         resourceTypes: ['image'],
+        criticalResourceCount: 1,
+        excludedResourceCount: 0,
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
       },
       {
         status: 'not-granted',
@@ -169,6 +173,10 @@ describe('current-page task settings', () => {
         provenanceCount: 3,
         discoverySources: ['css', 'performance'],
         resourceTypes: ['font'],
+        criticalResourceCount: 2,
+        excludedResourceCount: 0,
+        defaultSelected: true,
+        policyReasons: ['critical-resource-type'],
       },
     ];
 
@@ -176,6 +184,29 @@ describe('current-page task settings', () => {
     expect(isThirdPartyCaptureReady(false, access)).toBe(true);
     expect(isThirdPartyCaptureReady(true, access)).toBe(false);
     expect(isThirdPartyCaptureReady(true, [{ ...access[0]!, status: 'granted' }])).toBe(true);
+  });
+
+  it('does not block capture for runtime-only third-party hosts', () => {
+    const runtimeOnly: ThirdPartySiteAccessSummary[] = [
+      {
+        status: 'not-granted',
+        permissionPattern: 'https://analytics.example/*',
+        scheme: 'https:',
+        hostname: 'analytics.example',
+        origins: ['https://analytics.example'],
+        resourceCount: 2,
+        provenanceCount: 2,
+        discoverySources: ['performance'],
+        resourceTypes: ['script'],
+        criticalResourceCount: 0,
+        excludedResourceCount: 2,
+        defaultSelected: false,
+        policyReasons: ['tracking-runtime'],
+      },
+    ];
+
+    expect(getPendingThirdPartyPermissionPatterns(runtimeOnly)).toEqual([]);
+    expect(isThirdPartyCaptureReady(true, runtimeOnly)).toBe(true);
   });
 
   it('rejects invalid tab IDs, URLs, and file names before building a task', () => {
