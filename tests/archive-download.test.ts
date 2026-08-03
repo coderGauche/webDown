@@ -13,6 +13,7 @@ const encoder = new TextEncoder();
 
 function createEnvironment(
   download: (request: ArchiveDownloadRequest) => Promise<number> = async () => 42,
+  waitForDownload: (downloadId: number) => Promise<void> = async () => undefined,
 ): ArchiveDownloadEnvironment & {
   blobs: Blob[];
   revokedUrls: string[];
@@ -31,18 +32,24 @@ function createEnvironment(
       revokedUrls.push(url);
     },
     download,
+    waitForDownload,
   };
 }
 
 describe('Chrome archive download export', () => {
-  it('starts one traceable ZIP download with explicit browser options', async () => {
+  it('completes one traceable ZIP download with explicit browser options', async () => {
     const events: string[] = [];
     const requests: ArchiveDownloadRequest[] = [];
-    const environment = createEnvironment(async (request) => {
-      events.push('download');
-      requests.push(request);
-      return 73;
-    });
+    const environment = createEnvironment(
+      async (request) => {
+        events.push('download');
+        requests.push(request);
+        return 73;
+      },
+      async (downloadId) => {
+        events.push(`wait:${downloadId}`);
+      },
+    );
     const originalCreate = environment.createObjectUrl;
     const originalRevoke = environment.revokeObjectUrl;
     environment.createObjectUrl = (blob) => {
@@ -82,7 +89,55 @@ describe('Chrome archive download export', () => {
     expect(environment.blobs[0]?.type).toBe(ARCHIVE_DOWNLOAD_MIME_TYPE);
     expect(await environment.blobs[0]?.text()).toBe('zip bytes');
     expect(environment.revokedUrls).toEqual(['blob:sitecapsule-test/1']);
-    expect(events).toEqual(['create', 'download', 'revoke']);
+    expect(events).toEqual(['create', 'download', 'wait:73', 'revoke']);
+  });
+
+  it('keeps the Blob URL alive until Chrome finishes consuming a large archive', async () => {
+    let finishDownload: (() => void) | undefined;
+    const waiting = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    const environment = createEnvironment(
+      async () => 91,
+      async () => waiting,
+    );
+    const bytes = new Uint8Array(16 * 1024 * 1024);
+
+    const exported = exportArchiveDownload(
+      { archiveBytes: bytes, fileName: 'large.zip', saveAs: true },
+      environment,
+    );
+    await vi.waitFor(() => expect(environment.blobs).toHaveLength(1));
+    expect(environment.revokedUrls).toEqual([]);
+
+    finishDownload?.();
+    await expect(exported).resolves.toMatchObject({ downloadId: 91, byteLength: bytes.byteLength });
+    expect(environment.revokedUrls).toEqual(['blob:sitecapsule-test/1']);
+  });
+
+  it('keeps the primary terminal download failure and still revokes the Blob URL', async () => {
+    class TerminalDownloadFailure extends Error {
+      override readonly name = 'TerminalDownloadFailure';
+    }
+    const environment = createEnvironment(
+      async () => 92,
+      async () => {
+        throw new TerminalDownloadFailure('private browser detail');
+      },
+    );
+
+    await expect(
+      exportArchiveDownload(
+        { archiveBytes: encoder.encode('zip'), fileName: 'archive.zip', saveAs: true },
+        environment,
+      ),
+    ).rejects.toMatchObject({
+      details: {
+        code: 'archive-download-failed',
+        context: { browserError: 'TerminalDownloadFailure' },
+      },
+    });
+    expect(environment.revokedUrls).toEqual(['blob:sitecapsule-test/1']);
   });
 
   it('copies bytes before the download callback can mutate caller input', async () => {

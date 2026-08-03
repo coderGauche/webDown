@@ -23,6 +23,7 @@ export interface ArchiveDownloadEnvironment {
   createObjectUrl(blob: Blob): string;
   revokeObjectUrl(url: string): void;
   download(request: ArchiveDownloadRequest): Promise<number>;
+  waitForDownload(downloadId: number): Promise<void>;
 }
 
 export interface ArchiveDownloadResult {
@@ -71,7 +72,8 @@ function validateEnvironment(environment: ArchiveDownloadEnvironment): void {
     !isRecord(environment) ||
     typeof environment.createObjectUrl !== 'function' ||
     typeof environment.revokeObjectUrl !== 'function' ||
-    typeof environment.download !== 'function'
+    typeof environment.download !== 'function' ||
+    typeof environment.waitForDownload !== 'function'
   ) {
     throw new TypeError('Archive download environment is invalid.');
   }
@@ -129,6 +131,7 @@ export async function exportArchiveDownload(
     if (!Number.isSafeInteger(downloadId) || (downloadId as number) < 0) {
       throw new TypeError('Chrome Downloads API returned an invalid download id.');
     }
+    await environment.waitForDownload(downloadId as number);
   } catch (error) {
     failure = error;
   }
@@ -163,5 +166,63 @@ export function exportArchiveWithChromeDownloads(
     createObjectUrl: (blob) => URL.createObjectURL(blob),
     revokeObjectUrl: (url) => URL.revokeObjectURL(url),
     download: (request) => browser.downloads.download(request),
+    waitForDownload: waitForChromeDownload,
+  });
+}
+
+const ARCHIVE_DOWNLOAD_COMPLETION_TIMEOUT_MS = 10 * 60 * 1_000;
+
+class ChromeDownloadInterrupted extends Error {
+  override readonly name = 'ChromeDownloadInterrupted';
+}
+
+class ChromeDownloadMissing extends Error {
+  override readonly name = 'ChromeDownloadMissing';
+}
+
+class ChromeDownloadTimeout extends Error {
+  override readonly name = 'ChromeDownloadTimeout';
+}
+
+function waitForChromeDownload(downloadId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = globalThis.setTimeout(
+      () => finish(new ChromeDownloadTimeout('Download did not reach a terminal state.')),
+      ARCHIVE_DOWNLOAD_COMPLETION_TIMEOUT_MS,
+    );
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      globalThis.clearTimeout(timeout);
+      browser.downloads.onChanged.removeListener(onChanged);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    const inspectState = (state: string, error?: string) => {
+      if (state === 'complete') finish();
+      else if (state === 'interrupted') {
+        finish(new ChromeDownloadInterrupted(error ?? 'Chrome interrupted the download.'));
+      }
+    };
+
+    const onChanged = (delta: Browser.downloads.DownloadDelta) => {
+      if (delta.id !== downloadId) return;
+      if (delta.state?.current) inspectState(delta.state.current, delta.error?.current);
+    };
+
+    browser.downloads.onChanged.addListener(onChanged);
+    void browser.downloads.search({ id: downloadId }).then(
+      ([item]) => {
+        if (!item) {
+          finish(new ChromeDownloadMissing('Chrome did not retain the download item.'));
+          return;
+        }
+        inspectState(item.state, item.error);
+      },
+      () => finish(new ChromeDownloadMissing('Chrome could not inspect the download item.')),
+    );
   });
 }

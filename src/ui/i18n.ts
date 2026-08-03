@@ -86,7 +86,7 @@ const EN_MESSAGES = {
   downloadZip: 'Download ZIP',
   zipSessionGone:
     'The ZIP is no longer in this browser session. Run the archive again to download it.',
-  downloadStarted: 'Download started · {value}',
+  downloadStarted: 'Download completed · {value}',
   archiveIncomplete: 'The archive could not be completed.',
   reviewFailures: 'Review the resource failures below, then retry the task.',
   retryAvailable: 'Retry available',
@@ -262,7 +262,7 @@ const ZH_MESSAGES = {
   preparingDownload: '准备下载...',
   downloadZip: '下载 ZIP',
   zipSessionGone: '当前浏览器会话中已没有该 ZIP，请重新执行归档后下载。',
-  downloadStarted: '下载已开始 · {value}',
+  downloadStarted: '下载完成 · {value}',
   archiveIncomplete: '归档未能完成。',
   reviewFailures: '请检查下方资源失败详情，然后重试任务。',
   retryAvailable: '可以重试',
