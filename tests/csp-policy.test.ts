@@ -3,6 +3,7 @@
 import {
   SERVICE_WORKER_GUARD_HASH_SOURCE,
   SERVICE_WORKER_GUARD_SOURCE,
+  applyOfflineRuntimePolicy,
   adjustContentSecurityPolicies,
 } from '@sitecapsule/archive';
 import { createHash } from 'node:crypto';
@@ -13,6 +14,38 @@ function documentFromHtml(html: string): Document {
 }
 
 describe('offline Content Security Policy adjustment', () => {
+  it('replaces source policies with a static archive sandbox', () => {
+    const document = documentFromHtml(`<html><head>
+      <meta http-equiv="Content-Security-Policy" content="default-src https:">
+      <meta http-equiv="Content-Security-Policy-Report-Only" content="default-src *">
+    </head><body></body></html>`);
+
+    const result = applyOfflineRuntimePolicy(document, 'static');
+    const policy = document.head.firstElementChild?.getAttribute('content') ?? '';
+
+    expect(result.removedPolicyCount).toBe(2);
+    expect(result.mode).toBe('static');
+    expect(policy).toContain("connect-src 'none'");
+    expect(policy).toContain(`script-src 'self' ${SERVICE_WORKER_GUARD_HASH_SOURCE}`);
+    expect(policy).toContain("script-src-attr 'none'");
+    expect(policy).not.toContain("script-src 'self' 'unsafe-inline'");
+    expect(document.querySelectorAll('meta[http-equiv]').length).toBe(1);
+  });
+
+  it('allows only local runtime capabilities in interactive mode', () => {
+    const document = documentFromHtml('<html><head></head><body></body></html>');
+    const result = applyOfflineRuntimePolicy(document, 'interactive');
+
+    expect(result.policy).toContain("script-src 'self' 'unsafe-inline'");
+    expect(result.policy).toContain("connect-src 'self' data: blob:");
+    expect(result.policy).toContain("worker-src 'self' blob:");
+    expect(result.policy).not.toContain('https:');
+    expect(result.policy).not.toContain('http:');
+    expect(document.head.firstElementChild?.getAttribute('data-sitecapsule-offline-policy')).toBe(
+      'interactive',
+    );
+  });
+
   it('adds only the sources needed by the guard and rewritten local resource types', () => {
     const document = documentFromHtml(`<html><head>
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src-elem 'strict-dynamic' 'none'; img-src https://cdn.example.test; style-src 'self'; frame-ancestors 'none'">

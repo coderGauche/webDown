@@ -35,7 +35,7 @@ export default defineContentScript({
             ...message.payload,
             documentPath: 'index.html',
             uncapturedResourcePolicy: 'neutralize',
-            disableExecutableScripts: true,
+            enableOfflineRuntime: message.payload.enableOfflineRuntime,
           });
           return createPageArchiveRewriteResponse(
             result.html,

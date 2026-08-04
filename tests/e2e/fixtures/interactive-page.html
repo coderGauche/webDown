@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline interaction fixture</title>
+    <style>
+      #motion-target {
+        height: 48px;
+        width: 48px;
+        background: #087f5b;
+        transform: translateX(0);
+      }
+    </style>
+    <script src="/assets/interactive.js" defer></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('config', 'fixture-only');
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Offline interaction fixture</h1>
+      <div id="motion-target"></div>
+    </main>
+  </body>
+</html>

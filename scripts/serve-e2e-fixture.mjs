@@ -4,10 +4,24 @@ import { fileURLToPath } from 'node:url';
 
 const fixtureRoutes = new Map([
   [
+    '/interactive-page.html',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/interactive-page.html', import.meta.url)),
+      contentType: 'text/html; charset=utf-8',
+    },
+  ],
+  [
     '/archive-page.html',
     {
       path: fileURLToPath(new URL('../tests/e2e/fixtures/archive-page.html', import.meta.url)),
       contentType: 'text/html; charset=utf-8',
+    },
+  ],
+  [
+    '/assets/interactive.js',
+    {
+      path: fileURLToPath(new URL('../tests/e2e/fixtures/assets/interactive.js', import.meta.url)),
+      contentType: 'text/javascript; charset=utf-8',
     },
   ],
   [

@@ -107,7 +107,7 @@ async function createArchive(panelPage: Page): Promise<void> {
   await panelPage.getByRole('button', { name: 'Create archive' }).click();
   const outcome = await Promise.race([
     panelPage
-      .getByRole('heading', { name: 'Archive ready', exact: true })
+      .getByRole('heading', { name: /^Archive ready(?: with issues)?$/ })
       .waitFor()
       .then(() => 'completed' as const),
     panelPage
@@ -343,6 +343,55 @@ test('loads the extension and exports the current page archive', async ({
   expect(reportHtml).toContain('SiteCapsule archive report');
   expect(reportHtml).toContain('DOM snapshot cleanup removed');
   expect(reportHtml).not.toMatch(/<script\b/i);
+});
+
+test('runs archived animation scripts without executing inline tracking loaders', async ({
+  context,
+  extensionId,
+}, testInfo) => {
+  const fixturePage = context.pages()[0] ?? (await context.newPage());
+  await fixturePage.goto(`${offlineFixtureOrigin}/interactive-page.html`);
+  await expect(
+    fixturePage.getByRole('heading', { name: 'Offline interaction fixture' }),
+  ).toBeVisible();
+
+  const panelPage = await context.newPage();
+  await panelPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  await panelPage.getByLabel('Language').selectOption('en');
+  await panelPage.getByLabel('Render wait').fill('0');
+  await readCurrentPage(panelPage, fixturePage);
+  await panelPage.getByRole('switch', { name: /Offline animations and interactions/ }).check();
+
+  const archivePath = await createAndDownloadArchive(panelPage);
+  const jobId = await readLastCaptureJobId(panelPage);
+  const captureSnapshot = jobId ? await readPersistedCaptureSnapshot(panelPage, jobId) : null;
+  expect(captureSnapshot?.resources).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        originalUrl: `${offlineFixtureOrigin}/assets/interactive.js`,
+        state: 'saved',
+      }),
+    ]),
+  );
+  const archive = unzipSync(await readFile(archivePath));
+  const indexHtml = new TextDecoder().decode(archive['index.html']!);
+  expect(indexHtml).toContain('data-sitecapsule-offline-policy="interactive"');
+  expect(indexHtml).toContain('application/sitecapsule-disabled');
+  expect(indexHtml).toMatch(/<script[^>]+src="assets\//);
+
+  const extractedDirectory = testInfo.outputPath('interactive-archive');
+  await extractArchive(archivePath, extractedDirectory);
+  const offlinePage = await context.newPage();
+  const externalRequests: string[] = [];
+  offlinePage.on('request', (request) => {
+    if (/^(?:https?|wss?):/i.test(request.url())) externalRequests.push(request.url());
+  });
+  await offlinePage.goto(pathToFileURL(join(extractedDirectory, 'index.html')).href);
+  await expect
+    .poll(() => offlinePage.locator('html').getAttribute('data-animation-frame'))
+    .not.toBeNull();
+  expect(externalRequests).toEqual([]);
+  await offlinePage.close();
 });
 
 test('removes sensitive form state from every exported ZIP entry', async ({

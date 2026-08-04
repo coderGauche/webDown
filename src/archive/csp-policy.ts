@@ -4,6 +4,49 @@ export const CSP_HTTP_EQUIV_VALUE = 'content-security-policy';
 export const CSP_REPORT_ONLY_HTTP_EQUIV_VALUE = 'content-security-policy-report-only';
 export const SERVICE_WORKER_GUARD_HASH_SOURCE =
   "'sha256-taNJo/C8iv0PJfe4SjwnwM+Xrcs2R/60BlYEnLxbGSc='";
+export const OFFLINE_RUNTIME_POLICY_ATTRIBUTE = 'data-sitecapsule-offline-policy';
+
+export type OfflineRuntimePolicyMode = 'static' | 'interactive';
+
+export type OfflineRuntimePolicyResult = {
+  mode: OfflineRuntimePolicyMode;
+  policy: string;
+  removedPolicyCount: number;
+};
+
+const STATIC_OFFLINE_POLICY = [
+  "default-src 'none'",
+  "script-src 'self' " + SERVICE_WORKER_GUARD_HASH_SOURCE,
+  "script-src-attr 'none'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "media-src 'self' data: blob:",
+  "connect-src 'none'",
+  "worker-src 'none'",
+  "frame-src 'self' data: blob:",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
+
+const INTERACTIVE_OFFLINE_POLICY = [
+  "default-src 'none'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:",
+  "script-src-attr 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "media-src 'self' data: blob:",
+  "connect-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' data: blob:",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
 
 export const CSP_ADJUSTMENT_REASONS = [
   'allow-service-worker-guard',
@@ -270,6 +313,32 @@ function adjustPolicy(
 function isMetaPolicy(meta: HTMLMetaElement): boolean {
   const value = (meta.getAttribute('http-equiv') ?? '').trim().toLowerCase();
   return value === CSP_HTTP_EQUIV_VALUE || value === CSP_REPORT_ONLY_HTTP_EQUIV_VALUE;
+}
+
+export function applyOfflineRuntimePolicy(
+  document: Document,
+  mode: OfflineRuntimePolicyMode,
+): OfflineRuntimePolicyResult {
+  if (!document?.head || typeof document.querySelectorAll !== 'function') {
+    throw new TypeError('A DOM document with a head is required for offline runtime policy.');
+  }
+  if (mode !== 'static' && mode !== 'interactive') {
+    throw new TypeError('Offline runtime policy mode must be static or interactive.');
+  }
+
+  const existingPolicies = (
+    Array.from(document.querySelectorAll('meta')) as HTMLMetaElement[]
+  ).filter(isMetaPolicy);
+  for (const policy of existingPolicies) policy.remove();
+
+  const policy = mode === 'interactive' ? INTERACTIVE_OFFLINE_POLICY : STATIC_OFFLINE_POLICY;
+  const meta = document.createElement('meta');
+  meta.setAttribute('http-equiv', 'Content-Security-Policy');
+  meta.setAttribute('content', policy);
+  meta.setAttribute(OFFLINE_RUNTIME_POLICY_ATTRIBUTE, mode);
+  document.head.prepend(meta);
+
+  return { mode, policy, removedPolicyCount: existingPolicies.length };
 }
 
 export function adjustContentSecurityPolicies(

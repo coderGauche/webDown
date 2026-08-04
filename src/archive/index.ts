@@ -157,13 +157,17 @@ export {
   CSP_HTTP_EQUIV_VALUE,
   CSP_REPORT_ONLY_HTTP_EQUIV_VALUE,
   SERVICE_WORKER_GUARD_HASH_SOURCE,
+  OFFLINE_RUNTIME_POLICY_ATTRIBUTE,
   adjustContentSecurityPolicies,
+  applyOfflineRuntimePolicy,
   type CspAdjustmentLimitation,
   type CspAdjustmentReason,
   type CspAdjustmentResult,
   type CspDirectiveChange,
   type CspMetaPolicyResult,
   type CspMetaPolicyStatus,
+  type OfflineRuntimePolicyMode,
+  type OfflineRuntimePolicyResult,
 } from './csp-policy';
 export { createLocalArchiveReference, createRelativeArchivePath } from './rewrite-support';
 export {
@@ -175,6 +179,11 @@ export {
   type CssRewriteResult,
   type RewriteCssResourceOptions,
 } from './css-rewriter';
+export {
+  rewriteJavascriptResource,
+  type JavascriptRewriteResult,
+  type RewriteJavascriptResourceOptions,
+} from './javascript-rewriter';
 export {
   rewriteSrcsetResource,
   type RewriteSrcsetResourceOptions,

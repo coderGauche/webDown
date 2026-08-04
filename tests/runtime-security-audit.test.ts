@@ -80,6 +80,7 @@ const contentRequests = [
       documentUrl: 'https://public.example/page',
       baseUrl: 'https://public.example/',
       savedResourceMappings: [],
+      enableOfflineRuntime: true,
     },
     'page-rewrite',
   ),

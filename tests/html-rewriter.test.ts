@@ -370,8 +370,11 @@ describe('DOMParser HTML resource rewriting', () => {
       externalScriptsGuarded: 1,
       parseErrors: 0,
     });
+    expect(rewritten.head.firstElementChild?.getAttribute('data-sitecapsule-offline-policy')).toBe(
+      'interactive',
+    );
     expect(
-      rewritten.head.firstElementChild?.getAttribute('data-sitecapsule-service-worker-policy'),
+      rewritten.head.children.item(1)?.getAttribute('data-sitecapsule-service-worker-policy'),
     ).toBe('block-registration-v1');
     expect(rewritten.body.querySelector('script')?.textContent).toContain(
       '__sitecapsuleBlockServiceWorkerRegistration_v1__()',
@@ -411,6 +414,67 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(scripts[2]?.getAttribute('type')).toBe('application/ld+json');
     expect(result.contentChanges.counts['offline-script-disable']).toBe(2);
     expect(result.contentChanges.counts['speculative-link-removal']).toBe(1);
+  });
+
+  it('keeps mapped and inline scripts executable inside the interactive offline sandbox', async () => {
+    const scriptUrl = `${BASE_URL}app.js`;
+    const mappings = await savedMappings([{ url: scriptUrl, resourceType: 'script' }]);
+    const result = rewriteHtmlResource({
+      html: `<html><head>
+        <meta http-equiv="Content-Security-Policy" content="default-src https:">
+        <script src="app.js"></script>
+        <script>document.documentElement.dataset.started = 'yes'</script>
+      </head><body></body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: mappings,
+      enableOfflineRuntime: true,
+    });
+    const rewritten = parseResult(result.html);
+    const scripts = [
+      ...rewritten.querySelectorAll('script:not([data-sitecapsule-service-worker-policy])'),
+    ];
+    const policy = rewritten.querySelector('meta[data-sitecapsule-offline-policy="interactive"]');
+
+    expect(result.scriptSafety.disabledCount).toBe(0);
+    expect(result.offlineRuntimePolicy).toMatchObject({
+      mode: 'interactive',
+      removedPolicyCount: 1,
+    });
+    expect(scripts[0]?.getAttribute('type')).toBeNull();
+    expect(scripts[0]?.getAttribute('src')).toContain('/js/');
+    expect(scripts[1]?.textContent).toContain("dataset.started = 'yes'");
+    expect(policy?.getAttribute('content')).toContain("connect-src 'self' data: blob:");
+    expect(rewritten.head.firstElementChild).toBe(policy);
+  });
+
+  it('freezes inline tracking loaders even when offline interactions are enabled', () => {
+    const result = rewriteHtmlResource({
+      html: `<html><head>
+        <link rel="preconnect" href="https://www.googletagmanager.com">
+        <script>const coreAnimation = true</script>
+        <script>(function(){var s=document.createElement('script');s.src='https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js';document.head.append(s)})()</script>
+        <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}</script>
+      </head><body></body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: [],
+      uncapturedResourcePolicy: 'neutralize',
+      enableOfflineRuntime: true,
+    });
+    const rewritten = parseResult(result.html);
+    const scripts = [
+      ...rewritten.querySelectorAll('script:not([data-sitecapsule-service-worker-policy])'),
+    ];
+
+    expect(result.scriptSafety.disabledCount).toBe(2);
+    expect(result.scriptSafety.removedSpeculativeLinkCount).toBe(1);
+    expect(scripts[0]?.getAttribute('type')).toBeNull();
+    expect(scripts[1]?.getAttribute('type')).toBe('application/sitecapsule-disabled');
+    expect(scripts[2]?.getAttribute('type')).toBe('application/sitecapsule-disabled');
+    expect(rewritten.querySelector('link[rel="preconnect"]')).toBeNull();
   });
 
   it('rejects unsafe paths, non-network document context, and ambiguous saved mappings', async () => {

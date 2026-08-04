@@ -4,7 +4,7 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-R7 已完成公开基线重跑和 MVP 指标重算，正在生成工程候选
+> 当前状态：M10-R8 已完成，恢复 MVP 发布收尾
 > 下一任务：M10-T6 完成版本号、更新日志和演示流程
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
@@ -398,13 +398,14 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-R5** 将结构化清单、失败说明和 `report.html` 接入真实归档；
 - [x] **M10-R6** 使用多域复杂页执行真实 ZIP、断网外联和视觉回归；
 - [x] **M10-R7** 重跑公开基线、MVP 指标并重新生成工程候选；
+- [x] **M10-R8** 建立禁止外联的离线脚本、动画和交互运行模式；
 - [ ] **M10-T6** 完成版本号、更新日志和演示流程；
 - [ ] **M10-T7** 用户监督验收；
 - [ ] **M10-T8** 决定是否进入增强版。
 
 验收门禁：
 
-- M10-R1 至 M10-R7 全部完成；
+- M10-R1 至 M10-R8 全部完成；
 - 所有已改写成本地路径的引用在 ZIP 中都有对应条目；
 - 离线打开没有未解释的网络或 `chrome-extension:` 请求；
 - 每个真实 ZIP 都包含资源清单、失败说明和可读报告；
@@ -475,10 +476,10 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 项目 | 当前值 |
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
-| 当前任务 | M10-R7 重跑公开基线、MVP 指标并重新生成工程候选（完成） |
-| 最近完成 | M10-R7 固定 23 站重跑、指标重算和候选门禁更新 |
-| 下一任务 | M10-T6 完成版本号、更新日志和演示流程 |
-| 阻塞项 | 无失败 P0 指标；主要视觉 95% 和取消响应 2 秒仍为未测 P1，公开发布仍等待 M10-T6/T7 |
+| 当前任务 | M10-R8 离线动画与交互保真度修复（已完成） |
+| 最近完成 | M10-R8 可控离线脚本、CSP、JS URL 改写与真实 Chromium 验收 |
+| 下一任务 | M10-T6 版本号、更新日志和演示流程 |
+| 阻塞项 | 无失败 P0 指标；交互模式保留动态后端、路由和 WebGL 限制披露 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
 | 最近验证日期 | 2026-08-04 |
@@ -589,6 +590,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-03 | M10-R5 | 完成 | 新增 `createCaptureArchivePackage`将运行时终态资源记录、映射和最终字节统一组装为 ZIP，每个普通完成包强制包含 `_sitecapsule/archive.json`、`resources.json`、`failures.json`、`original-urls.json`、`report.html` 和 `README_OFFLINE.md`；HTML 与 CSS 改写后回写真实 `localPath` 和 UTF-8 字节数，对 `index.html` 与所有已保存资源计算 SHA-256，清单字节数、路径和摘要与 ZIP 强一致；失败/跳过资源、HTTP 状态、可重试性、脱敏 URL、当前页范围、动态后端限制及 DOM 清理四类计数进入中英文离线报告，报告无脚本和远程资源；最终包继续经 R4 门禁审计；新增组装器集成测试和真实扩展 ZIP 六项元数据 E2E 断言，定向 4 文件/38 项、全量 73 文件/644 项 Vitest、lint、format、typecheck、1.55 MB 生产构建、Chrome Web Store 审计 0 errors/3 review、Chromium 下载/全 ZIP 敏感扫描/断网打开/Service Worker 重启 4/4 通过，公网套件按环境跳过；B-002 解除，B-001/B-003 仍待 R6 复杂站点验收 |
 | 2026-08-04 | M10-R6 | 完成 | 新增失败/跳过资源引用中和、离线入口脚本冻结、JSON 数据脚本保留、投机加载提示清理，并在本地映射后移除失效的 `integrity`/`crossorigin`；公网验收新增 R6 三站基线、最终 ZIP 六项元数据与引用审计、严格断网请求核查、线上/离线结构和截图对比；最终运行 `2026-08-04T050038-254Z` 实际下载 United Carriers 25,999,983 字节/445 条目、TypeScript 4,637,664 字节/125 条目、Three.js 474,278 字节/17 条目，结果 1 完全通过、2 个按 Canvas/WebGL/动态交互限制降级通过、0 产品失败，三站均为 ZIP 审计通过且离线外网/扩展协议/缺失本地请求 0/0/0；Prettier、ESLint、类型检查、全量 73 文件/647 项 Vitest、1.56 MB 生产构建、真实扩展 E2E 4/4、商店审计 0 errors/3 review 和 `git diff --check` 通过，生产构建安装期 `host_permissions` 为空；详细证据见 `docs/testing/m10-r6-complex-site-acceptance-2026-08-04.md`，B-001/B-003 解除，完整公开基线与 MVP 发布判定交由 R7 |
 | 2026-08-04 | M10-R7 | 完成 | 修复 Next.js `link[imagesrcset]` 未进入资源发现、下载、HTML 改写和最终 ZIP 审计的问题，并为公网验收增加超时任务主动取消，消除 NASA 任务对后续 LOC 用例的跨案例污染；定向 React/NASA/LOC 复验确认 React 缺失本地请求由 1 降至 0、NASA 独立超时、LOC 独立通过；最终固定 23 站运行 `2026-08-04T103008-427Z` 得到 12 pass、9 allowed-degradation、1 product-failure、1 external-unavailable，22 个可达站点中 21 个生成真实 ZIP，成功率 95.45%，21 包共 40,612,426 字节/1,157 条目，全部包含报告和清单且离线外网/扩展/缺失本地请求为 0/0/0；941 个本地资源引用全部存在，R6 的 1 个真实失败资源具备完整结构化解释；MVP 指标更新为 5 项通过、2 项 P1 未测、0 个失败 P0；基于 commit `570ec012744a2bf3f0eddab208b7f4f1713869fa` 生成 469,471 字节工程候选 `sitecapsule-0.1.0-engineering-candidate-570ec01.zip`，SHA-256 `b335e2828f85cfdaea5d33a6d96de434b5db92cce39b9db6afaa15cee73eda4b`，13 个生产文件通过 ZIP/CRC/清单/权限/商店审计和 Chromium Service Worker/Side Panel 加载验证；全量 73 文件/648 项 Vitest、lint、format、typecheck、1.56 MB 构建和 `git diff --check` 通过；候选门禁 ready，公开发布仍等待 T6/T7 |
+| 2026-08-04 | M10-R8 | 完成 | Side Panel 新增默认关闭的实验性“离线动画与交互”开关，保留默认静态快照稳定性；协议升级 v21，将模式选择传入最终 HTML 改写；建立静态/交互两套归档 CSP，统一移除源站 CSP 和投机加载提示，交互模式仅允许本地脚本、资源、worker 和同源数据，已知统计/支付/同意加载器继续冻结；新增 Acorn JavaScript 改写，处理静态 import/export、字面量 dynamic import、Worker/SharedWorker、importScripts、fetch/Request/new URL 的已存档 URL；确定性 Chromium E2E 证明外部 requestAnimationFrame 脚本进入 ZIP、在解压 `file:` 页面重新执行并推进动画帧，内联统计脚本被禁用且 HTTP/HTTPS/WS/WSS 外联为 0；United Carriers 本地 HTTP 观察确认已归档脚本、6 个 Canvas、滚动和长文档可运行，同时如实保留后端 API、SPA 路由、计算 URL 和复杂 WebGL 非完全复刻边界；全量 74 文件/655 项 Vitest、ESLint、TypeScript、Chromium E2E 5/5、1.56 MB 生产构建通过，公网套件按环境跳过，生产 Manifest 无安装期 `host_permissions`；详细证据见 `docs/testing/m10-r8-offline-runtime-2026-08-04.md` |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -708,6 +710,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-095 | 2026-08-03 | 真实归档元数据必须由最终改写字节和终态资源记录在单一组装器中生成 | 孤立清单/报告模块存在不代表运行时 ZIP 会包含它们；使用下载前字节数又会使 CSS/HTML 改写后的清单和摘要失真 | `createCaptureArchivePackage` 先验证终态记录，对最终 `index.html`/资源字节计算 SHA-256，再一次性生成六项元数据与 ZIP，最后执行 R4 门禁；报告使用浏览器 UI 语言，包含失败/跳过资源、脱敏 URL、DOM 清理计数与离线限制；只有组装和审计都通过才缓存可下载 ZIP |
 | D-096 | 2026-08-04 | 离线入口以最终 DOM 静态快照为主，未保存引用必须中和，可执行脚本和投机加载提示默认冻结 | 保留失败资源 URL 会让 R4 正确拒绝复杂页；允许已打包脚本自动执行又会动态 import、客户端导航或重取页面数据，导致断网空白和不可审计外联；本地改写后保留源站 `crossorigin` 会使无 CORS 响应头的本地 CSS 被浏览器拒绝 | HTML/CSS/srcset 对未捕获资源统一移除或改写为 `data:,`；经典和 module 脚本保留文件但以非执行 MIME 冻结，JSON/JSON-LD 保留；移除 preconnect/prefetch/prerender/modulepreload 以及本地资源的 `integrity`/`crossorigin`；R6 必须同时通过 ZIP 静态审计、严格断网请求和人工截图复核，Canvas/WebGL/交互降级明确披露 |
 | D-097 | 2026-08-04 | R7 工程候选门禁只由失败 P0 指标阻断，未测 P1 必须继续披露且不能升级为已通过或公开发布批准 | 仅因视觉/取消指标缺测永久阻断工程候选会妨碍后续版本与用户终验；反过来把诊断截图分数或功能测试冒充正式指标会制造虚假声明；P0 通过也不等于用户批准公开发布 | 固定 23 站重算后归档、失败解释、报告和零上传 P0 均通过，生成器读取机器指标并输出 `engineering-candidate`；主要视觉 95% 和取消 2 秒保留 `not-measured`，候选记录固定 `publicReleaseApproved: false` 且列出 M10-T6/T7 待办；NASA 120 秒超时继续作为产品失败保留 |
+| D-098 | 2026-08-04 | 离线交互作为默认关闭的实验模式，不取代默认静态快照 | 全量开启原站脚本会让客户端路由跳到未归档页面，并重新触发统计、CSRF、后端 API、WebSocket 和计算生成资源；这些行为不可能由单页 ZIP 通用重建，也会破坏 R6/R7 的默认离线稳定基线 | 静态模式继续冻结执行脚本；用户显式开启后才保留非风险脚本，并以归档 CSP、已知运行时冻结、静态 JS URL 改写和终态 ZIP 门禁限制影响；只宣称“改善静态可发现动画/交互”，不宣称还原服务端或所有 Canvas/WebGL |
 
 ---
 
@@ -728,11 +731,11 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步严格只执行 **M10-R7：重跑公开基线、MVP 指标并重新生成工程候选**。
+下一步严格只执行 **M10-T6：完成版本号、更新日志和演示流程**。
 
-M10-R7 完成后必须：
+M10-T6 完成后必须：
 
 1. 更新本文件中的任务勾选；
-2. 重跑固定 23 站公开基线并按外部不可用与产品失败分开统计；
-3. 用新 ZIP、报告和断网证据重算 MVP 指标，未测指标继续标为 `not-measured`；
-4. 只有发布门禁通过时才重新生成可发布工程候选，否则保留阻断状态并输出可复查原因。
+2. 同步 Manifest、用户可见版本、CHANGELOG 和候选包元数据；
+3. 准备可重复的归档、下载、离线打开及交互开关演示流程；
+4. 保留 R7/R8 的发布门禁、实验性交互标记和已知限制披露。

@@ -13,6 +13,7 @@ export const DEFAULT_CURRENT_PAGE_CONCURRENCY = 6;
 export const MIN_CURRENT_PAGE_CONCURRENCY = 1;
 export const MAX_CURRENT_PAGE_CONCURRENCY = 12;
 export const DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA = false;
+export const DEFAULT_CURRENT_PAGE_INCLUDE_SCRIPTS = false;
 export const DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES = true;
 
 export type ArchiveFileNameValidation =
@@ -31,6 +32,7 @@ export type CurrentPageCaptureOptions = {
   renderWaitMs: number;
   maxConcurrentRequests: number;
   includeMedia: boolean;
+  includeScripts: boolean;
   includeThirdPartyResources: boolean;
 };
 
@@ -41,6 +43,7 @@ export type BuildCurrentPageTaskInput = {
   renderWaitMs?: number;
   maxConcurrentRequests?: number;
   includeMedia?: boolean;
+  includeScripts?: boolean;
   includeThirdPartyResources?: boolean;
 };
 
@@ -200,7 +203,7 @@ export function createDefaultCurrentPageSettings(
     renderWaitMs,
     maxConcurrentRequests,
     includeMedia: options.includeMedia ?? DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA,
-    includeScripts: true,
+    includeScripts: options.includeScripts ?? DEFAULT_CURRENT_PAGE_INCLUDE_SCRIPTS,
     includeThirdPartyResources:
       options.includeThirdPartyResources ?? DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
     autoScroll: false,
@@ -230,6 +233,7 @@ export function buildCurrentPageTaskInput(input: BuildCurrentPageTaskInput): Cap
         ? {}
         : { maxConcurrentRequests: input.maxConcurrentRequests }),
       ...(input.includeMedia === undefined ? {} : { includeMedia: input.includeMedia }),
+      ...(input.includeScripts === undefined ? {} : { includeScripts: input.includeScripts }),
       ...(input.includeThirdPartyResources === undefined
         ? {}
         : { includeThirdPartyResources: input.includeThirdPartyResources }),

@@ -17,6 +17,9 @@ or mirror an entire website.
 5. Review the ZIP file name and capture options:
    - Render wait: 0-30,000 ms. Increase it for a page that renders late.
    - Concurrent downloads: 1-12; the default is 6.
+   - Offline animations and interactions: off by default. When enabled, archived scripts run under
+     a CSP sandbox that blocks external network access. This experimental mode can restore some
+     animation but may break pages that require source-site routing or APIs.
    - Media files: off by default. Enabling video or audio can use substantial memory and time.
    - Archive-critical third-party resources: on by default. Critical CSS, image, font, script, and
      related hosts are preselected; choose **Grant selected** to let Chrome request only those exact
@@ -35,13 +38,12 @@ resource nodes injected by other browser extensions, explicit tracking or paymen
 ordinary iframes that cannot work independently offline; self-contained `srcdoc` iframes remain.
 **Capture diagnostics** reports removal counts by reason. The source tab is not modified.
 
-To keep the captured final DOM stable without a network, SiteCapsule disables executable
-JavaScript in the offline `index.html` and removes preconnect, prefetch, prerender, and module
-preload hints. Non-executable JSON and JSON-LD data scripts remain. Successfully saved script files
-still appear in the ZIP and resource manifest, but the offline entry does not execute them by
-default. References to assets that could not be saved are removed or replaced by an empty data
-reference and remain explained in the failure manifest, preventing silent requests to the source
-site.
+The experimental interactive mode executes scripts saved in the ZIP and inline page scripts. It rewrites
+saved static imports, Workers, WASM/asset URLs, and literal `fetch` references to archive paths. The
+archive CSP allows only same-origin local resources and blocks external scripts, remote connections,
+form submission, and Service Worker registration. The default, with **Offline animations and
+interactions** off, freezes executable scripts and preserves only the captured final DOM. Unsaved asset
+references are removed or neutralized and remain explained in the failure manifest.
 
 ## View an archive offline
 

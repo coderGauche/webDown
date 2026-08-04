@@ -37,7 +37,7 @@ describe('current-page task settings', () => {
         renderWaitMs: 1_500,
         maxConcurrentRequests: 9,
         includeMedia: true,
-        includeScripts: true,
+        includeScripts: false,
         includeThirdPartyResources: true,
         maxDepth: 0,
         maxPages: 1,
@@ -59,9 +59,20 @@ describe('current-page task settings', () => {
       renderWaitMs: 1_000,
       maxConcurrentRequests: 6,
       includeMedia: false,
-      includeScripts: true,
+      includeScripts: false,
       includeThirdPartyResources: true,
     });
+  });
+
+  it('can opt into the static snapshot mode by excluding runtime scripts', () => {
+    const input = buildCurrentPageTaskInput({
+      tabId: 7,
+      pageUrl: 'https://example.com/page',
+      archiveFileName: 'example.zip',
+      includeScripts: false,
+    });
+
+    expect(input.settings.includeScripts).toBe(false);
   });
 
   it('creates a deterministic portable default from the page host and local date', () => {

@@ -12,6 +12,7 @@ import {
   createCaptureArchivePackage,
   createResourcePathMappings,
   rewriteCssResource,
+  rewriteJavascriptResource,
   type ResourcePathMapping,
 } from '@sitecapsule/archive';
 import { DOMParser as LinkedomDOMParser } from 'linkedom';
@@ -627,6 +628,21 @@ function createRuntimePipelineHandlers(
             byteLength: rewrittenBytes.byteLength,
           };
         }
+        if (body && resource.type === 'script' && job.settings.includeScripts) {
+          const rewritten = rewriteJavascriptResource({
+            javascript: new TextDecoder().decode(body),
+            baseUrl: resource.finalUrl ?? resource.originalUrl,
+            sourcePath: mapping.relativePath,
+            savedResourceMappings: context.mappings,
+          });
+          const rewrittenBytes = new TextEncoder().encode(rewritten.javascript);
+          context.bodies.set(resource.id, rewrittenBytes);
+          return {
+            ...resource,
+            localPath: mapping.relativePath,
+            byteLength: rewrittenBytes.byteLength,
+          };
+        }
         return { ...resource, localPath: mapping.relativePath };
       });
       await jobRepository.replaceJobResources(job.id, context.resources);
@@ -639,6 +655,7 @@ function createRuntimePipelineHandlers(
             documentUrl: context.page.finalUrl,
             baseUrl: context.page.baseUrl,
             savedResourceMappings: context.mappings,
+            enableOfflineRuntime: job.settings.includeScripts,
           }),
         ),
         signal,

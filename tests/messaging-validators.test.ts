@@ -222,6 +222,7 @@ describe('message runtime validation', () => {
           documentUrl: pageInfo.finalUrl,
           baseUrl: pageInfo.baseUrl,
           savedResourceMappings: [],
+          enableOfflineRuntime: true,
         },
         'page-rewrite',
       ),

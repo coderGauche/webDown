@@ -577,12 +577,19 @@ export function isPageArchiveRewriteRequest(
     isProtocolMessageEnvelope(message) &&
     hasMessageType(message, MESSAGE_TYPES.pageArchiveRewrite) &&
     isRecord(message.payload) &&
-    hasExactKeys(message.payload, ['html', 'documentUrl', 'baseUrl', 'savedResourceMappings']) &&
+    hasExactKeys(message.payload, [
+      'html',
+      'documentUrl',
+      'baseUrl',
+      'savedResourceMappings',
+      'enableOfflineRuntime',
+    ]) &&
     isNonEmptyString(message.payload.html) &&
     isAbsoluteUrl(message.payload.documentUrl) &&
     isAbsoluteUrl(message.payload.baseUrl) &&
     Array.isArray(message.payload.savedResourceMappings) &&
-    message.payload.savedResourceMappings.every(isResourcePathMapping)
+    message.payload.savedResourceMappings.every(isResourcePathMapping) &&
+    typeof message.payload.enableOfflineRuntime === 'boolean'
   );
 }
 

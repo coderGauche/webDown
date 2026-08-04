@@ -46,6 +46,7 @@ import {
   buildCurrentPageTaskInput,
   DEFAULT_CURRENT_PAGE_CONCURRENCY,
   DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA,
+  DEFAULT_CURRENT_PAGE_INCLUDE_SCRIPTS,
   DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
   getPendingThirdPartyPermissionPatterns,
   getFirstInvalidArchiveFocusTarget,
@@ -206,6 +207,7 @@ export function App() {
     String(DEFAULT_CURRENT_PAGE_CONCURRENCY),
   );
   const [includeMedia, setIncludeMedia] = useState(DEFAULT_CURRENT_PAGE_INCLUDE_MEDIA);
+  const [includeScripts, setIncludeScripts] = useState(DEFAULT_CURRENT_PAGE_INCLUDE_SCRIPTS);
   const [includeThirdPartyResources, setIncludeThirdPartyResources] = useState(
     DEFAULT_CURRENT_PAGE_INCLUDE_THIRD_PARTY_RESOURCES,
   );
@@ -275,6 +277,7 @@ export function App() {
           renderWaitMs: renderWaitValidation.value,
           maxConcurrentRequests: concurrencyValidation.value,
           includeMedia,
+          includeScripts,
           includeThirdPartyResources,
         })
       : null;
@@ -1051,6 +1054,24 @@ export function App() {
                   : concurrencyError}
               </p>
             </div>
+
+            <label className="toggle-setting">
+              <span>
+                <strong>{t('offlineAnimations')}</strong>
+                <small>{t('offlineAnimationsHint')}</small>
+              </span>
+              <span className="switch-control">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  name="includeScripts"
+                  checked={includeScripts}
+                  onChange={(event) => setIncludeScripts(event.currentTarget.checked)}
+                  disabled={status === 'loading'}
+                />
+                <span aria-hidden="true" />
+              </span>
+            </label>
 
             <label className="toggle-setting">
               <span>

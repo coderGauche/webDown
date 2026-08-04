@@ -92,6 +92,7 @@ describe('page info messaging protocol', () => {
             relativePath: 'assets/cdn.example.com/css/app.css',
           },
         ],
+        enableOfflineRuntime: true,
       },
       'rewrite-1',
     );

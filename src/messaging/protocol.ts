@@ -12,7 +12,7 @@ import {
 import type { PageSnapshot } from '@sitecapsule/page';
 import type { ResourcePathMapping } from '@sitecapsule/archive';
 
-export const MESSAGE_PROTOCOL_VERSION = 20 as const;
+export const MESSAGE_PROTOCOL_VERSION = 21 as const;
 
 export const MESSAGE_TYPES = {
   pageInfoRequest: 'page-info/request',
@@ -92,6 +92,7 @@ export type PageArchiveRewriteRequest = ProtocolMessage<
     documentUrl: string;
     baseUrl: string;
     savedResourceMappings: ResourcePathMapping[];
+    enableOfflineRuntime: boolean;
   }
 >;
 

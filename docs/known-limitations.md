@@ -37,9 +37,10 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 - Canvas/WebGL 的最终像素不会作为 DOM 序列化。模型、WASM、decoder 或 GPU 特定纹理变体
   只有在被发现并成功下载时才可能工作，换设备可能黑屏或材质缺失。
 - Blob URL 依赖原文档会话，不能作为普通网络资源重新下载；不支持的协议会被记录或跳过。
-- 离线入口默认禁用可执行 JavaScript，并移除预连接、预取和模块预加载提示，以保存捕获时
-  的最终 DOM 并阻止脚本动态外联。JSON/JSON-LD 数据脚本保留；脚本文件可进入 ZIP，但交互、
-  客户端路由和运行时动画不会自动恢复。
+- 离线动画与交互是默认关闭的实验模式，只能运行已归档脚本和内联脚本。CSP 会禁止外部网络、表单提交
+  和 Service Worker；静态 `import`、Worker、`new URL` 及字面量 `fetch` 只在目标资源已保存时
+  改写。运行时拼接 URL、未发现 chunk、后端 API、WebSocket、客户端路由和需要原站状态的交互
+  仍可能失败。可关闭该开关回退到冻结脚本的静态 DOM 快照。
 - 未成功保存的资源引用会被移除或中和，避免离线页面回连原站；对应资源仍在失败清单中说明。
 
 ### 可靠性和资源
@@ -95,10 +96,12 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
   materials or a blank scene.
 - Blob URLs are bound to the source document session and cannot be fetched as ordinary network
   resources. Unsupported protocols are recorded or skipped.
-- Executable JavaScript is disabled in the offline entry, and preconnect, prefetch, prerender, and
-  module-preload hints are removed. This preserves the captured final DOM and prevents dynamic
-  network access. JSON/JSON-LD data scripts remain, and script files may be packaged, but client
-  routing, interactions, and runtime animation do not automatically resume.
+- Offline animations and interactions are an experimental mode that is off by default. Only archived and inline scripts
+  can run. CSP blocks external networking, form submission, and Service Workers. Static imports,
+  Workers, `new URL`, and literal `fetch` targets are rewritten only when the resource was saved.
+  Computed runtime URLs, undiscovered chunks, backend APIs, WebSockets, client routing, and
+  interactions that require source-site state can still fail. The default is a frozen-script static
+  DOM snapshot.
 - References to resources that were not saved are removed or neutralized to prevent silent source-
   site requests; the failures remain documented in the archive manifest.
 

@@ -11,7 +11,12 @@ import { RESOURCE_TYPES, type ResourceType } from '@sitecapsule/domain';
 import { normalizeResourceUrl, serializeDocumentType } from '@sitecapsule/page';
 
 import { buildContentChangeReport, type ContentChangeReport } from './content-change-report';
-import { adjustContentSecurityPolicies, type CspAdjustmentResult } from './csp-policy';
+import {
+  adjustContentSecurityPolicies,
+  applyOfflineRuntimePolicy,
+  type CspAdjustmentResult,
+  type OfflineRuntimePolicyResult,
+} from './csp-policy';
 import type { ResourcePathMapping } from './resource-path-mapping';
 import { rewriteCssResource, type CssRewriteResult } from './css-rewriter';
 import {
@@ -92,6 +97,7 @@ export type HtmlRewriteResult = {
   srcsetRewrites: HtmlSrcsetRewriteResult[];
   serviceWorkerSafety: ServiceWorkerSafetyResult;
   cspAdjustment: CspAdjustmentResult;
+  offlineRuntimePolicy: OfflineRuntimePolicyResult;
   contentChanges: ContentChangeReport;
   scriptSafety: OfflineScriptSafetyResult;
 };
@@ -140,10 +146,29 @@ export type RewriteHtmlResourceOptions = {
   savedResourceMappings: readonly ResourcePathMapping[];
   uncapturedResourcePolicy?: 'preserve' | 'neutralize';
   disableExecutableScripts?: boolean;
+  enableOfflineRuntime?: boolean;
   parser?: HtmlDomParser;
 };
 
 const DISABLED_SCRIPT_TYPE = 'application/sitecapsule-disabled';
+const RUNTIME_EXCLUDED_SCRIPT_ATTRIBUTE = 'data-sitecapsule-runtime-excluded';
+const RUNTIME_EXCLUDED_SCRIPT_SIGNALS = [
+  'googletagmanager',
+  'google-analytics',
+  'gtag(',
+  'mixpanel',
+  'mxpnl',
+  'clarity.ms',
+  'hotjar',
+  'connect.facebook.net',
+  'fbevents',
+  'segment.com',
+  'cdn.segment',
+  'cookieyes',
+  'cookiebot',
+  'onetrust',
+  'js.stripe.com',
+];
 const SPECULATIVE_LINK_RELATIONSHIPS = new Set([
   'dns-prefetch',
   'modulepreload',
@@ -164,15 +189,22 @@ function isExecutableScript(element: Element): boolean {
   );
 }
 
-function disableExecutableScripts(
+function hasExcludedRuntimeSignal(script: Element): boolean {
+  const source = `${script.getAttribute('src') ?? ''}\n${script.textContent ?? ''}`.toLowerCase();
+  return RUNTIME_EXCLUDED_SCRIPT_SIGNALS.some((signal) => source.includes(signal));
+}
+
+function applyExecutableScriptSafety(
   document: Document,
   elementOrdinals: ReadonlyMap<Element, number>,
+  disableAll: boolean,
 ): OfflineScriptSafetyResult {
   const scripts: OfflineScriptSafetyEntry[] = [];
   const speculativeLinks: OfflineSpeculativeLinkEntry[] = [];
   for (const script of Array.from(document.querySelectorAll('script'))) {
     if (script.hasAttribute('data-sitecapsule-service-worker-policy')) continue;
     if (!isExecutableScript(script)) continue;
+    if (!disableAll && !script.hasAttribute(RUNTIME_EXCLUDED_SCRIPT_ATTRIBUTE)) continue;
     const originalType = script.getAttribute('type');
     scripts.push({
       elementOrdinal: elementOrdinals.get(script) ?? 0,
@@ -242,6 +274,10 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
   const document = createParser(options.parser).parseFromString(options.html, 'text/html');
   const elements = Array.from(document.querySelectorAll('*'));
   const elementOrdinals = new Map(elements.map((element, index) => [element, index + 1]));
+  for (const script of Array.from(document.querySelectorAll('script'))) {
+    if (hasExcludedRuntimeSignal(script))
+      script.setAttribute(RUNTIME_EXCLUDED_SCRIPT_ATTRIBUTE, '');
+  }
   const baseHrefRemovals: HtmlBaseHrefRemoval[] = [];
 
   for (const base of Array.from(document.querySelectorAll('base[href]'))) {
@@ -454,14 +490,8 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
   }
 
   const serviceWorkerSafety = applyServiceWorkerSafetyPolicy(document, elementOrdinals);
-  const scriptSafety = options.disableExecutableScripts
-    ? disableExecutableScripts(document, elementOrdinals)
-    : {
-        disabledCount: 0,
-        scripts: [],
-        removedSpeculativeLinkCount: 0,
-        speculativeLinks: [],
-      };
+  const disableScripts = options.disableExecutableScripts ?? options.enableOfflineRuntime === false;
+  const scriptSafety = applyExecutableScriptSafety(document, elementOrdinals, disableScripts);
   const rewrittenNormalizedUrls = new Set<string>();
   for (const reference of references) {
     if (reference.status === 'rewritten') rewrittenNormalizedUrls.add(reference.normalizedUrl);
@@ -485,6 +515,10 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     document,
     RESOURCE_TYPES.filter((resourceType) => rewrittenResourceTypes.has(resourceType)),
     elementOrdinals,
+  );
+  const offlineRuntimePolicy = applyOfflineRuntimePolicy(
+    document,
+    disableScripts ? 'static' : 'interactive',
   );
   const contentChanges = buildContentChangeReport({
     documentPath: options.documentPath,
@@ -515,6 +549,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     srcsetRewrites,
     serviceWorkerSafety,
     cspAdjustment,
+    offlineRuntimePolicy,
     contentChanges,
     scriptSafety,
   };
