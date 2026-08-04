@@ -128,19 +128,26 @@ describe('release candidate ZIP verification', () => {
     expect(report.error).toContain('CRC32 mismatch');
   });
 
-  it('records a loadable but publication-blocked engineering candidate', async () => {
+  it('records a loadable candidate that passed metrics but still awaits final approval', async () => {
     const report = JSON.parse(
       await readFile(
         resolve(
           process.cwd(),
-          'docs/releases/sitecapsule-0.1.0-engineering-candidate-0834df1.zip.json',
+          'docs/releases/sitecapsule-0.1.0-engineering-candidate-570ec01.zip.json',
         ),
         'utf8',
       ),
     ) as Record<string, unknown>;
     expect(report).toMatchObject({
-      artifactStatus: 'engineering-candidate-blocked',
+      artifactStatus: 'engineering-candidate',
       publicReleaseApproved: false,
+      blockingAssessment: null,
+      metricAssessment: {
+        id: 'm10-mvp-metrics-2026-08-04',
+        decision: 'ready',
+        blockingDeviationIds: [],
+      },
+      approvalPending: ['M10-T6', 'M10-T7'],
       artifact: {
         fileCount: 13,
         sha256: expect.stringMatching(/^[a-f0-9]{64}$/),

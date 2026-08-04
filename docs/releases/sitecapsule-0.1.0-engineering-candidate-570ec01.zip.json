@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "artifactStatus": "engineering-candidate",
+  "publicReleaseApproved": false,
+  "blockingAssessment": null,
+  "metricAssessment": {
+    "id": "m10-mvp-metrics-2026-08-04",
+    "decision": "ready",
+    "blockingDeviationIds": []
+  },
+  "approvalPending": [
+    "M10-T6",
+    "M10-T7"
+  ],
+  "generatedAt": "2026-08-04T10:59:45.572Z",
+  "sourceCommit": "570ec012744a2bf3f0eddab208b7f4f1713869fa",
+  "artifact": {
+    "name": "sitecapsule-0.1.0-engineering-candidate-570ec01.zip",
+    "localPath": "dist/sitecapsule-0.1.0-engineering-candidate-570ec01.zip",
+    "bytes": 469471,
+    "sha256": "b335e2828f85cfdaea5d33a6d96de434b5db92cce39b9db6afaa15cee73eda4b",
+    "entryCount": 16,
+    "fileCount": 13
+  },
+  "manifest": {
+    "manifestVersion": 3,
+    "name": "SiteCapsule",
+    "version": "0.1.0",
+    "permissions": [
+      "activeTab",
+      "scripting",
+      "storage",
+      "downloads",
+      "offscreen",
+      "sidePanel"
+    ],
+    "optionalHostPermissions": [
+      "http://*/*",
+      "https://*/*"
+    ],
+    "hostPermissions": []
+  },
+  "checks": {
+    "centralDirectory": "passed",
+    "decompression": "passed",
+    "crc32": "passed",
+    "safePaths": "passed",
+    "forbiddenFiles": "passed",
+    "sourceDirectoryMatch": "passed",
+    "manifest": "passed",
+    "chromeWebStoreAudit": "pass",
+    "chromeWebStoreErrors": 0,
+    "chromeWebStoreReviewItems": 3,
+    "sourceMapsPresent": false,
+    "loadability": {
+      "chromiumVersion": "151.0.7922.34",
+      "serviceWorker": "passed",
+      "sidePanel": "passed"
+    }
+  },
+  "files": [
+    {
+      "path": "background.js",
+      "bytes": 751340,
+      "sha256": "46f254d1425a013c9e6fa4b4a38d105e63dcc8a51b74c68a01e8479b89f71674"
+    },
+    {
+      "path": "icon-128.png",
+      "bytes": 1105,
+      "sha256": "b2448ead620069025c3bfba290d1eda3621d4545c822abd340814321e02721f7"
+    },
+    {
+      "path": "icon-16.png",
+      "bytes": 190,
+      "sha256": "e5b0284d684ff0e445984ded8d86a891a02a115efa28c97331e6d1517cad5a07"
+    },
+    {
+      "path": "icon-32.png",
+      "bytes": 309,
+      "sha256": "36cb2a38f93744693d0832103cc53c8b562c423ff84e232377b53658ac9e57e7"
+    },
+    {
+      "path": "icon-48.png",
+      "bytes": 439,
+      "sha256": "d8f89f92399c6b17c4219624e5624d5ffbb01925a8108863803394042b823c1c"
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 620,
+      "sha256": "ee043248e07aba583f84df287674c4efa2a3d1ba28e3fc51f9b3d7757032d76c"
+    },
+    {
+      "path": "offscreen.html",
+      "bytes": 391,
+      "sha256": "76ebfc2c1abce31d583591ba1f9b400baeb289de9c046bea60748483f6328ab7"
+    },
+    {
+      "path": "sidepanel.html",
+      "bytes": 477,
+      "sha256": "6908830c05cbee010aead7cb5572d1f8c3eefb2abea96a57cf8d25ba7ea8ff99"
+    },
+    {
+      "path": "assets/sidepanel-Cg0ulIzL.css",
+      "bytes": 15682,
+      "sha256": "5b00f3f0736b3fbc9d86a20c7e9ee2489f02af13b78c99067c6a48ee6d47839a"
+    },
+    {
+      "path": "chunks/offscreen-_2GWTTD1.js",
+      "bytes": 153,
+      "sha256": "ef914e89cde63bb48311223aeb3af223aca7752154017a703713bfcf22babfb5"
+    },
+    {
+      "path": "chunks/shared-3CRqD_lP.js",
+      "bytes": 751,
+      "sha256": "a38c79e141ef74a24ac29292570cedfa801b4fa7a0df177bf9a67b085725abb5"
+    },
+    {
+      "path": "chunks/sidepanel-DA0R3sMB.js",
+      "bytes": 403063,
+      "sha256": "2859e11af30e3e20c3b214fc79bc92339bc00b841dcf30b33db00cb40bb11261"
+    },
+    {
+      "path": "content-scripts/content.js",
+      "bytes": 381920,
+      "sha256": "a3de4ed3c7e117274b034c0bab7d0be60fdafa27dedc708302195cb49cda60e3"
+    }
+  ]
+}
