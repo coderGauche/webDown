@@ -126,8 +126,8 @@ export type HtmlCssRewriteResult = {
 
 export type HtmlSrcsetRewriteResult = {
   elementOrdinal: number;
-  tagName: 'img' | 'source';
-  attributeName: 'srcset';
+  tagName: 'img' | 'source' | 'link';
+  attributeName: 'srcset' | 'imagesrcset';
   originalValue: string;
   result: SrcsetRewriteResult;
 };
@@ -357,28 +357,30 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
 
   const srcsetRewrites: HtmlSrcsetRewriteResult[] = [];
   for (const element of elements) {
-    if (!isDomResourceAttribute(element, 'srcset')) continue;
-    const originalValue = element.getAttribute('srcset');
-    if (originalValue === null || originalValue.trim() === '') continue;
+    for (const attributeName of ['srcset', 'imagesrcset'] as const) {
+      if (!isDomResourceAttribute(element, attributeName)) continue;
+      const originalValue = element.getAttribute(attributeName);
+      if (originalValue === null || originalValue.trim() === '') continue;
 
-    const result = rewriteSrcsetResource({
-      srcset: originalValue,
-      baseUrl,
-      sourcePath: options.documentPath,
-      savedResourceMappings: options.savedResourceMappings,
-      uncapturedResourcePolicy: options.uncapturedResourcePolicy,
-    });
-    if (result.changedCount > 0) {
-      element.setAttribute('srcset', result.srcset);
-      if (element.hasAttribute('crossorigin')) element.removeAttribute('crossorigin');
+      const result = rewriteSrcsetResource({
+        srcset: originalValue,
+        baseUrl,
+        sourcePath: options.documentPath,
+        savedResourceMappings: options.savedResourceMappings,
+        uncapturedResourcePolicy: options.uncapturedResourcePolicy,
+      });
+      if (result.changedCount > 0) {
+        element.setAttribute(attributeName, result.srcset);
+        if (element.hasAttribute('crossorigin')) element.removeAttribute('crossorigin');
+      }
+      srcsetRewrites.push({
+        elementOrdinal: elementOrdinals.get(element) ?? 0,
+        tagName: element.tagName.toLowerCase() as 'img' | 'source' | 'link',
+        attributeName,
+        originalValue,
+        result,
+      });
     }
-    srcsetRewrites.push({
-      elementOrdinal: elementOrdinals.get(element) ?? 0,
-      tagName: element.tagName.toLowerCase() as 'img' | 'source',
-      attributeName: 'srcset',
-      originalValue,
-      result,
-    });
   }
 
   const cssRewrites: HtmlCssRewriteResult[] = [];

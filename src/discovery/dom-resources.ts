@@ -1,4 +1,4 @@
-export const DOM_RESOURCE_ATTRIBUTES = ['src', 'href', 'srcset', 'poster'] as const;
+export const DOM_RESOURCE_ATTRIBUTES = ['src', 'href', 'srcset', 'imagesrcset', 'poster'] as const;
 
 export type DomResourceAttribute = (typeof DOM_RESOURCE_ATTRIBUTES)[number];
 
@@ -40,6 +40,7 @@ const SRC_TAGS = new Set([
   'video',
 ]);
 const SRCSET_TAGS = new Set(['img', 'source']);
+const IMAGE_SRCSET_TAGS = new Set(['link']);
 const LINK_RESOURCE_RELATIONS = new Set([
   'apple-touch-icon',
   'icon',
@@ -71,6 +72,7 @@ function supportsAttribute(tagName: string, attributeName: DomResourceAttribute)
   if (attributeName === 'src') return SRC_TAGS.has(tagName) || tagName === 'input';
   if (attributeName === 'href') return tagName === 'link';
   if (attributeName === 'srcset') return SRCSET_TAGS.has(tagName);
+  if (attributeName === 'imagesrcset') return IMAGE_SRCSET_TAGS.has(tagName);
   return tagName === 'video';
 }
 
@@ -107,7 +109,7 @@ export function isDomResourceCandidate(value: unknown): value is DomResourceCand
   const attributeName = value.attributeName as DomResourceAttribute;
   if (tagName !== value.tagName || !supportsAttribute(tagName, attributeName)) return false;
 
-  return attributeName === 'srcset'
+  return attributeName === 'srcset' || attributeName === 'imagesrcset'
     ? value.descriptor === undefined ||
         (typeof value.descriptor === 'string' &&
           value.descriptor.trim() !== '' &&
@@ -197,6 +199,7 @@ export function isDomResourceAttribute(
   const tagName = element.tagName.toLowerCase();
   if (!supportsAttribute(tagName, attributeName)) return false;
   if (attributeName === 'href') return isResourceLink(element);
+  if (attributeName === 'imagesrcset') return isResourceLink(element);
   if (attributeName === 'src' && tagName === 'input') {
     return (element.getAttribute('type') ?? '').toLowerCase() === 'image';
   }
@@ -244,7 +247,7 @@ export function discoverDomResources(source: DomResourceSource): DomResourceCand
       if (attributeValue === null || attributeValue.trim() === '') continue;
 
       const values =
-        attributeName === 'srcset'
+        attributeName === 'srcset' || attributeName === 'imagesrcset'
           ? parseSrcsetCandidates(attributeValue)
           : [{ rawUrl: attributeValue }];
 

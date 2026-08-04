@@ -80,6 +80,7 @@ function completeArchive(): Uint8Array {
       'index.html',
       `<!doctype html><html><head>
         <link rel="stylesheet" href="${stylesheetPath}">
+        <link rel="preload" as="image" imagesrcset="${heroPath} 1x">
         <style>.hero { background: url(${backgroundPath}); }</style>
       </head><body>
         <a href="https://page.example.test/about">About</a>
@@ -151,7 +152,7 @@ describe('downloaded ZIP offline integrity audit', () => {
       assets: 3,
     });
     expect(report.referenceCounts).toEqual({
-      'local-present': 5,
+      'local-present': 6,
       'local-missing': 0,
       'external-network': 0,
       'extension-protocol': 0,
@@ -161,6 +162,24 @@ describe('downloaded ZIP offline integrity audit', () => {
       invalid: 0,
     });
     expect(report.navigationReferencesIgnored).toBe(1);
+  });
+
+  it('detects a missing image preload candidate before browser offline verification', () => {
+    const bytes = archive([
+      entry(
+        'index.html',
+        '<link rel="preload" as="image" imagesrcset="missing-small.png 1x, missing-large.png 2x">',
+      ),
+    ]);
+
+    const report = auditArchiveOfflineIntegritySync({ archiveBytes: bytes });
+
+    expect(report.status).toBe('fail');
+    expect(report.referenceCounts['local-missing']).toBe(2);
+    expect(report.missingLocalReferences).toEqual([
+      expect.objectContaining({ attributeName: 'imagesrcset', originalValue: 'missing-small.png' }),
+      expect.objectContaining({ attributeName: 'imagesrcset', originalValue: 'missing-large.png' }),
+    ]);
   });
 
   it('blocks terminal completion when the final ZIP still needs network resources', () => {

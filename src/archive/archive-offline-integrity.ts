@@ -293,18 +293,20 @@ function htmlReferences(
       );
     }
 
-    if (isDomResourceAttribute(element, 'srcset')) {
-      const srcset = element.getAttribute('srcset');
-      if (srcset?.trim()) {
-        for (const candidate of parseSrcsetCandidateSegments(srcset)) {
-          references.push(
-            classifyReference(sourcePath, candidate.rawUrl, archivePaths, {
-              channel: 'srcset',
-              tagName,
-              attributeName: 'srcset',
-              cssKind: null,
-            }),
-          );
+    for (const attributeName of ['srcset', 'imagesrcset'] as const) {
+      if (isDomResourceAttribute(element, attributeName)) {
+        const srcset = element.getAttribute(attributeName);
+        if (srcset?.trim()) {
+          for (const candidate of parseSrcsetCandidateSegments(srcset)) {
+            references.push(
+              classifyReference(sourcePath, candidate.rawUrl, archivePaths, {
+                channel: 'srcset',
+                tagName,
+                attributeName,
+                cssKind: null,
+              }),
+            );
+          }
         }
       }
     }

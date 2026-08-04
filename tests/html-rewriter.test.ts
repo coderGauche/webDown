@@ -283,6 +283,8 @@ describe('DOMParser HTML resource rewriting', () => {
       { url: `${BASE_URL}images/small.webp`, resourceType: 'image' },
       { url: `${BASE_URL}images/large.webp?v=2`, resourceType: 'image' },
       { url: `${BASE_URL}images/fallback.jpg`, resourceType: 'image' },
+      { url: `${BASE_URL}images/preload-small.webp`, resourceType: 'image' },
+      { url: `${BASE_URL}images/preload-large.webp?v=2`, resourceType: 'image' },
       { url: `${BASE_URL}media/poster.jpg`, resourceType: 'image' },
       { url: `${BASE_URL}media/movie.mp4`, resourceType: 'video' },
       { url: `${BASE_URL}media/movie.webm`, resourceType: 'video' },
@@ -296,6 +298,7 @@ describe('DOMParser HTML resource rewriting', () => {
     const result = rewriteHtmlResource({
       html: `<!doctype html><html><head>
         <link rel="preload" as="font" href="fonts/preload.woff2" crossorigin>
+        <link rel="preload" as="image" imagesrcset="images/preload-small.webp 1x, images/preload-large.webp?v=2 2x">
         <style>@font-face { font-family: Archive; src: url(fonts/archive.woff2#regular) format("woff2"); }</style>
       </head><body>
         <picture>
@@ -320,8 +323,8 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(result.rewrittenCount).toBe(8);
     expect(result.references).toHaveLength(8);
     expect(result.references.every((reference) => reference.status === 'rewritten')).toBe(true);
-    expect(result.srcsetRewrittenCount).toBe(3);
-    expect(result.srcsetRewrites).toHaveLength(2);
+    expect(result.srcsetRewrittenCount).toBe(5);
+    expect(result.srcsetRewrites).toHaveLength(3);
     expect(result.cssRewrittenCount).toBe(1);
     expect(result.cssRewrites[0]?.result.references[0]).toMatchObject({
       kind: 'font-face',
@@ -333,6 +336,9 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(pictureSrcset).toContain('--q-');
     expect(pictureSrcset).toContain('#wide 2x');
     expect(rewritten.querySelector('#preview')?.getAttribute('srcset')).toContain(' 640w');
+    expect(rewritten.querySelector('link[as="image"]')?.getAttribute('imagesrcset')).toContain(
+      '--q-',
+    );
     expect(rewritten.querySelector('#movie')?.getAttribute('src')).toContain('/media/');
     expect(rewritten.querySelector('#movie')?.getAttribute('poster')).toContain('/images/');
     expect(rewritten.querySelector('#movie-fallback')?.getAttribute('src')).toContain('/media/');

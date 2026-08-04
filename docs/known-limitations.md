@@ -115,9 +115,10 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 
 ### Metrics not yet established
 
-- The 95% primary-visual completeness, 5% broken-local-request rate, and two-second cancellation
-  targets do not yet have valid end-to-end denominators or timing evidence and must not be claimed.
-- Structured manifests, failure explanations, and the readable report are integrated into real
-  runtime ZIPs. Explainability across the full public baseline still requires the R7 rerun.
+- The 95% primary-visual completeness and two-second cancellation targets do not yet have valid
+  end-to-end denominators or timing evidence and must not be claimed.
+- The R7 fixed-set rerun archived 21 of 22 reachable pages. All 21 completed ZIPs passed static and
+  offline-browser checks with 0 missing local references out of 941 and included their report and
+  manifests. NASA remains a 120-second large-page timeout.
 
-See the detailed [MVP metric assessment](./testing/mvp-metric-assessment-2026-08-02.md).
+See the detailed [MVP metric assessment](./testing/mvp-metric-assessment-2026-08-04.md).

@@ -319,6 +319,25 @@ async function waitForArchiveTerminal(panel: Page): Promise<'completed' | 'faile
   return status!;
 }
 
+async function cancelActiveArchive(panel: Page): Promise<void> {
+  const cancelButton = panel.getByRole('button', { name: 'Cancel', exact: true });
+  if ((await cancelButton.count()) === 0 || !(await cancelButton.isEnabled().catch(() => false))) {
+    return;
+  }
+  await cancelButton.click({ timeout: 5_000 });
+  await expect
+    .poll(
+      () =>
+        panel.evaluate(() =>
+          [...document.querySelectorAll('h1, h2, h3')].some(
+            (heading) => heading.textContent?.trim() === 'Archive cancelled',
+          ),
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
 async function extractArchive(archivePath: string, outputDirectory: string): Promise<string[]> {
   const entries = unzipSync(await readFile(archivePath));
   const outputRoot = resolve(outputDirectory);
@@ -439,7 +458,9 @@ test('records visual, console, resource, archive, and offline evidence for the p
   try {
     for (const baselineCase of baselineCases) {
       const caseDirectory = join(runDirectory, baselineCase.id);
-      console.log(`M10-R6 ${results.length + 1}/${baselineCases.length}: ${baselineCase.id}`);
+      console.log(
+        `Public acceptance ${results.length + 1}/${baselineCases.length}: ${baselineCase.id}`,
+      );
       await mkdir(caseDirectory, { recursive: true });
       const onlineScreenshot = join(caseDirectory, 'online.png');
       const offlineScreenshot = join(caseDirectory, 'offline.png');
@@ -602,6 +623,11 @@ test('records visual, console, resource, archive, and offline evidence for the p
             .screenshot({ path: join(caseDirectory, 'panel-error.png') })
             .catch(() => undefined);
         } finally {
+          await cancelActiveArchive(panel).catch((error) => {
+            notes.push(
+              `Active archive cleanup failed: ${safeMessage(error instanceof Error ? error.message : String(error))}`,
+            );
+          });
           await panel.close();
         }
       }

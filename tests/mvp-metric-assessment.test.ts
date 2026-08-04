@@ -54,7 +54,7 @@ function targetSatisfied(metric: MetricAssessment): boolean {
 describe('M10 MVP metric assessment', () => {
   it('covers every PRD metric exactly once with evidence and an explicit disposition', () => {
     expect(assessment.schemaVersion).toBe(1);
-    expect(assessment.assessmentId).toBe('m10-mvp-metrics-2026-08-02');
+    expect(assessment.assessmentId).toBe('m10-mvp-metrics-2026-08-04');
     expect(assessment.assessedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(assessment.metrics.map(({ id }) => id).sort()).toEqual([...REQUIRED_METRICS].sort());
 
@@ -87,7 +87,7 @@ describe('M10 MVP metric assessment', () => {
     );
   });
 
-  it('never treats missing measurements as passing and blocks on failed P0 metrics', () => {
+  it('never treats missing measurements as passing and derives readiness from failed P0 metrics', () => {
     for (const metric of assessment.metrics) {
       if (metric.status === 'passed') expect(targetSatisfied(metric)).toBe(true);
       if (metric.status === 'failed') expect(targetSatisfied(metric)).toBe(false);
@@ -99,7 +99,6 @@ describe('M10 MVP metric assessment', () => {
       .map(({ id }) => id)
       .sort();
     expect(assessment.blockingDeviationIds.sort()).toEqual(failedP0);
-    expect(failedP0.length).toBeGreaterThan(0);
-    expect(assessment.releaseDecision).toBe('blocked');
+    expect(assessment.releaseDecision).toBe(failedP0.length === 0 ? 'ready' : 'blocked');
   });
 });

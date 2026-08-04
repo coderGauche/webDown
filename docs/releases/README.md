@@ -13,8 +13,9 @@ Playwright Chromium profile, where the extension service worker and Side Panel m
 
 Generated ZIP files are written to the ignored `dist/` directory. A versioned JSON record is kept
 here with the source commit, byte length, SHA-256, complete file inventory, and verification
-results. A record marked `engineering-candidate-blocked` is not approved for public release.
+results. `engineering-candidate` means the P0 metric gate passed; it does not by itself approve a
+public release. A record marked `engineering-candidate-blocked` still has failed P0 metrics.
 
-The current `0.1.0` candidate remains blocked by the MVP assessment in
-`docs/testing/mvp-metric-assessment-2026-08-02.md`. It is intended only for controlled engineering
-evaluation until those release blockers are resolved.
+The current assessment is `docs/testing/mvp-metric-assessment-2026-08-04.md`. Its P0 engineering-
+candidate gate passes, while M10-T6 version/demo preparation and M10-T7 user-supervised acceptance
+remain mandatory before any public-release approval.

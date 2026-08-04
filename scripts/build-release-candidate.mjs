@@ -311,6 +311,10 @@ async function gitOutput(args) {
 
 async function createCandidate(options) {
   const packageJson = JSON.parse(await readFile(resolve('package.json'), 'utf8'));
+  const metricAssessment = JSON.parse(
+    await readFile(resolve('tests/baselines/mvp-metrics.json'), 'utf8'),
+  );
+  const candidateReady = metricAssessment.releaseDecision === 'ready';
   const buildEnvironment = { ...process.env };
   delete buildEnvironment.SITECAPSULE_E2E;
   delete buildEnvironment.SITECAPSULE_PUBLIC_ACCEPTANCE;
@@ -334,9 +338,15 @@ async function createCandidate(options) {
 
   const report = {
     schemaVersion: 1,
-    artifactStatus: 'engineering-candidate-blocked',
+    artifactStatus: candidateReady ? 'engineering-candidate' : 'engineering-candidate-blocked',
     publicReleaseApproved: false,
-    blockingAssessment: 'docs/testing/mvp-metric-assessment-2026-08-02.md',
+    blockingAssessment: candidateReady ? null : 'docs/testing/mvp-metric-assessment-2026-08-04.md',
+    metricAssessment: {
+      id: metricAssessment.assessmentId,
+      decision: metricAssessment.releaseDecision,
+      blockingDeviationIds: metricAssessment.blockingDeviationIds,
+    },
+    approvalPending: candidateReady ? ['M10-T6', 'M10-T7'] : [],
     generatedAt: new Date().toISOString(),
     sourceCommit: commit,
     artifact: {
@@ -365,7 +375,11 @@ async function createCandidate(options) {
     console.log(`Engineering candidate: ${artifactPath}`);
     console.log(`SHA-256: ${verification.sha256}`);
     console.log(`Record: ${reportPath}`);
-    console.log('Public release approved: no (M10-T3 blockers remain)');
+    console.log(
+      candidateReady
+        ? 'Public release approved: no (M10-T6 version/demo and M10-T7 user acceptance remain)'
+        : 'Public release approved: no (MVP metric blockers remain)',
+    );
   }
   return report;
 }

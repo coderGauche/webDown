@@ -35,6 +35,8 @@ describe('DOM resource discovery', () => {
         <script src="https://scripts.example.test/app.js"></script>
         <link rel="stylesheet" href="styles/site.css" />
         <link rel="icon preload" href="icons/app.svg" />
+        <link rel="preload" as="image"
+          imagesrcset="images/preload-small.png 1x, images/preload-large.png 2x" />
         <input type="image" src="images/submit.png" />
       `),
     );
@@ -117,6 +119,20 @@ describe('DOM resource discovery', () => {
         rawUrl: 'icons/app.svg',
         resolvedUrl: 'https://cdn.example.test/assets/icons/app.svg',
         descriptor: undefined,
+      },
+      {
+        tagName: 'link',
+        attributeName: 'imagesrcset',
+        rawUrl: 'images/preload-small.png',
+        resolvedUrl: 'https://cdn.example.test/assets/images/preload-small.png',
+        descriptor: '1x',
+      },
+      {
+        tagName: 'link',
+        attributeName: 'imagesrcset',
+        rawUrl: 'images/preload-large.png',
+        resolvedUrl: 'https://cdn.example.test/assets/images/preload-large.png',
+        descriptor: '2x',
       },
       {
         tagName: 'input',
