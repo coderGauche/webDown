@@ -28,23 +28,28 @@ export type SrcsetReferenceResult =
       status: 'unmapped';
       resolvedUrl: string;
       normalizedUrl: string;
+      neutralizedValue?: string;
     })
   | (SrcsetReferenceCommon & {
       status: 'unsupported';
       resolvedUrl: string;
       protocol: string;
+      neutralizedValue?: string;
     })
   | (SrcsetReferenceCommon & {
       status: 'fragment';
     })
   | (SrcsetReferenceCommon & {
       status: 'invalid';
+      neutralizedValue?: string;
     });
 
 export type SrcsetRewriteResult = {
   srcset: string;
   sourcePath: string;
   rewrittenCount: number;
+  neutralizedCount: number;
+  changedCount: number;
   references: SrcsetReferenceResult[];
 };
 
@@ -53,6 +58,7 @@ export type RewriteSrcsetResourceOptions = {
   baseUrl: string;
   sourcePath: string;
   savedResourceMappings: readonly ResourcePathMapping[];
+  uncapturedResourcePolicy?: 'preserve' | 'neutralize';
 };
 
 type Replacement = {
@@ -96,6 +102,7 @@ export function rewriteSrcsetResource(options: RewriteSrcsetResourceOptions): Sr
   const savedResources = buildSavedResourceLookup(options.savedResourceMappings);
   const references: SrcsetReferenceResult[] = [];
   const replacements: Replacement[] = [];
+  const neutralizedValue = 'data:,';
 
   for (const [index, candidate] of parseSrcsetCandidateSegments(options.srcset).entries()) {
     const common: SrcsetReferenceCommon = {
@@ -104,7 +111,14 @@ export function rewriteSrcsetResource(options: RewriteSrcsetResourceOptions): Sr
       descriptor: candidate.descriptor ?? null,
     };
     if (!isValidDescriptor(candidate.descriptor)) {
-      references.push({ ...common, status: 'invalid' });
+      if (options.uncapturedResourcePolicy === 'neutralize') {
+        replacements.push({
+          start: candidate.urlStart,
+          end: candidate.urlEnd,
+          value: neutralizedValue,
+        });
+        references.push({ ...common, status: 'invalid', neutralizedValue });
+      } else references.push({ ...common, status: 'invalid' });
       continue;
     }
     if (candidate.rawUrl.startsWith('#')) {
@@ -116,16 +130,33 @@ export function rewriteSrcsetResource(options: RewriteSrcsetResourceOptions): Sr
     try {
       resolved = new URL(candidate.rawUrl, baseUrl);
     } catch {
-      references.push({ ...common, status: 'invalid' });
+      if (options.uncapturedResourcePolicy === 'neutralize') {
+        replacements.push({
+          start: candidate.urlStart,
+          end: candidate.urlEnd,
+          value: neutralizedValue,
+        });
+        references.push({ ...common, status: 'invalid', neutralizedValue });
+      } else references.push({ ...common, status: 'invalid' });
       continue;
     }
 
     if (!isNetworkProtocol(resolved.protocol)) {
+      const neutralize =
+        options.uncapturedResourcePolicy === 'neutralize' && resolved.protocol !== 'data:';
+      if (neutralize) {
+        replacements.push({
+          start: candidate.urlStart,
+          end: candidate.urlEnd,
+          value: neutralizedValue,
+        });
+      }
       references.push({
         ...common,
         status: 'unsupported',
         resolvedUrl: resolved.href,
         protocol: resolved.protocol,
+        ...(neutralize ? { neutralizedValue } : {}),
       });
       continue;
     }
@@ -133,16 +164,32 @@ export function rewriteSrcsetResource(options: RewriteSrcsetResourceOptions): Sr
     const fragment = resolved.hash;
     const normalizedUrl = normalizeResourceUrl(resolved.href);
     if (normalizedUrl === null) {
-      references.push({ ...common, status: 'invalid' });
+      if (options.uncapturedResourcePolicy === 'neutralize') {
+        replacements.push({
+          start: candidate.urlStart,
+          end: candidate.urlEnd,
+          value: neutralizedValue,
+        });
+        references.push({ ...common, status: 'invalid', neutralizedValue });
+      } else references.push({ ...common, status: 'invalid' });
       continue;
     }
     const mapping = savedResources.get(normalizedUrl);
     if (!mapping) {
+      const neutralize = options.uncapturedResourcePolicy === 'neutralize';
+      if (neutralize) {
+        replacements.push({
+          start: candidate.urlStart,
+          end: candidate.urlEnd,
+          value: neutralizedValue,
+        });
+      }
       references.push({
         ...common,
         status: 'unmapped',
         resolvedUrl: resolved.href,
         normalizedUrl,
+        ...(neutralize ? { neutralizedValue } : {}),
       });
       continue;
     }
@@ -167,11 +214,15 @@ export function rewriteSrcsetResource(options: RewriteSrcsetResourceOptions): Sr
     });
   }
 
+  const neutralizedCount = references.filter((reference) => 'neutralizedValue' in reference).length;
+  const rewrittenCount = references.filter((reference) => reference.status === 'rewritten').length;
   return {
     srcset:
       replacements.length === 0 ? options.srcset : applyReplacements(options.srcset, replacements),
     sourcePath: options.sourcePath,
-    rewrittenCount: replacements.length,
+    rewrittenCount,
+    neutralizedCount,
+    changedCount: replacements.length,
     references,
   };
 }

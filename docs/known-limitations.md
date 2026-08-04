@@ -1,7 +1,7 @@
 # SiteCapsule Known Limitations / 已知限制
 
 > Applies to / 适用版本：0.1.0 engineering trial / 工程试用版
-> Updated / 更新日期：2026-08-02
+> Updated / 更新日期：2026-08-04
 
 The Chinese section is followed by an English equivalent. / 中文之后提供英文版本。
 
@@ -10,11 +10,10 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 ### 当前发布状态
 
 - 本版本未达到 MVP 发布门槛，仅适合受限工程试用。
-- 2026-08-02 固定公网集有 22 个可达案例，其中 18 个生成可下载 ZIP，成功率 81.82%，
-  低于 90% 目标。
-- 18 个真实 ZIP 均未包含 `_sitecapsule/report.html` 或机器清单，运行时报告生成率为 0%。
-- MDN、Next.js 和 Wikipedia 案例出现任务已完成但结果区未及时显示；NASA 长任务在 120 秒
-  后仍停留在下载阶段。
+- 2026-08-02 的 23 站旧基线未达到 MVP 门槛；M10-R7 尚未完成全量重跑，因此当前仍不能
+  宣称达到发布指标。
+- 2026-08-04 的 R6 三站复杂页回归均生成真实 ZIP，通过 ZIP 引用审计和严格断网打开；其中
+  一个静态文档页完全通过，两个动态/WebGL 页面按已知降级通过。
 
 ### 捕获范围
 
@@ -38,15 +37,15 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 - Canvas/WebGL 的最终像素不会作为 DOM 序列化。模型、WASM、decoder 或 GPU 特定纹理变体
   只有在被发现并成功下载时才可能工作，换设备可能黑屏或材质缺失。
 - Blob URL 依赖原文档会话，不能作为普通网络资源重新下载；不支持的协议会被记录或跳过。
-- 通用 JavaScript 不做任意源码改写。动态拼接 URL、运行时 import、Service Worker、CSP 和
-  ES Module 仍可能引用线上地址或受本地来源策略限制。
-- 绝对 `<base>` 或根路径可能在 `file://` 下解析错误；TypeScript 文档案例曾跳转到
-  `file:///docs/`。优先使用本地 HTTP 服务，但并非所有路径问题都会因此修复。
+- 离线入口默认禁用可执行 JavaScript，并移除预连接、预取和模块预加载提示，以保存捕获时
+  的最终 DOM 并阻止脚本动态外联。JSON/JSON-LD 数据脚本保留；脚本文件可进入 ZIP，但交互、
+  客户端路由和运行时动画不会自动恢复。
+- 未成功保存的资源引用会被移除或中和，避免离线页面回连原站；对应资源仍在失败清单中说明。
 
 ### 可靠性和资源
 
-- ZIP 当前以内存 Blob 方式生成；UI 尚未提供单文件或任务总字节上限。大型媒体或资源密集页
-  可能消耗大量内存、耗时过长或失败。
+- ZIP 当前以内存 Blob 方式生成；系统有单文件和任务总体积门禁，但大型媒体或资源密集页仍
+  可能消耗大量内存、耗时过长或触发限制。
 - ZIP 字节只在当前扩展运行会话可用。Service Worker 或扩展重启后仅保留任务和资源元数据，
   无法从历史任务重新下载原 ZIP。
 - 暂停通常在当前异步边界生效，不保证中断已经交给浏览器的每个底层网络操作。
@@ -56,20 +55,18 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 
 - 主要视觉资源完整率 95%、失效本地请求占比 5% 和取消响应 2 秒尚无合格端到端分母或计时
   证据，不应宣称已达标。
-- 结构化失败模型和归档报告模块已有单元测试，但尚未接入真实运行时 ZIP，因此不能宣称单资源
-  失败 100% 可解释。
+- 结构化清单、失败说明和可读报告已接入真实运行时 ZIP；全量公开基线中的解释率仍需 R7 重算。
 
 ## English
 
 ### Current release status
 
 - This build has not met the MVP release gate and is limited to restricted engineering trials.
-- On 2026-08-02, 18 of 22 reachable fixed public cases produced a downloadable ZIP: 81.82%, below
-  the 90% target.
-- None of the 18 real ZIPs contained `_sitecapsule/report.html` or machine manifests, so runtime
-  report generation was 0%.
-- MDN, Next.js, and Wikipedia reached a completed task without promptly surfacing the result. NASA
-  remained in downloading after 120 seconds.
+- The 23-site baseline from 2026-08-02 did not meet the MVP gate. M10-R7 has not rerun the full set,
+  so release metrics are not yet claimed.
+- The 2026-08-04 R6 complex-site run produced real ZIPs for all three selected sites. Every ZIP
+  passed reference integrity and strict offline opening; one static documentation site passed
+  fully, while two dynamic/WebGL sites passed with documented degradation.
 
 ### Capture scope
 
@@ -98,15 +95,17 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
   materials or a blank scene.
 - Blob URLs are bound to the source document session and cannot be fetched as ordinary network
   resources. Unsupported protocols are recorded or skipped.
-- Arbitrary JavaScript source is not generally rewritten. Computed URLs, runtime imports, Service
-  Workers, CSP, and ES modules may retain online references or fail under a local origin.
-- Absolute `<base>` and root paths can resolve incorrectly under `file://`; the TypeScript case
-  navigated to `file:///docs/`. A local HTTP server is preferred but cannot repair every path issue.
+- Executable JavaScript is disabled in the offline entry, and preconnect, prefetch, prerender, and
+  module-preload hints are removed. This preserves the captured final DOM and prevents dynamic
+  network access. JSON/JSON-LD data scripts remain, and script files may be packaged, but client
+  routing, interactions, and runtime animation do not automatically resume.
+- References to resources that were not saved are removed or neutralized to prevent silent source-
+  site requests; the failures remain documented in the archive manifest.
 
 ### Reliability and resources
 
-- ZIP generation currently uses an in-memory Blob, and the UI does not yet configure per-file or
-  total byte limits. Media-heavy pages can consume substantial memory, take too long, or fail.
+- ZIP generation currently uses an in-memory Blob. Per-file and total-task byte gates exist, but
+  media-heavy pages can still consume substantial memory, take too long, or hit those limits.
 - ZIP bytes exist only in the current extension runtime session. A Service Worker or extension
   restart retains job/resource metadata but cannot restore the ZIP download.
 - Pause takes effect at asynchronous boundaries and does not guarantee immediate interruption of
@@ -118,7 +117,7 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
 
 - The 95% primary-visual completeness, 5% broken-local-request rate, and two-second cancellation
   targets do not yet have valid end-to-end denominators or timing evidence and must not be claimed.
-- Structured failure and archive-report modules pass unit tests but are not integrated into runtime
-  ZIPs, so 100% single-resource failure explainability is not established.
+- Structured manifests, failure explanations, and the readable report are integrated into real
+  runtime ZIPs. Explainability across the full public baseline still requires the R7 rerun.
 
 See the detailed [MVP metric assessment](./testing/mvp-metric-assessment-2026-08-02.md).

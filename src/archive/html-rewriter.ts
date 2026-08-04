@@ -61,14 +61,17 @@ export type HtmlReferenceResult =
       status: 'unmapped';
       resolvedUrl: string;
       normalizedUrl: string;
+      neutralizedValue?: null;
     })
   | (HtmlReferenceCommon & {
       status: 'unsupported';
       resolvedUrl: string;
       protocol: string;
+      neutralizedValue?: null;
     })
   | (HtmlReferenceCommon & {
       status: 'invalid';
+      neutralizedValue?: null;
     });
 
 export type HtmlBaseHrefRemoval = {
@@ -90,6 +93,26 @@ export type HtmlRewriteResult = {
   serviceWorkerSafety: ServiceWorkerSafetyResult;
   cspAdjustment: CspAdjustmentResult;
   contentChanges: ContentChangeReport;
+  scriptSafety: OfflineScriptSafetyResult;
+};
+
+export type OfflineScriptSafetyEntry = {
+  elementOrdinal: number;
+  originalType: string | null;
+  source: string | null;
+};
+
+export type OfflineSpeculativeLinkEntry = {
+  elementOrdinal: number;
+  relationship: string;
+  href: string | null;
+};
+
+export type OfflineScriptSafetyResult = {
+  disabledCount: number;
+  scripts: OfflineScriptSafetyEntry[];
+  removedSpeculativeLinkCount: number;
+  speculativeLinks: OfflineSpeculativeLinkEntry[];
 };
 
 export type HtmlCssRewriteResult = {
@@ -115,8 +138,70 @@ export type RewriteHtmlResourceOptions = {
   baseUrl: string;
   documentPath: string;
   savedResourceMappings: readonly ResourcePathMapping[];
+  uncapturedResourcePolicy?: 'preserve' | 'neutralize';
+  disableExecutableScripts?: boolean;
   parser?: HtmlDomParser;
 };
+
+const DISABLED_SCRIPT_TYPE = 'application/sitecapsule-disabled';
+const SPECULATIVE_LINK_RELATIONSHIPS = new Set([
+  'dns-prefetch',
+  'modulepreload',
+  'preconnect',
+  'prefetch',
+  'prerender',
+]);
+
+function isExecutableScript(element: Element): boolean {
+  const type = (element.getAttribute('type') ?? '').trim().toLowerCase();
+  return (
+    type === '' ||
+    type === 'module' ||
+    type === 'text/javascript' ||
+    type === 'application/javascript' ||
+    type === 'text/ecmascript' ||
+    type === 'application/ecmascript'
+  );
+}
+
+function disableExecutableScripts(
+  document: Document,
+  elementOrdinals: ReadonlyMap<Element, number>,
+): OfflineScriptSafetyResult {
+  const scripts: OfflineScriptSafetyEntry[] = [];
+  const speculativeLinks: OfflineSpeculativeLinkEntry[] = [];
+  for (const script of Array.from(document.querySelectorAll('script'))) {
+    if (script.hasAttribute('data-sitecapsule-service-worker-policy')) continue;
+    if (!isExecutableScript(script)) continue;
+    const originalType = script.getAttribute('type');
+    scripts.push({
+      elementOrdinal: elementOrdinals.get(script) ?? 0,
+      originalType,
+      source: script.getAttribute('src'),
+    });
+    script.setAttribute('type', DISABLED_SCRIPT_TYPE);
+    script.setAttribute('data-sitecapsule-original-script-type', originalType ?? 'classic');
+  }
+  for (const link of Array.from(document.querySelectorAll('link[rel]'))) {
+    const relationships = (link.getAttribute('rel') ?? '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (!relationships.some((value) => SPECULATIVE_LINK_RELATIONSHIPS.has(value))) continue;
+    speculativeLinks.push({
+      elementOrdinal: elementOrdinals.get(link) ?? 0,
+      relationship: relationships.join(' '),
+      href: link.getAttribute('href'),
+    });
+    link.remove();
+  }
+  return {
+    disabledCount: scripts.length,
+    scripts,
+    removedSpeculativeLinkCount: speculativeLinks.length,
+    speculativeLinks,
+  };
+}
 
 function createParser(parser?: HtmlDomParser): HtmlDomParser {
   if (parser) return parser;
@@ -199,16 +284,27 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
       try {
         resolved = new URL(originalValue.trim(), baseUrl);
       } catch {
-        references.push({ ...common, status: 'invalid' });
+        if (options.uncapturedResourcePolicy === 'neutralize') {
+          element.removeAttribute(attributeName);
+          if (element.hasAttribute('integrity')) element.removeAttribute('integrity');
+          references.push({ ...common, status: 'invalid', neutralizedValue: null });
+        } else references.push({ ...common, status: 'invalid' });
         continue;
       }
 
       if (!isNetworkProtocol(resolved.protocol)) {
+        const neutralize =
+          options.uncapturedResourcePolicy === 'neutralize' && resolved.protocol !== 'data:';
+        if (neutralize) {
+          element.removeAttribute(attributeName);
+          if (element.hasAttribute('integrity')) element.removeAttribute('integrity');
+        }
         references.push({
           ...common,
           status: 'unsupported',
           resolvedUrl: resolved.href,
           protocol: resolved.protocol,
+          ...(neutralize ? { neutralizedValue: null } : {}),
         });
         continue;
       }
@@ -216,16 +312,26 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
       const fragment = resolved.hash;
       const normalizedUrl = normalizeResourceUrl(resolved.href);
       if (normalizedUrl === null) {
-        references.push({ ...common, status: 'invalid' });
+        if (options.uncapturedResourcePolicy === 'neutralize') {
+          element.removeAttribute(attributeName);
+          if (element.hasAttribute('integrity')) element.removeAttribute('integrity');
+          references.push({ ...common, status: 'invalid', neutralizedValue: null });
+        } else references.push({ ...common, status: 'invalid' });
         continue;
       }
       const mapping = savedResources.get(normalizedUrl);
       if (!mapping) {
+        const neutralize = options.uncapturedResourcePolicy === 'neutralize';
+        if (neutralize) {
+          element.removeAttribute(attributeName);
+          if (element.hasAttribute('integrity')) element.removeAttribute('integrity');
+        }
         references.push({
           ...common,
           status: 'unmapped',
           resolvedUrl: resolved.href,
           normalizedUrl,
+          ...(neutralize ? { neutralizedValue: null } : {}),
         });
         continue;
       }
@@ -237,6 +343,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
       );
       element.setAttribute(attributeName, rewrittenValue);
       if (element.hasAttribute('integrity')) element.removeAttribute('integrity');
+      if (element.hasAttribute('crossorigin')) element.removeAttribute('crossorigin');
       references.push({
         ...common,
         status: 'rewritten',
@@ -259,8 +366,12 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
       baseUrl,
       sourcePath: options.documentPath,
       savedResourceMappings: options.savedResourceMappings,
+      uncapturedResourcePolicy: options.uncapturedResourcePolicy,
     });
-    if (result.rewrittenCount > 0) element.setAttribute('srcset', result.srcset);
+    if (result.changedCount > 0) {
+      element.setAttribute('srcset', result.srcset);
+      if (element.hasAttribute('crossorigin')) element.removeAttribute('crossorigin');
+    }
     srcsetRewrites.push({
       elementOrdinal: elementOrdinals.get(element) ?? 0,
       tagName: element.tagName.toLowerCase() as 'img' | 'source',
@@ -285,8 +396,9 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         baseUrl,
         sourcePath: options.documentPath,
         savedResourceMappings: options.savedResourceMappings,
+        uncapturedResourcePolicy: options.uncapturedResourcePolicy,
       });
-      if (result.rewrittenCount > 0) element.textContent = result.cssText;
+      if (result.changedCount > 0) element.textContent = result.cssText;
       cssRewrites.push({
         ...common,
         sourceType: 'style-element',
@@ -304,8 +416,9 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         baseUrl,
         sourcePath: options.documentPath,
         savedResourceMappings: options.savedResourceMappings,
+        uncapturedResourcePolicy: options.uncapturedResourcePolicy,
       });
-      if (result.rewrittenCount > 0) element.setAttribute('style', result.cssText);
+      if (result.changedCount > 0) element.setAttribute('style', result.cssText);
       cssRewrites.push({
         ...common,
         sourceType: 'style-attribute',
@@ -325,8 +438,9 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
         baseUrl,
         sourcePath: options.documentPath,
         savedResourceMappings: options.savedResourceMappings,
+        uncapturedResourcePolicy: options.uncapturedResourcePolicy,
       });
-      if (result.rewrittenCount > 0) element.setAttribute(attributeName, result.cssText);
+      if (result.changedCount > 0) element.setAttribute(attributeName, result.cssText);
       cssRewrites.push({
         ...common,
         sourceType: 'svg-presentation-attribute',
@@ -338,6 +452,14 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
   }
 
   const serviceWorkerSafety = applyServiceWorkerSafetyPolicy(document, elementOrdinals);
+  const scriptSafety = options.disableExecutableScripts
+    ? disableExecutableScripts(document, elementOrdinals)
+    : {
+        disabledCount: 0,
+        scripts: [],
+        removedSpeculativeLinkCount: 0,
+        speculativeLinks: [],
+      };
   const rewrittenNormalizedUrls = new Set<string>();
   for (const reference of references) {
     if (reference.status === 'rewritten') rewrittenNormalizedUrls.add(reference.normalizedUrl);
@@ -370,6 +492,7 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     srcsetRewrites,
     serviceWorkerSafety,
     cspAdjustment,
+    scriptSafety,
   });
 
   return {
@@ -391,5 +514,6 @@ export function rewriteHtmlResource(options: RewriteHtmlResourceOptions): HtmlRe
     serviceWorkerSafety,
     cspAdjustment,
     contentChanges,
+    scriptSafety,
   };
 }

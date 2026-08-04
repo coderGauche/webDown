@@ -73,15 +73,16 @@ describe('M10 release documentation', () => {
 
   it('keeps release blockers and unsupported behavior visible in both languages', () => {
     for (const required of [
-      '81.82%',
-      '0%',
-      '_sitecapsule/report.html',
+      'M10-R7',
+      'R6 complex-site run',
+      'strict offline',
       'maxDepth=0',
       'maxPages=1',
       'Cross-origin iframe',
       '跨域 iframe',
       'Canvas/WebGL',
-      'file:///docs/',
+      'Executable JavaScript is disabled',
+      '离线入口默认禁用可执行 JavaScript',
       'in-memory Blob',
       '内存 Blob',
       'must not be claimed',

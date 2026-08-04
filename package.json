@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:e2e": "SITECAPSULE_E2E=1 pnpm build && playwright test",
     "test:public-acceptance": "node scripts/run-public-acceptance.mjs",
+    "test:r6-acceptance": "SITECAPSULE_PUBLIC_ACCEPTANCE_BASELINE=tests/baselines/r6-complex-sites.json node scripts/run-public-acceptance.mjs",
     "test:e2e:install": "playwright install chromium",
     "test:regression": "node scripts/run-regression.mjs",
     "audit:store": "node scripts/audit-chrome-web-store.mjs",

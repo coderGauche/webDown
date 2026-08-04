@@ -61,6 +61,8 @@ function createFixture() {
     context: 'stylesheet',
     sourcePath: 'assets/origins/https/dns-cdn.example.test/default/css/broken.css',
     rewrittenCount: 0,
+    neutralizedCount: 0,
+    changedCount: 0,
     parseError: true,
     references: [],
   };

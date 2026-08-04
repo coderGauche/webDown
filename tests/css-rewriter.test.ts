@@ -183,6 +183,30 @@ describe('CSSTree archive URL rewriting', () => {
     expect(result.references[0]?.status).toBe('unmapped');
   });
 
+  it('neutralizes uncaptured network, blob, and invalid references for offline packaging', () => {
+    const result = rewriteCssResource({
+      cssText: `@import "missing.css"; .hero { background: url(missing.png) } .blob { mask: url(blob:https://cdn.example.test/id) } .data { cursor: url(data:image/png;base64,AAAA), auto }`,
+      context: 'stylesheet',
+      baseUrl: CSS_URL,
+      sourcePath: CSS_PATH,
+      savedResourceMappings: [],
+      uncapturedResourcePolicy: 'neutralize',
+    });
+
+    expect(result.rewrittenCount).toBe(0);
+    expect(result.neutralizedCount).toBe(3);
+    expect(result.changedCount).toBe(3);
+    expect(result.cssText).not.toMatch(/missing\.css|missing\.png|blob:/);
+    expect(result.cssText).toContain('data:,');
+    expect(result.cssText).toContain('data:image/png;base64,AAAA');
+    expect(result.references.map((reference) => reference.status)).toEqual([
+      'unmapped',
+      'unmapped',
+      'unsupported',
+      'unsupported',
+    ]);
+  });
+
   it('rejects invalid contexts, unsafe paths, and ambiguous saved mappings', async () => {
     const [mapping] = await savedMappings([
       { url: 'https://cdn.example.test/image.png', resourceType: 'image' },

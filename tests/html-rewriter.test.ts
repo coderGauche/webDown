@@ -208,6 +208,31 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(parseResult(result.html).querySelectorAll('base[href]')).toHaveLength(0);
   });
 
+  it('neutralizes uncaptured resource attributes, srcset candidates, and inline CSS offline', () => {
+    const result = rewriteHtmlResource({
+      html: `<html><head><style>.hero { background: url(missing.png) }</style></head><body>
+        <img id="missing" src="missing.png" srcset="small.png 1x, data:image/png;base64,AAAA 2x" integrity="stale">
+        <script id="blob" src="blob:https://cdn.example.test/id"></script>
+      </body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: [],
+      uncapturedResourcePolicy: 'neutralize',
+    });
+    const rewritten = parseResult(result.html);
+
+    expect(rewritten.querySelector('#missing')?.hasAttribute('src')).toBe(false);
+    expect(rewritten.querySelector('#missing')?.hasAttribute('integrity')).toBe(false);
+    expect(rewritten.querySelector('#missing')?.getAttribute('srcset')).not.toContain('small.png');
+    expect(rewritten.querySelector('#missing')?.getAttribute('srcset')).toContain(
+      'data:image/png;base64,AAAA',
+    );
+    expect(rewritten.querySelector('#blob')?.hasAttribute('src')).toBe(false);
+    expect(rewritten.querySelector('style')?.textContent).not.toContain('missing.png');
+    expect(result.contentChanges.counts['uncaptured-resource-neutralization']).toBe(4);
+  });
+
   it('rewrites style elements, style attributes, and SVG presentation attributes with CSSTree', async () => {
     const themeUrl = 'https://cdn.example.test/assets/theme.css';
     const imageUrl = 'https://cdn.example.test/assets/image.png';
@@ -315,6 +340,7 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(rewritten.querySelector('#audio')?.getAttribute('src')).toContain('/media/');
     expect(rewritten.querySelector('#audio-fallback')?.getAttribute('src')).toContain('/media/');
     expect(rewritten.querySelector('link[as="font"]')?.getAttribute('href')).toContain('/fonts/');
+    expect(rewritten.querySelector('link[as="font"]')?.hasAttribute('crossorigin')).toBe(false);
     expect(rewritten.querySelector('style')?.textContent).toContain('/fonts/');
     expect(rewritten.querySelector('style')?.textContent).toContain('#regular');
   });
@@ -347,6 +373,38 @@ describe('DOMParser HTML resource rewriting', () => {
     expect(rewritten.body.querySelector('script')?.textContent).not.toContain(
       "serviceWorker.register('/sw.js')",
     );
+  });
+
+  it('freezes executable scripts while preserving data scripts and saved source files', async () => {
+    const scriptUrl = `${BASE_URL}app.js`;
+    const mappings = await savedMappings([{ url: scriptUrl, resourceType: 'script' }]);
+    const result = rewriteHtmlResource({
+      html: `<html><head>
+        <link rel="prefetch" href="/page-data/next.json" as="fetch">
+        <script src="app.js"></script>
+        <script type="module">import './dynamic.js'</script>
+        <script type="application/ld+json">{"name":"Archive"}</script>
+      </head><body></body></html>`,
+      documentUrl: DOCUMENT_URL,
+      baseUrl: BASE_URL,
+      documentPath: DOCUMENT_PATH,
+      savedResourceMappings: mappings,
+      disableExecutableScripts: true,
+    });
+    const rewritten = parseResult(result.html);
+    const scripts = [
+      ...rewritten.querySelectorAll('script:not([data-sitecapsule-service-worker-policy])'),
+    ];
+
+    expect(result.scriptSafety.disabledCount).toBe(2);
+    expect(result.scriptSafety.removedSpeculativeLinkCount).toBe(1);
+    expect(rewritten.querySelector('link[rel="prefetch"]')).toBeNull();
+    expect(scripts[0]?.getAttribute('type')).toBe('application/sitecapsule-disabled');
+    expect(scripts[0]?.getAttribute('src')).toContain('/js/');
+    expect(scripts[1]?.getAttribute('data-sitecapsule-original-script-type')).toBe('module');
+    expect(scripts[2]?.getAttribute('type')).toBe('application/ld+json');
+    expect(result.contentChanges.counts['offline-script-disable']).toBe(2);
+    expect(result.contentChanges.counts['speculative-link-removal']).toBe(1);
   });
 
   it('rejects unsafe paths, non-network document context, and ambiguous saved mappings', async () => {

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "m10-r6-complex-sites-v1",
+  "cases": [
+    {
+      "id": "united-carriers-home",
+      "owner": "United Carriers",
+      "url": "https://unitedcarriers.com/",
+      "finalUrl": "https://unitedcarriers.com/",
+      "pageType": "interactive-marketing",
+      "runtimeProfile": "multi-origin-webgl-marketing",
+      "keyResources": ["html", "css", "scripts", "images", "fonts", "svg", "canvas", "webgl"],
+      "captureExpectation": {
+        "outcome": "documented-degradation-allowed",
+        "assertions": [
+          "primary navigation, headline, and supporting copy remain visible",
+          "saved styles and visual assets resolve without external requests"
+        ]
+      },
+      "knownLimitations": [
+        "generated canvas pixels, WebGL runtime state, live tracking, and server-backed interactions may not replay offline"
+      ]
+    },
+    {
+      "id": "typescript-docs",
+      "owner": "Microsoft",
+      "url": "https://www.typescriptlang.org/docs/",
+      "finalUrl": "https://www.typescriptlang.org/docs/",
+      "pageType": "technical-documentation",
+      "runtimeProfile": "multi-origin-hydrated-document",
+      "keyResources": ["html", "css", "scripts", "images", "fonts"],
+      "captureExpectation": {
+        "outcome": "core-content-offline",
+        "assertions": [
+          "documentation index and headings remain readable",
+          "saved styles and fonts resolve without external requests"
+        ]
+      },
+      "knownLimitations": [
+        "search and cross-page documentation navigation remain online destinations"
+      ]
+    },
+    {
+      "id": "threejs-manual-fundamentals",
+      "owner": "three.js project",
+      "url": "https://threejs.org/manual/#en/fundamentals",
+      "finalUrl": "https://threejs.org/manual/#en/fundamentals",
+      "pageType": "interactive-webgl",
+      "runtimeProfile": "hash-routed-iframe-webgl",
+      "keyResources": ["html", "css", "scripts", "images", "iframe", "canvas", "webgl"],
+      "captureExpectation": {
+        "outcome": "documented-degradation-allowed",
+        "assertions": [
+          "manual shell and available article text remain visible",
+          "unavailable interactive regions are reported without external requests"
+        ]
+      },
+      "knownLimitations": [
+        "iframe content, WebGL state, generated canvas pixels, and hash-routed examples may not replay offline"
+      ]
+    }
+  ]
+}

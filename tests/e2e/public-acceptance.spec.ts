@@ -1,10 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium, expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { unzipSync } from 'fflate';
+import { DOMParser as LinkedomDOMParser } from 'linkedom';
+
+import { auditArchiveOfflineIntegritySync, ARCHIVE_METADATA_PATHS } from '../../src/archive';
 
 interface BaselineCase {
   id: string;
@@ -35,6 +38,17 @@ interface PageMetrics {
   documentHeight: number;
   imageCount: number;
   loadedImageCount: number;
+  primaryVisualCount: number;
+  visiblePrimaryVisualCount: number;
+  styleSignatures: string[];
+}
+
+interface VisualContinuity {
+  score: number;
+  textRatio: number;
+  loadedImageRatio: number;
+  primaryVisualRatio: number;
+  styleMatchRatio: number;
 }
 
 type Classification = 'pass' | 'allowed-degradation' | 'product-failure' | 'external-unavailable';
@@ -62,7 +76,10 @@ interface AcceptanceCaseResult {
 }
 
 const extensionPath = resolve(process.cwd(), '.output/chrome-mv3');
-const baselinePath = resolve(process.cwd(), 'tests/baselines/public-sites.json');
+const baselinePath = resolve(
+  process.cwd(),
+  process.env.SITECAPSULE_PUBLIC_ACCEPTANCE_BASELINE ?? 'tests/baselines/public-sites.json',
+);
 const evidenceRoot = resolve(process.cwd(), 'test-results/public-acceptance');
 const navigationTimeoutMs = 30_000;
 const captureTimeoutMs = 120_000;
@@ -72,7 +89,7 @@ const captureSettings = {
   renderWaitMs: 5_000,
   concurrentDownloads: 6,
   includeMedia: false,
-  includeThirdPartyResources: false,
+  includeThirdPartyResources: true,
 } as const;
 
 function runId(): string {
@@ -107,10 +124,39 @@ function safeMessage(value: string): string {
     .slice(0, 500);
 }
 
+function safeDiagnosticText(value: string): string {
+  return value
+    .replaceAll(/\u001b\[[0-9;]*m/g, '')
+    .replaceAll(/https?:\/\/[^\s)"']+/g, (candidate) => {
+      try {
+        const url = new URL(candidate);
+        url.search = '';
+        url.hash = '';
+        return url.href;
+      } catch {
+        return '[invalid-url]';
+      }
+    })
+    .slice(0, 4_000);
+}
+
 async function pageMetrics(page: Page): Promise<PageMetrics> {
   return page.evaluate(() => {
     const text = document.body?.innerText ?? '';
     const images = [...document.images];
+    const primaryVisuals = [
+      ...document.querySelectorAll('header, main, nav, h1, h2, img, svg, canvas, video'),
+    ].slice(0, 40);
+    const visiblePrimaryVisuals = primaryVisuals.filter((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden'
+      );
+    });
     return {
       title: document.title,
       bodyTextChars: text.trim().length,
@@ -128,8 +174,52 @@ async function pageMetrics(page: Page): Promise<PageMetrics> {
       ),
       imageCount: images.length,
       loadedImageCount: images.filter((image) => image.complete && image.naturalWidth > 0).length,
+      primaryVisualCount: primaryVisuals.length,
+      visiblePrimaryVisualCount: visiblePrimaryVisuals.length,
+      styleSignatures: visiblePrimaryVisuals.slice(0, 20).map((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return [
+          element.tagName.toLowerCase(),
+          style.display,
+          style.position,
+          style.color,
+          style.backgroundColor,
+          style.fontFamily,
+          style.fontSize,
+          style.fontWeight,
+          style.opacity,
+          Math.round(rect.width / 8) * 8,
+          Math.round(rect.height / 8) * 8,
+        ].join('|');
+      }),
     };
   });
+}
+
+function ratio(value: number, baseline: number): number {
+  return baseline === 0 ? 1 : Math.min(1, value / baseline);
+}
+
+function visualContinuity(online: PageMetrics, offline: PageMetrics): VisualContinuity {
+  const textRatio = ratio(offline.bodyTextChars, online.bodyTextChars);
+  const loadedImageRatio = ratio(offline.loadedImageCount, online.loadedImageCount);
+  const primaryVisualRatio = ratio(
+    offline.visiblePrimaryVisualCount,
+    online.visiblePrimaryVisualCount,
+  );
+  const comparedStyles = Math.min(online.styleSignatures.length, offline.styleSignatures.length);
+  const styleMatches = Array.from({ length: comparedStyles }, (_, index) => index).filter(
+    (index) => online.styleSignatures[index] === offline.styleSignatures[index],
+  ).length;
+  const styleMatchRatio = comparedStyles === 0 ? 1 : styleMatches / comparedStyles;
+  return {
+    score: (textRatio + loadedImageRatio + primaryVisualRatio + styleMatchRatio) / 4,
+    textRatio,
+    loadedImageRatio,
+    primaryVisualRatio,
+    styleMatchRatio,
+  };
 }
 
 async function extensionId(context: BrowserContext): Promise<string> {
@@ -201,6 +291,32 @@ async function downloadArchive(panel: Page): Promise<{ filename: string; bytesRe
   }, previous);
   if (!downloaded) throw new Error('Completed archive download is unavailable.');
   return { filename: downloaded.filename, bytesReceived: downloaded.bytesReceived };
+}
+
+async function waitForArchiveTerminal(panel: Page): Promise<'completed' | 'failed'> {
+  let status: 'completed' | 'failed' | null = null;
+  await expect
+    .poll(
+      async () => {
+        status = await panel.evaluate(() => {
+          const headings = [...document.querySelectorAll('h1, h2, h3')].map(
+            (heading) => heading.textContent?.trim() ?? '',
+          );
+          if (
+            headings.includes('Archive ready') ||
+            headings.includes('Archive ready with issues')
+          ) {
+            return 'completed';
+          }
+          if (headings.includes('Archive failed')) return 'failed';
+          return null;
+        });
+        return status;
+      },
+      { timeout: captureTimeoutMs },
+    )
+    .not.toBeNull();
+  return status!;
 }
 
 async function extractArchive(archivePath: string, outputDirectory: string): Promise<string[]> {
@@ -287,6 +403,19 @@ test('records visual, console, resource, archive, and offline evidence for the p
   test.setTimeout(45 * 60_000);
 
   const baseline = JSON.parse(await readFile(baselinePath, 'utf8')) as Baseline;
+  const selectedIds = new Set(
+    (process.env.SITECAPSULE_PUBLIC_ACCEPTANCE_CASES ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  const baselineCases =
+    selectedIds.size === 0
+      ? baseline.cases
+      : baseline.cases.filter(({ id }) => selectedIds.has(id));
+  if (selectedIds.size > 0 && baselineCases.length !== selectedIds.size) {
+    throw new Error('One or more requested public acceptance case IDs are unknown.');
+  }
   const currentRunId = runId();
   const runDirectory = join(evidenceRoot, currentRunId);
   const downloadsDirectory = join(runDirectory, 'downloads');
@@ -308,9 +437,9 @@ test('records visual, console, resource, archive, and offline evidence for the p
   const results: AcceptanceCaseResult[] = [];
 
   try {
-    for (const baselineCase of baseline.cases) {
+    for (const baselineCase of baselineCases) {
       const caseDirectory = join(runDirectory, baselineCase.id);
-      console.log(`M10-T2 ${results.length + 1}/${baseline.cases.length}: ${baselineCase.id}`);
+      console.log(`M10-R6 ${results.length + 1}/${baselineCases.length}: ${baselineCase.id}`);
       await mkdir(caseDirectory, { recursive: true });
       const onlineScreenshot = join(caseDirectory, 'online.png');
       const offlineScreenshot = join(caseDirectory, 'offline.png');
@@ -367,13 +496,18 @@ test('records visual, console, resource, archive, and offline evidence for the p
       let archivePath: string | null = null;
       let archiveBytes = 0;
       let archiveEntries: string[] = [];
+      let archiveIntegrity: ReturnType<typeof auditArchiveOfflineIntegritySync> | null = null;
       let archiveError: string | null = null;
       let panelDiagnostics: string | null = null;
       let offlineOk = false;
       let offlineMetrics: PageMetrics | null = null;
       let offlineTextRatio: number | null = null;
       let offlineExternalRequests: string[] = [];
+      let offlineExtensionRequests: string[] = [];
+      let offlineFailedLocalRequests: string[] = [];
+      let offlineMissingLocalRequests: string[] = [];
       let offlineError: string | null = null;
+      let continuity: VisualContinuity | null = null;
 
       if (available && onlineMetrics) {
         const panel = await context.newPage();
@@ -381,23 +515,44 @@ test('records visual, console, resource, archive, and offline evidence for the p
           await panel.goto(`chrome-extension://${extensionIdentifier}/sidepanel.html`);
           await activateAndReadPage(panel, page);
           await panel.getByRole('button', { name: 'Create archive' }).click();
-          await expect(
-            panel.getByRole('heading', { name: 'Archive ready', exact: true }),
-          ).toBeVisible({
-            timeout: captureTimeoutMs,
-          });
+          const terminal = await waitForArchiveTerminal(panel);
+          if (terminal === 'failed') {
+            throw new Error('The extension reported Archive failed.');
+          }
           const downloaded = await downloadArchive(panel);
           archivePath = downloaded.filename;
           archiveBytes = downloaded.bytesReceived;
           const extractedDirectory = join(caseDirectory, 'archive');
           archiveEntries = await extractArchive(downloaded.filename, extractedDirectory);
-          archiveOk = archiveEntries.includes('index.html') && archiveBytes > 0;
+          archiveIntegrity = auditArchiveOfflineIntegritySync({
+            archiveBytes: await readFile(downloaded.filename),
+            parser: {
+              parseFromString(input, mimeType) {
+                return new LinkedomDOMParser().parseFromString(
+                  input,
+                  mimeType,
+                ) as unknown as Document;
+              },
+            },
+          });
+          archiveOk =
+            archiveEntries.includes('index.html') &&
+            Object.values(ARCHIVE_METADATA_PATHS).every((path) => archiveEntries.includes(path)) &&
+            archiveBytes > 0 &&
+            archiveIntegrity.status === 'pass';
 
           if (archiveOk) {
             const offlinePage = await context.newPage();
             offlinePage.on('request', (request) => {
               if (/^(?:https?|wss?):/i.test(request.url())) {
                 offlineExternalRequests.push(safeMessage(request.url()));
+              } else if (/^(?:chrome|moz)-extension:/i.test(request.url())) {
+                offlineExtensionRequests.push(safeMessage(request.url()));
+              }
+            });
+            offlinePage.on('requestfailed', (request) => {
+              if (request.url().startsWith('file:')) {
+                offlineFailedLocalRequests.push(safeMessage(request.url()));
               }
             });
             try {
@@ -411,8 +566,23 @@ test('records visual, console, resource, archive, and offline evidence for the p
                 1,
                 offlineMetrics.bodyTextChars / Math.max(1, onlineMetrics.bodyTextChars),
               );
+              continuity = visualContinuity(onlineMetrics, offlineMetrics);
+              offlineMissingLocalRequests = [];
+              for (const requestUrl of [...new Set(offlineFailedLocalRequests)]) {
+                try {
+                  await access(fileURLToPath(requestUrl));
+                } catch {
+                  offlineMissingLocalRequests.push(requestUrl);
+                }
+              }
               await offlinePage.screenshot({ path: offlineScreenshot, animations: 'disabled' });
-              offlineOk = offlineMetrics.bodyTextChars > 0 && offlineTextRatio >= 0.25;
+              offlineOk =
+                offlineMetrics.bodyTextChars > 0 &&
+                offlineTextRatio >= 0.25 &&
+                continuity.score >= 0.5 &&
+                offlineExternalRequests.length === 0 &&
+                offlineExtensionRequests.length === 0 &&
+                offlineMissingLocalRequests.length === 0;
             } catch (error) {
               offlineError = safeMessage(error instanceof Error ? error.message : String(error));
             } finally {
@@ -422,7 +592,7 @@ test('records visual, console, resource, archive, and offline evidence for the p
           }
         } catch (error) {
           archiveError = safeMessage(error instanceof Error ? error.message : String(error));
-          panelDiagnostics = safeMessage(
+          panelDiagnostics = safeDiagnosticText(
             await panel
               .locator('body')
               .innerText()
@@ -442,6 +612,9 @@ test('records visual, console, resource, archive, and offline evidence for the p
       }
       if (offlineExternalRequests.length > 0) {
         notes.push('The offline archive attempted external requests.');
+      }
+      if (offlineExtensionRequests.length > 0 || offlineMissingLocalRequests.length > 0) {
+        notes.push('The offline archive attempted extension or missing local requests.');
       }
       notes.push(...baselineCase.knownLimitations);
 
@@ -507,6 +680,7 @@ test('records visual, console, resource, archive, and offline evidence for the p
           bytes: archiveBytes,
           entryCount: archiveEntries.length,
           entries: archiveEntries,
+          integrity: archiveIntegrity,
           error: archiveError,
           panelDiagnostics,
         },
@@ -517,6 +691,13 @@ test('records visual, console, resource, archive, and offline evidence for the p
           textRatio: offlineTextRatio,
           externalRequests: offlineExternalRequests.length,
           externalRequestUrls: [...new Set(offlineExternalRequests)].slice(0, 100),
+          extensionRequests: offlineExtensionRequests.length,
+          extensionRequestUrls: [...new Set(offlineExtensionRequests)].slice(0, 100),
+          failedLocalRequests: offlineFailedLocalRequests.length,
+          failedLocalRequestUrls: [...new Set(offlineFailedLocalRequests)].slice(0, 100),
+          missingLocalRequests: offlineMissingLocalRequests.length,
+          missingLocalRequestUrls: [...new Set(offlineMissingLocalRequests)].slice(0, 100),
+          visualContinuity: continuity,
           error: offlineError,
         },
         notes,
@@ -570,7 +751,7 @@ test('records visual, console, resource, archive, and offline evidence for the p
       path: join(runDirectory, 'report.json'),
       contentType: 'application/json',
     });
-    expect(summary.total).toBe(baseline.cases.length);
+    expect(summary.total).toBe(baselineCases.length);
   } finally {
     await context.close();
     await rm(userDataDirectory, { recursive: true, force: true });

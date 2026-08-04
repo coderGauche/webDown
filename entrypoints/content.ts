@@ -34,6 +34,8 @@ export default defineContentScript({
           const result = rewriteHtmlResource({
             ...message.payload,
             documentPath: 'index.html',
+            uncapturedResourcePolicy: 'neutralize',
+            disableExecutableScripts: true,
           });
           return createPageArchiveRewriteResponse(
             result.html,

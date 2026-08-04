@@ -42,17 +42,20 @@ export type CssReferenceResult =
       status: 'unmapped';
       resolvedUrl: string;
       normalizedUrl: string;
+      neutralizedValue?: string;
     })
   | (CssReferenceCommon & {
       status: 'unsupported';
       resolvedUrl: string;
       protocol: string;
+      neutralizedValue?: string;
     })
   | (CssReferenceCommon & {
       status: 'fragment';
     })
   | (CssReferenceCommon & {
       status: 'invalid';
+      neutralizedValue?: string;
     });
 
 export type CssRewriteResult = {
@@ -61,6 +64,8 @@ export type CssRewriteResult = {
   context: CssRewriteContext;
   sourcePath: string;
   rewrittenCount: number;
+  neutralizedCount: number;
+  changedCount: number;
   parseError: boolean;
   references: CssReferenceResult[];
 };
@@ -71,7 +76,10 @@ export type RewriteCssResourceOptions = {
   baseUrl: string;
   sourcePath: string;
   savedResourceMappings: readonly ResourcePathMapping[];
+  uncapturedResourcePolicy?: 'preserve' | 'neutralize';
 };
+
+const OFFLINE_EMPTY_RESOURCE = 'data:,';
 
 const CSS_TREE_CONTEXT: Record<CssRewriteContext, 'stylesheet' | 'declarationList' | 'value'> = {
   stylesheet: 'stylesheet',
@@ -119,7 +127,14 @@ function rewriteReference(
     originalValue,
   };
   if (!originalValue) {
-    references.push({ ...common, status: 'invalid' });
+    if (options.uncapturedResourcePolicy === 'neutralize') {
+      node.value = OFFLINE_EMPTY_RESOURCE;
+      references.push({
+        ...common,
+        status: 'invalid',
+        neutralizedValue: OFFLINE_EMPTY_RESOURCE,
+      });
+    } else references.push({ ...common, status: 'invalid' });
     return;
   }
   if (originalValue.startsWith('#')) {
@@ -131,16 +146,27 @@ function rewriteReference(
   try {
     resolved = new URL(originalValue, baseUrl);
   } catch {
-    references.push({ ...common, status: 'invalid' });
+    if (options.uncapturedResourcePolicy === 'neutralize') {
+      node.value = OFFLINE_EMPTY_RESOURCE;
+      references.push({
+        ...common,
+        status: 'invalid',
+        neutralizedValue: OFFLINE_EMPTY_RESOURCE,
+      });
+    } else references.push({ ...common, status: 'invalid' });
     return;
   }
 
   if (!isNetworkProtocol(resolved.protocol)) {
+    const neutralize =
+      options.uncapturedResourcePolicy === 'neutralize' && resolved.protocol !== 'data:';
+    if (neutralize) node.value = OFFLINE_EMPTY_RESOURCE;
     references.push({
       ...common,
       status: 'unsupported',
       resolvedUrl: resolved.href,
       protocol: resolved.protocol,
+      ...(neutralize ? { neutralizedValue: OFFLINE_EMPTY_RESOURCE } : {}),
     });
     return;
   }
@@ -148,12 +174,27 @@ function rewriteReference(
   const fragment = resolved.hash;
   const normalizedUrl = normalizeResourceUrl(resolved.href);
   if (normalizedUrl === null) {
-    references.push({ ...common, status: 'invalid' });
+    if (options.uncapturedResourcePolicy === 'neutralize') {
+      node.value = OFFLINE_EMPTY_RESOURCE;
+      references.push({
+        ...common,
+        status: 'invalid',
+        neutralizedValue: OFFLINE_EMPTY_RESOURCE,
+      });
+    } else references.push({ ...common, status: 'invalid' });
     return;
   }
   const mapping = savedResources.get(normalizedUrl);
   if (!mapping) {
-    references.push({ ...common, status: 'unmapped', resolvedUrl: resolved.href, normalizedUrl });
+    const neutralize = options.uncapturedResourcePolicy === 'neutralize';
+    if (neutralize) node.value = OFFLINE_EMPTY_RESOURCE;
+    references.push({
+      ...common,
+      status: 'unmapped',
+      resolvedUrl: resolved.href,
+      normalizedUrl,
+      ...(neutralize ? { neutralizedValue: OFFLINE_EMPTY_RESOURCE } : {}),
+    });
     return;
   }
 
@@ -199,6 +240,8 @@ export function rewriteCssResource(options: RewriteCssResourceOptions): CssRewri
       context: options.context,
       sourcePath: options.sourcePath,
       rewrittenCount: 0,
+      neutralizedCount: 0,
+      changedCount: 0,
       parseError: true,
       references: [],
     };
@@ -229,12 +272,16 @@ export function rewriteCssResource(options: RewriteCssResourceOptions): CssRewri
   });
 
   const rewrittenCount = references.filter((reference) => reference.status === 'rewritten').length;
+  const neutralizedCount = references.filter((reference) => 'neutralizedValue' in reference).length;
+  const changedCount = rewrittenCount + neutralizedCount;
   return {
     originalCssText: options.cssText,
-    cssText: rewrittenCount === 0 ? options.cssText : generate(ast),
+    cssText: changedCount === 0 ? options.cssText : generate(ast),
     context: options.context,
     sourcePath: options.sourcePath,
     rewrittenCount,
+    neutralizedCount,
+    changedCount,
     parseError: false,
     references,
   };

@@ -35,6 +35,14 @@ resource nodes injected by other browser extensions, explicit tracking or paymen
 ordinary iframes that cannot work independently offline; self-contained `srcdoc` iframes remain.
 **Capture diagnostics** reports removal counts by reason. The source tab is not modified.
 
+To keep the captured final DOM stable without a network, SiteCapsule disables executable
+JavaScript in the offline `index.html` and removes preconnect, prefetch, prerender, and module
+preload hints. Non-executable JSON and JSON-LD data scripts remain. Successfully saved script files
+still appear in the ZIP and resource manifest, but the offline entry does not execute them by
+default. References to assets that could not be saved are removed or replaced by an empty data
+reference and remain explained in the failure manifest, preventing silent requests to the source
+site.
+
 ## View an archive offline
 
 1. Extract the ZIP into a normal local directory.
@@ -49,8 +57,9 @@ python3 -m http.server 8000 --bind 127.0.0.1
 4. Open `http://127.0.0.1:8000/` and press `Ctrl+C` in the terminal when finished.
 
 Do not publish the extracted directory on a public server unless you have the right to redistribute
-all included material and have reviewed its security. An archive includes scripts from the source
-site; offline content is not automatically trusted content.
+all included material and have reviewed its security. A ZIP may contain script files from the
+source site; even though the offline entry disables their execution by default, archived content is
+not automatically trusted code.
 
 ## Local tasks
 

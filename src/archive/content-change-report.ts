@@ -3,6 +3,7 @@ import type {
   HtmlCssRewriteResult,
   HtmlReferenceResult,
   HtmlSrcsetRewriteResult,
+  OfflineScriptSafetyResult,
 } from './html-rewriter';
 import type { CspAdjustmentResult } from './csp-policy';
 import type { CssRewriteResult } from './css-rewriter';
@@ -16,6 +17,9 @@ export const CONTENT_CHANGE_KINDS = [
   'html-attribute-rewrite',
   'srcset-rewrite',
   'css-source-rewrite',
+  'uncaptured-resource-neutralization',
+  'offline-script-disable',
+  'speculative-link-removal',
   'service-worker-call-rewrite',
   'service-worker-guard-insertion',
   'csp-policy-adjustment',
@@ -24,6 +28,8 @@ export const CONTENT_CHANGE_KINDS = [
 export const CONTENT_CHANGE_REASONS = [
   'prevent-online-base-resolution',
   'point-to-saved-resource',
+  'prevent-offline-network-request',
+  'preserve-rendered-snapshot',
   'disable-service-worker-registration',
   'permit-offline-content-under-original-csp',
 ] as const;
@@ -82,6 +88,7 @@ export type BuildContentChangeReportOptions = {
   srcsetRewrites: readonly HtmlSrcsetRewriteResult[];
   serviceWorkerSafety: ServiceWorkerSafetyResult;
   cspAdjustment: CspAdjustmentResult;
+  scriptSafety: OfflineScriptSafetyResult;
 };
 
 function emptyCounts(): ContentChangeCounts {
@@ -115,6 +122,24 @@ export function buildContentChangeReport(
   }
 
   for (const reference of options.references) {
+    if ('neutralizedValue' in reference) {
+      append({
+        kind: 'uncaptured-resource-neutralization',
+        reason: 'prevent-offline-network-request',
+        location: {
+          documentPath: options.documentPath,
+          elementOrdinal: reference.elementOrdinal,
+          surface: 'attribute',
+          tagName: reference.tagName,
+          attributeName: reference.attributeName,
+          startOffset: null,
+          endOffset: null,
+        },
+        before: reference.originalValue,
+        after: null,
+      });
+      continue;
+    }
     if (reference.status !== 'rewritten') continue;
     append({
       kind: 'html-attribute-rewrite',
@@ -134,10 +159,16 @@ export function buildContentChangeReport(
   }
 
   for (const rewrite of options.srcsetRewrites) {
-    if (rewrite.result.rewrittenCount === 0) continue;
+    if (rewrite.result.changedCount === 0) continue;
     append({
-      kind: 'srcset-rewrite',
-      reason: 'point-to-saved-resource',
+      kind:
+        rewrite.result.neutralizedCount > 0
+          ? 'uncaptured-resource-neutralization'
+          : 'srcset-rewrite',
+      reason:
+        rewrite.result.neutralizedCount > 0
+          ? 'prevent-offline-network-request'
+          : 'point-to-saved-resource',
       location: {
         documentPath: options.documentPath,
         elementOrdinal: rewrite.elementOrdinal,
@@ -153,10 +184,16 @@ export function buildContentChangeReport(
   }
 
   for (const rewrite of options.cssRewrites) {
-    if (rewrite.result.rewrittenCount === 0) continue;
+    if (rewrite.result.changedCount === 0) continue;
     append({
-      kind: 'css-source-rewrite',
-      reason: 'point-to-saved-resource',
+      kind:
+        rewrite.result.neutralizedCount > 0
+          ? 'uncaptured-resource-neutralization'
+          : 'css-source-rewrite',
+      reason:
+        rewrite.result.neutralizedCount > 0
+          ? 'prevent-offline-network-request'
+          : 'point-to-saved-resource',
       location: {
         documentPath: options.documentPath,
         elementOrdinal: rewrite.elementOrdinal,
@@ -189,6 +226,42 @@ export function buildContentChangeReport(
         after: change.replacement,
       });
     }
+  }
+
+  for (const script of options.scriptSafety.scripts) {
+    append({
+      kind: 'offline-script-disable',
+      reason: 'preserve-rendered-snapshot',
+      location: {
+        documentPath: options.documentPath,
+        elementOrdinal: script.elementOrdinal,
+        surface: 'attribute',
+        tagName: 'script',
+        attributeName: 'type',
+        startOffset: null,
+        endOffset: null,
+      },
+      before: script.originalType,
+      after: 'application/sitecapsule-disabled',
+    });
+  }
+
+  for (const link of options.scriptSafety.speculativeLinks) {
+    append({
+      kind: 'speculative-link-removal',
+      reason: 'prevent-offline-network-request',
+      location: {
+        documentPath: options.documentPath,
+        elementOrdinal: link.elementOrdinal,
+        surface: 'attribute',
+        tagName: 'link',
+        attributeName: 'href',
+        startOffset: null,
+        endOffset: null,
+      },
+      before: link.href,
+      after: null,
+    });
   }
 
   if (options.serviceWorkerSafety.guardInserted) {
@@ -251,11 +324,13 @@ export function buildCssContentChangeReport(result: CssRewriteResult): ContentCh
     throw new TypeError('A CSS rewrite result is required for the content change report.');
   }
   const changes: ContentChange[] = [];
-  if (result.rewrittenCount > 0) {
+  if (result.changedCount > 0) {
     changes.push({
       sequence: 1,
-      kind: 'css-source-rewrite',
-      reason: 'point-to-saved-resource',
+      kind:
+        result.neutralizedCount > 0 ? 'uncaptured-resource-neutralization' : 'css-source-rewrite',
+      reason:
+        result.neutralizedCount > 0 ? 'prevent-offline-network-request' : 'point-to-saved-resource',
       location: {
         documentPath: result.sourcePath,
         elementOrdinal: 0,

@@ -617,6 +617,7 @@ function createRuntimePipelineHandlers(
             baseUrl: resource.finalUrl ?? resource.originalUrl,
             sourcePath: mapping.relativePath,
             savedResourceMappings: context.mappings,
+            uncapturedResourcePolicy: 'neutralize',
           });
           const rewrittenBytes = new TextEncoder().encode(rewritten.cssText);
           context.bodies.set(resource.id, rewrittenBytes);

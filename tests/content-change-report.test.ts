@@ -57,6 +57,9 @@ describe('HTML content change audit report', () => {
       'service-worker-call-rewrite': 1,
       'service-worker-guard-insertion': 1,
       'csp-policy-adjustment': 1,
+      'uncaptured-resource-neutralization': 0,
+      'offline-script-disable': 0,
+      'speculative-link-removal': 0,
     });
     expect(first.contentChanges.changes[4]).toMatchObject({
       before: "navigator.serviceWorker.register('/sw.js')",
