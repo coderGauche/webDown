@@ -1,4 +1,4 @@
-import { createRuntimeResourcePathPlan } from '@sitecapsule/archive';
+import { buildArchiveResourceManifests, createRuntimeResourcePathPlan } from '@sitecapsule/archive';
 import type { ResourceRecord } from '@sitecapsule/domain';
 import { describe, expect, it } from 'vitest';
 
@@ -66,5 +66,37 @@ describe('runtime resource path plan', () => {
     expect(result.mappings[0]?.normalizedUrl).toBe(finalUrl);
     expect(result.mappings[0]?.originalUrls).toEqual([finalUrl, originalUrl]);
     expect(result.resources[0]?.localPath).toBe(result.mappings[0]?.relativePath);
+  });
+
+  it('keeps redirect aliases valid through archive manifest packaging', async () => {
+    const originalUrl = 'https://unpkg.com/world-atlas@2/land-110m.json';
+    const finalUrl = 'https://unpkg.com/world-atlas@2.0.2/land-110m.json';
+    const resource = savedResource({
+      id: 'world-atlas',
+      type: 'data',
+      originalUrl,
+      finalUrl,
+      httpStatus: 200,
+      mimeType: 'application/json',
+      redirectTrace: {
+        complete: false,
+        hops: [{ fromUrl: originalUrl, toUrl: finalUrl }],
+      },
+    });
+    const plan = await createRuntimeResourcePathPlan([resource], 'job-a:document');
+
+    const manifests = buildArchiveResourceManifests({
+      jobId: 'job-a',
+      resourceRecords: plan.resources,
+      pathMappings: plan.mappings,
+    });
+
+    expect(manifests.resources.resources[0]?.localPath).toBe(plan.mappings[0]?.relativePath);
+    expect(manifests.originalUrls.mappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ originalUrl, finalUrl }),
+        expect.objectContaining({ originalUrl: finalUrl, finalUrl }),
+      ]),
+    );
   });
 });

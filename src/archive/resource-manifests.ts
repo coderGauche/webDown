@@ -387,13 +387,10 @@ function validatePathMapping(mapping: unknown, index: number): ResourcePathMappi
     throw new TypeError(`${label} original URLs must be a non-empty array.`);
   }
   for (const [urlIndex, originalUrl] of mapping.originalUrls.entries()) {
-    const originalIdentity = validateNetworkUrl(
+    validateNetworkUrl(
       requireNonEmptyString(originalUrl, `${label} original URL ${urlIndex}`),
       `${label} original URL ${urlIndex}`,
     );
-    if (originalIdentity !== normalizedUrl) {
-      throw new Error(`${label} original URL ${urlIndex} does not match its normalized URL.`);
-    }
   }
   if (
     mapping.queryHash !== null &&
