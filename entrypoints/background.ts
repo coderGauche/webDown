@@ -11,6 +11,7 @@ import {
 import {
   createCaptureArchivePackage,
   createResourcePathMappings,
+  discoverJavascriptResourceReferences,
   rewriteCssResource,
   rewriteJavascriptResource,
   type ResourcePathMapping,
@@ -77,6 +78,8 @@ import {
 import { checkCurrentSiteAccess, classifyThirdPartyResourcePolicy } from '@sitecapsule/permissions';
 import {
   getPageCaptureTimeoutMs,
+  inferResourceMetadata,
+  normalizeResourceUrl,
   runPageCaptureSession,
   type PageCaptureLifecycleEvent,
 } from '@sitecapsule/page';
@@ -207,6 +210,67 @@ function createResourceRecords(page: PageInfo, job: CaptureJob): ResourceRecord[
       state: shouldSkipResource(page, job, node) ? ('skipped' as const) : ('queued' as const),
     })),
   ];
+}
+
+function shouldSkipScriptDiscoveredResource(
+  job: CaptureJob,
+  pageUrl: string,
+  resource: Pick<ResourceRecord, 'originalUrl' | 'type'>,
+): boolean {
+  if (!job.settings.includeScripts && resource.type === 'script') return true;
+  if (!job.settings.includeMedia && (resource.type === 'video' || resource.type === 'audio')) {
+    return true;
+  }
+  return isThirdPartyUrl(resource.originalUrl, pageUrl) && !job.settings.includeThirdPartyResources;
+}
+
+function discoverNestedScriptResources(
+  context: RuntimeCaptureContext,
+  job: CaptureJob,
+  scannedScriptIds: Set<string>,
+  knownUrls: Set<string>,
+  nextOrdinal: () => number,
+): ResourceRecord[] {
+  if (!context.page || !job.settings.includeScripts) return [];
+  const discovered: ResourceRecord[] = [];
+  for (const resource of context.resources) {
+    if (
+      resource.state !== 'saved' ||
+      resource.type !== 'script' ||
+      scannedScriptIds.has(resource.id)
+    ) {
+      continue;
+    }
+    scannedScriptIds.add(resource.id);
+    const body = context.bodies.get(resource.id);
+    if (!body) continue;
+    const result = discoverJavascriptResourceReferences(
+      new TextDecoder().decode(body),
+      resource.finalUrl ?? resource.originalUrl,
+    );
+    if (result.parseError) continue;
+    for (const reference of result.references) {
+      if (knownUrls.has(reference.normalizedUrl)) continue;
+      knownUrls.add(reference.normalizedUrl);
+      const inference = inferResourceMetadata(reference.normalizedUrl, []);
+      const candidate: ResourceRecord = {
+        id: `${job.id}:script-resource:${nextOrdinal()}`,
+        jobId: job.id,
+        originalUrl: reference.normalizedUrl,
+        referrerUrl: resource.finalUrl ?? resource.originalUrl,
+        type: inference.resourceType,
+        discoverySources: ['crawler'],
+        ...(inference.mimeTypeHint ? { mimeType: inference.mimeTypeHint } : {}),
+        state: 'queued',
+      };
+      discovered.push(
+        shouldSkipScriptDiscoveredResource(job, context.page.finalUrl, candidate)
+          ? { ...candidate, state: 'skipped' }
+          : candidate,
+      );
+    }
+  }
+  return discovered;
 }
 
 function createDownloadWorker(
@@ -540,6 +604,7 @@ function createRuntimePipelineHandlers(
       const baseWorker = createDownloadWorker(context, job, budget);
       let resourcesSaved = job.counters.resourcesSaved;
       let resourcesFailed = job.counters.resourcesFailed;
+      let resourcesSkipped = skipped.length;
       let bytesWritten = job.counters.bytesWritten;
       let progressWrites = Promise.resolve();
       const worker: ResourceDownloadWorker = async (resource, index, signal) => {
@@ -554,7 +619,7 @@ function createRuntimePipelineHandlers(
           await report({
             resourcesSaved,
             resourcesFailed,
-            resourcesSkipped: skipped.length,
+            resourcesSkipped,
             bytesWritten,
           });
         });
@@ -572,7 +637,7 @@ function createRuntimePipelineHandlers(
       await report({
         resourcesSaved,
         resourcesFailed,
-        resourcesSkipped: skipped.length,
+        resourcesSkipped,
         bytesWritten,
       });
       context.resources = [
@@ -580,8 +645,70 @@ function createRuntimePipelineHandlers(
         ...untouched,
         ...skipped,
       ].sort((left, right) => left.id.localeCompare(right.id));
-      await jobRepository.replaceJobResources(job.id, context.resources);
       if (result.fatalError) throw new SiteCapsuleError(result.fatalError);
+      const savedPrimary = context.resources.find(
+        (resource) => resource.id === primaryResourceId && resource.state === 'saved',
+      );
+      if (!savedPrimary) {
+        throw new SiteCapsuleError(
+          createCaptureError('unexpected-error', {
+            operation: 'resource-download',
+            jobId: job.id,
+            stage: 'fetching',
+            field: 'savedPrimaryResource',
+          }),
+        );
+      }
+
+      const scannedScriptIds = new Set<string>();
+      const knownUrls = new Set(
+        context.resources.flatMap((resource) => {
+          const normalized = normalizeResourceUrl(resource.finalUrl ?? resource.originalUrl);
+          return normalized ? [normalized] : [];
+        }),
+      );
+      let scriptResourceOrdinal = context.resources.length;
+      const nextScriptResourceOrdinal = () => scriptResourceOrdinal++;
+      for (let round = 0; round < 8; round += 1) {
+        const discovered = discoverNestedScriptResources(
+          context,
+          job,
+          scannedScriptIds,
+          knownUrls,
+          nextScriptResourceOrdinal,
+        );
+        if (discovered.length === 0) break;
+        const discoveredSkipped = discovered.filter((resource) => resource.state === 'skipped');
+        const discoveredQueued = discovered.filter((resource) => resource.state === 'queued');
+        resourcesSkipped += discoveredSkipped.length;
+        context.resources.push(...discoveredSkipped);
+        await report({
+          resourcesDiscovered: context.resources.length + discoveredQueued.length,
+          resourcesSaved,
+          resourcesFailed,
+          resourcesSkipped,
+          bytesWritten,
+        });
+        if (discoveredQueued.length === 0) continue;
+        const nestedWorker: ResourceDownloadWorker = async (resource, index, nestedSignal) =>
+          resource.id === primaryResourceId
+            ? { status: 'saved', resource: savedPrimary }
+            : worker(resource, index, nestedSignal);
+        const nestedResult = await runResourceDownloadBatch(
+          [savedPrimary, ...discoveredQueued],
+          job.settings.maxConcurrentRequests,
+          nestedWorker,
+          { primaryResourceId, signal },
+        );
+        context.resources.push(
+          ...nestedResult.results
+            .filter((item) => item.resource.id !== primaryResourceId)
+            .map((item) => item.resource),
+        );
+        if (nestedResult.fatalError) throw new SiteCapsuleError(nestedResult.fatalError);
+      }
+      context.resources.sort((left, right) => left.id.localeCompare(right.id));
+      await jobRepository.replaceJobResources(job.id, context.resources);
     },
 
     rewriting: async ({ job, signal }) => {
@@ -633,6 +760,7 @@ function createRuntimePipelineHandlers(
             javascript: new TextDecoder().decode(body),
             baseUrl: resource.finalUrl ?? resource.originalUrl,
             sourcePath: mapping.relativePath,
+            documentPath: 'index.html',
             savedResourceMappings: context.mappings,
           });
           const rewrittenBytes = new TextEncoder().encode(rewritten.javascript);

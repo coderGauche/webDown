@@ -39,7 +39,8 @@ ordinary iframes that cannot work independently offline; self-contained `srcdoc`
 **Capture diagnostics** reports removal counts by reason. The source tab is not modified.
 
 The experimental interactive mode executes scripts saved in the ZIP and inline page scripts. It rewrites
-saved static imports, Workers, WASM/asset URLs, and literal `fetch` references to archive paths. The
+saved static imports, generated module dependency tables, static assets nested in `JSON.parse` data,
+Workers, WASM/asset URLs, and literal `fetch` references to archive paths. The
 archive CSP allows only same-origin local resources and blocks external scripts, remote connections,
 form submission, and Service Worker registration. The default, with **Offline animations and
 interactions** off, freezes executable scripts and preserves only the captured final DOM. Unsaved asset

@@ -25,6 +25,15 @@ const fixtureRoutes = new Map([
     },
   ],
   [
+    '/assets/interactive-frame.svg',
+    {
+      path: fileURLToPath(
+        new URL('../tests/e2e/fixtures/assets/interactive-frame.svg', import.meta.url),
+      ),
+      contentType: 'image/svg+xml',
+    },
+  ],
+  [
     '/offline-page.html',
     {
       path: fileURLToPath(new URL('../tests/e2e/fixtures/offline-page.html', import.meta.url)),

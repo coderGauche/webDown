@@ -4,7 +4,7 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-R8 已完成，恢复 MVP 发布收尾
+> 当前状态：M10-R9 已完成，恢复 MVP 发布收尾
 > 下一任务：M10-T6 完成版本号、更新日志和演示流程
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
@@ -98,7 +98,7 @@
 | 捕获范围 | 当前公开页面 |
 | 站点爬取 | MVP 不做，增强版实现 |
 | 捕获模式 | 标准模式，不默认申请 Debugger 权限 |
-| 资源发现 | DOM + CSS + Performance Resource Timing |
+| 资源发现 | DOM + CSS + Performance Resource Timing + 交互模式静态 JS 依赖闭包 |
 | ZIP | fflate；先实现受控体积，再升级流式写入 |
 | 数据处理 | 本地完成，页面内容零上传 |
 | 登录态 | 不作为产品目标 |
@@ -399,13 +399,14 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-R6** 使用多域复杂页执行真实 ZIP、断网外联和视觉回归；
 - [x] **M10-R7** 重跑公开基线、MVP 指标并重新生成工程候选；
 - [x] **M10-R8** 建立禁止外联的离线脚本、动画和交互运行模式；
+- [x] **M10-R9** 修复 ESM/Vite 路径及脚本内嵌资源递归抓取；
 - [ ] **M10-T6** 完成版本号、更新日志和演示流程；
 - [ ] **M10-T7** 用户监督验收；
 - [ ] **M10-T8** 决定是否进入增强版。
 
 验收门禁：
 
-- M10-R1 至 M10-R8 全部完成；
+- M10-R1 至 M10-R9 全部完成；
 - 所有已改写成本地路径的引用在 ZIP 中都有对应条目；
 - 离线打开没有未解释的网络或 `chrome-extension:` 请求；
 - 每个真实 ZIP 都包含资源清单、失败说明和可读报告；
@@ -476,13 +477,13 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 项目 | 当前值 |
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
-| 当前任务 | M10-R8 离线动画与交互保真度修复（已完成） |
-| 最近完成 | M10-R8 可控离线脚本、CSP、JS URL 改写与真实 Chromium 验收 |
+| 当前任务 | M10-R9 ESM/Vite 路径与脚本内嵌资源修复（已完成） |
+| 最近完成 | M10-R9 模块相对路径、依赖表、JSON 帧资源闭包与真实 Chromium 滚动验收 |
 | 下一任务 | M10-T6 版本号、更新日志和演示流程 |
 | 阻塞项 | 无失败 P0 指标；交互模式保留动态后端、路由和 WebGL 限制披露 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
-| 最近验证日期 | 2026-08-04 |
+| 最近验证日期 | 2026-08-05 |
 
 ---
 
@@ -591,6 +592,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-04 | M10-R6 | 完成 | 新增失败/跳过资源引用中和、离线入口脚本冻结、JSON 数据脚本保留、投机加载提示清理，并在本地映射后移除失效的 `integrity`/`crossorigin`；公网验收新增 R6 三站基线、最终 ZIP 六项元数据与引用审计、严格断网请求核查、线上/离线结构和截图对比；最终运行 `2026-08-04T050038-254Z` 实际下载 United Carriers 25,999,983 字节/445 条目、TypeScript 4,637,664 字节/125 条目、Three.js 474,278 字节/17 条目，结果 1 完全通过、2 个按 Canvas/WebGL/动态交互限制降级通过、0 产品失败，三站均为 ZIP 审计通过且离线外网/扩展协议/缺失本地请求 0/0/0；Prettier、ESLint、类型检查、全量 73 文件/647 项 Vitest、1.56 MB 生产构建、真实扩展 E2E 4/4、商店审计 0 errors/3 review 和 `git diff --check` 通过，生产构建安装期 `host_permissions` 为空；详细证据见 `docs/testing/m10-r6-complex-site-acceptance-2026-08-04.md`，B-001/B-003 解除，完整公开基线与 MVP 发布判定交由 R7 |
 | 2026-08-04 | M10-R7 | 完成 | 修复 Next.js `link[imagesrcset]` 未进入资源发现、下载、HTML 改写和最终 ZIP 审计的问题，并为公网验收增加超时任务主动取消，消除 NASA 任务对后续 LOC 用例的跨案例污染；定向 React/NASA/LOC 复验确认 React 缺失本地请求由 1 降至 0、NASA 独立超时、LOC 独立通过；最终固定 23 站运行 `2026-08-04T103008-427Z` 得到 12 pass、9 allowed-degradation、1 product-failure、1 external-unavailable，22 个可达站点中 21 个生成真实 ZIP，成功率 95.45%，21 包共 40,612,426 字节/1,157 条目，全部包含报告和清单且离线外网/扩展/缺失本地请求为 0/0/0；941 个本地资源引用全部存在，R6 的 1 个真实失败资源具备完整结构化解释；MVP 指标更新为 5 项通过、2 项 P1 未测、0 个失败 P0；基于 commit `570ec012744a2bf3f0eddab208b7f4f1713869fa` 生成 469,471 字节工程候选 `sitecapsule-0.1.0-engineering-candidate-570ec01.zip`，SHA-256 `b335e2828f85cfdaea5d33a6d96de434b5db92cce39b9db6afaa15cee73eda4b`，13 个生产文件通过 ZIP/CRC/清单/权限/商店审计和 Chromium Service Worker/Side Panel 加载验证；全量 73 文件/648 项 Vitest、lint、format、typecheck、1.56 MB 构建和 `git diff --check` 通过；候选门禁 ready，公开发布仍等待 T6/T7 |
 | 2026-08-04 | M10-R8 | 完成 | Side Panel 新增默认关闭的实验性“离线动画与交互”开关，保留默认静态快照稳定性；协议升级 v21，将模式选择传入最终 HTML 改写；建立静态/交互两套归档 CSP，统一移除源站 CSP 和投机加载提示，交互模式仅允许本地脚本、资源、worker 和同源数据，已知统计/支付/同意加载器继续冻结；新增 Acorn JavaScript 改写，处理静态 import/export、字面量 dynamic import、Worker/SharedWorker、importScripts、fetch/Request/new URL 的已存档 URL；确定性 Chromium E2E 证明外部 requestAnimationFrame 脚本进入 ZIP、在解压 `file:` 页面重新执行并推进动画帧，内联统计脚本被禁用且 HTTP/HTTPS/WS/WSS 外联为 0；United Carriers 本地 HTTP 观察确认已归档脚本、6 个 Canvas、滚动和长文档可运行，同时如实保留后端 API、SPA 路由、计算 URL 和复杂 WebGL 非完全复刻边界；全量 74 文件/655 项 Vitest、ESLint、TypeScript、Chromium E2E 5/5、1.56 MB 生产构建通过，公网套件按环境跳过，生产 Manifest 无安装期 `host_permissions`；详细证据见 `docs/testing/m10-r8-offline-runtime-2026-08-04.md` |
+| 2026-08-05 | M10-R9 | 完成 | 对用户归档 `sitecapsule-unitedcarriers.com-20260805` 与原站运行时对比取证，确认滚动动画缺失不是 Canvas 天然限制，而是同目录 ESM 被改成无 `./` 的裸模块名、Vite/Rolldown 依赖表和无插值模板 `import()` 未改写、以及 350 帧 URL 嵌在 `JSON.parse` 字符串内导致；JavaScript 改写器现区分模块相对路径与文档运行路径，支持生成依赖表、静态模板字符串和 JSON 内嵌 URL，并仅对精确命中的已保存资源改写；Background 在交互模式对已下载脚本执行最多 8 轮受控依赖闭包，复用现有权限、并发、重试、体积、暂停/取消和网络安全边界，路由字符串不会被当成资源；用户样本临时副本在 Chromium 中消除裸模块/Home chunk 加载错误，Lenis/GSAP 启动，滚动从 0 到 1800 时 2,000 个元素中 441 个计算动画状态变化；E2E 新增“仅脚本内嵌、未进入 Performance”图像，证明 crawler 发现、增量下载、ZIP 写入、JSON 本地改写和离线 `Image.onload` 全链路通过；详细证据见 `docs/testing/m10-r9-script-resource-closure-2026-08-05.md` |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -711,6 +713,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-096 | 2026-08-04 | 离线入口以最终 DOM 静态快照为主，未保存引用必须中和，可执行脚本和投机加载提示默认冻结 | 保留失败资源 URL 会让 R4 正确拒绝复杂页；允许已打包脚本自动执行又会动态 import、客户端导航或重取页面数据，导致断网空白和不可审计外联；本地改写后保留源站 `crossorigin` 会使无 CORS 响应头的本地 CSS 被浏览器拒绝 | HTML/CSS/srcset 对未捕获资源统一移除或改写为 `data:,`；经典和 module 脚本保留文件但以非执行 MIME 冻结，JSON/JSON-LD 保留；移除 preconnect/prefetch/prerender/modulepreload 以及本地资源的 `integrity`/`crossorigin`；R6 必须同时通过 ZIP 静态审计、严格断网请求和人工截图复核，Canvas/WebGL/交互降级明确披露 |
 | D-097 | 2026-08-04 | R7 工程候选门禁只由失败 P0 指标阻断，未测 P1 必须继续披露且不能升级为已通过或公开发布批准 | 仅因视觉/取消指标缺测永久阻断工程候选会妨碍后续版本与用户终验；反过来把诊断截图分数或功能测试冒充正式指标会制造虚假声明；P0 通过也不等于用户批准公开发布 | 固定 23 站重算后归档、失败解释、报告和零上传 P0 均通过，生成器读取机器指标并输出 `engineering-candidate`；主要视觉 95% 和取消 2 秒保留 `not-measured`，候选记录固定 `publicReleaseApproved: false` 且列出 M10-T6/T7 待办；NASA 120 秒超时继续作为产品失败保留 |
 | D-098 | 2026-08-04 | 离线交互作为默认关闭的实验模式，不取代默认静态快照 | 全量开启原站脚本会让客户端路由跳到未归档页面，并重新触发统计、CSRF、后端 API、WebSocket 和计算生成资源；这些行为不可能由单页 ZIP 通用重建，也会破坏 R6/R7 的默认离线稳定基线 | 静态模式继续冻结执行脚本；用户显式开启后才保留非风险脚本，并以归档 CSP、已知运行时冻结、静态 JS URL 改写和终态 ZIP 门禁限制影响；只宣称“改善静态可发现动画/交互”，不宣称还原服务端或所有 Canvas/WebGL |
+| D-099 | 2026-08-05 | 交互模式的脚本依赖使用有界的静态闭包发现，并按浏览器解析语义区分模块路径与文档运行路径 | Performance 只能观察截图时已请求资源，Vite 懒加载 chunk 和 JSON 帧表可在后续滚动才使用；所有相对引用统一按 JS 文件目录改写，又会让 `Image.src`/DOM 属性指向错误位置 | Acorn 扫描明确 import/fetch/Worker、带扩展名的生成依赖表和 `JSON.parse` 内嵌字符串；最多 8 轮递归下载仍经 M5 安全/体积/中断边界；import 类相对脚本源，JSON 运行资源相对 `index.html`；运行时拼接和后端资源仍作为明确限制 |
 
 ---
 

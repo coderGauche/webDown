@@ -181,6 +181,9 @@ export {
 } from './css-rewriter';
 export {
   rewriteJavascriptResource,
+  discoverJavascriptResourceReferences,
+  type JavascriptResourceDiscoveryResult,
+  type JavascriptResourceReference,
   type JavascriptRewriteResult,
   type RewriteJavascriptResourceOptions,
 } from './javascript-rewriter';

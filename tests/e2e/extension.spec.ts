@@ -153,7 +153,13 @@ async function readPersistedCaptureSnapshot(panelPage: Page, jobId: string) {
         | undefined;
       const resources = (await read(
         transaction.objectStore('resources').index('jobId').getAll(requestedJobId),
-      )) as Array<{ id: string; state: string; originalUrl: string }>;
+      )) as Array<{
+        id: string;
+        state: string;
+        originalUrl: string;
+        discoverySources: string[];
+        error?: unknown;
+      }>;
       return {
         job: job
           ? {
@@ -164,7 +170,13 @@ async function readPersistedCaptureSnapshot(panelPage: Page, jobId: string) {
             }
           : null,
         resources: resources
-          .map(({ id, state, originalUrl }) => ({ id, state, originalUrl }))
+          .map(({ id, state, originalUrl, discoverySources, error }) => ({
+            id,
+            state,
+            originalUrl,
+            discoverySources,
+            error,
+          }))
           .sort((left, right) => left.id.localeCompare(right.id)),
       };
     } finally {
@@ -371,6 +383,11 @@ test('runs archived animation scripts without executing inline tracking loaders'
         originalUrl: `${offlineFixtureOrigin}/assets/interactive.js`,
         state: 'saved',
       }),
+      expect.objectContaining({
+        originalUrl: `${offlineFixtureOrigin}/assets/interactive-frame.svg`,
+        discoverySources: ['crawler'],
+        state: 'saved',
+      }),
     ]),
   );
   const archive = unzipSync(await readFile(archivePath));
@@ -390,6 +407,9 @@ test('runs archived animation scripts without executing inline tracking loaders'
   await expect
     .poll(() => offlinePage.locator('html').getAttribute('data-animation-frame'))
     .not.toBeNull();
+  await expect
+    .poll(() => offlinePage.locator('html').getAttribute('data-nested-asset-loaded'))
+    .toBe('true');
   expect(externalRequests).toEqual([]);
   await offlinePage.close();
 });

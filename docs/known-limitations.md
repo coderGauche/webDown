@@ -38,8 +38,9 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
   只有在被发现并成功下载时才可能工作，换设备可能黑屏或材质缺失。
 - Blob URL 依赖原文档会话，不能作为普通网络资源重新下载；不支持的协议会被记录或跳过。
 - 离线动画与交互是默认关闭的实验模式，只能运行已归档脚本和内联脚本。CSP 会禁止外部网络、表单提交
-  和 Service Worker；静态 `import`、Worker、`new URL` 及字面量 `fetch` 只在目标资源已保存时
-  改写。运行时拼接 URL、未发现 chunk、后端 API、WebSocket、客户端路由和需要原站状态的交互
+  和 Service Worker；静态 `import`、无插值模板 `import()`、Vite/Rolldown 依赖表及 `JSON.parse`
+  内嵌的静态资源 URL 会进入受控递归下载和本地改写。运行时拼接 URL、无扩展名的隐式资源、
+  后端 API、WebSocket、客户端路由和需要原站状态的交互
   仍可能失败。可关闭该开关回退到冻结脚本的静态 DOM 快照。
 - 未成功保存的资源引用会被移除或中和，避免离线页面回连原站；对应资源仍在失败清单中说明。
 
@@ -98,8 +99,9 @@ The Chinese section is followed by an English equivalent. / 中文之后提供�
   resources. Unsupported protocols are recorded or skipped.
 - Offline animations and interactions are an experimental mode that is off by default. Only archived and inline scripts
   can run. CSP blocks external networking, form submission, and Service Workers. Static imports,
-  Workers, `new URL`, and literal `fetch` targets are rewritten only when the resource was saved.
-  Computed runtime URLs, undiscovered chunks, backend APIs, WebSockets, client routing, and
+  interpolation-free template imports, Vite/Rolldown dependency tables, and static asset URLs nested
+  in `JSON.parse` data enter controlled recursive downloading and local rewriting. Computed runtime
+  URLs, implicit extensionless assets, backend APIs, WebSockets, client routing, and
   interactions that require source-site state can still fail. The default is a frozen-script static
   DOM snapshot.
 - References to resources that were not saved are removed or neutralized to prevent silent source-
