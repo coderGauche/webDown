@@ -12,6 +12,7 @@ import {
   createCaptureArchivePackage,
   createResourcePathMappings,
   discoverJavascriptResourceReferences,
+  reconcileRuntimeArchiveResources,
   rewriteCssResource,
   rewriteJavascriptResource,
   type ResourcePathMapping,
@@ -244,10 +245,19 @@ function discoverNestedScriptResources(
     scannedScriptIds.add(resource.id);
     const body = context.bodies.get(resource.id);
     if (!body) continue;
-    const result = discoverJavascriptResourceReferences(
-      new TextDecoder().decode(body),
-      resource.finalUrl ?? resource.originalUrl,
-    );
+    let result: ReturnType<typeof discoverJavascriptResourceReferences>;
+    try {
+      result = discoverJavascriptResourceReferences(
+        new TextDecoder().decode(body),
+        resource.finalUrl ?? resource.originalUrl,
+      );
+    } catch (error) {
+      console.warn(`${RUNTIME_LOG_PREFIX} Script resource discovery skipped.`, {
+        resourceId: resource.id,
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
+      continue;
+    }
     if (result.parseError) continue;
     for (const reference of result.references) {
       if (knownUrls.has(reference.normalizedUrl)) continue;
@@ -711,7 +721,7 @@ function createRuntimePipelineHandlers(
       await jobRepository.replaceJobResources(job.id, context.resources);
     },
 
-    rewriting: async ({ job, signal }) => {
+    rewriting: async ({ job, report, signal }) => {
       if (!context.page) {
         throw new SiteCapsuleError(
           createCaptureError('unexpected-error', {
@@ -720,6 +730,18 @@ function createRuntimePipelineHandlers(
             stage: 'rewriting',
           }),
         );
+      }
+      const reconciled = reconcileRuntimeArchiveResources(context.resources);
+      for (const resourceId of reconciled.rejectedResourceIds) context.bodies.delete(resourceId);
+      context.resources = reconciled.resources;
+      if (reconciled.rejectedResourceIds.length > 0) {
+        await report({
+          resourcesSaved: context.resources.filter((resource) => resource.state === 'saved').length,
+          resourcesFailed: context.resources.filter((resource) => resource.state === 'failed')
+            .length,
+          resourcesSkipped: context.resources.filter((resource) => resource.state === 'skipped')
+            .length,
+        });
       }
       const savedAssets = context.resources.filter(
         (resource) => resource.state === 'saved' && resource.type !== 'document',
@@ -735,7 +757,8 @@ function createRuntimePipelineHandlers(
       );
       context.resources = context.resources.map((resource) => {
         if (resource.state !== 'saved' || resource.type === 'document') return resource;
-        const mapping = mappingByUrl.get(resource.finalUrl ?? resource.originalUrl);
+        const normalizedUrl = normalizeResourceUrl(resource.finalUrl ?? resource.originalUrl);
+        const mapping = normalizedUrl ? mappingByUrl.get(normalizedUrl) : undefined;
         if (!mapping) return resource;
         const body = context.bodies.get(resource.id);
         if (body && resource.type === 'stylesheet') {

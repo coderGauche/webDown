@@ -188,6 +188,10 @@ export {
   type RewriteJavascriptResourceOptions,
 } from './javascript-rewriter';
 export {
+  reconcileRuntimeArchiveResources,
+  type RuntimeResourceReconciliation,
+} from './runtime-resource-reconciliation';
+export {
   rewriteSrcsetResource,
   type RewriteSrcsetResourceOptions,
   type SrcsetReferenceResult,
