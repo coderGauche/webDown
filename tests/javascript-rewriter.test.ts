@@ -60,6 +60,26 @@ describe('JavaScript archive URL rewriting', () => {
     expect(result.javascript).toContain('from "../js/runtime.js"');
   });
 
+  it('rewrites a pre-redirect fetch URL through the saved final URL mapping', async () => {
+    const originalUrl = 'https://unpkg.com/world-atlas@2/land-110m.json';
+    const finalUrl = 'https://unpkg.com/world-atlas@2.0.2/land-110m.json';
+    const mappings = await createResourcePathMappings([{ url: finalUrl, resourceType: 'data' }]);
+    const mapping = mappings[0];
+    if (!mapping) throw new Error('Expected a resource mapping.');
+    const redirectedMappings = [{ ...mapping, originalUrls: [originalUrl, finalUrl] }];
+    const result = rewriteJavascriptResource({
+      javascript: `const atlas = fetch(\`${originalUrl}\`, { cache: 'force-cache' });`,
+      baseUrl: 'https://united-carriers.netlify.app/assets/app.js',
+      sourcePath: 'assets/origins/https/dns-united-carriers.netlify.app/default/js/app.js',
+      savedResourceMappings: redirectedMappings,
+    });
+
+    expect(result.parseError).toBe(false);
+    expect(result.rewrittenCount).toBe(1);
+    expect(result.javascript).not.toContain(originalUrl);
+    expect(result.javascript).toContain('dns-unpkg.com/default/data/land-110m.json');
+  });
+
   it('rewrites generated dependency-map strings that point at saved chunks', async () => {
     const mappings = await createResourcePathMappings([
       { url: 'https://example.test/chunks/home.js', resourceType: 'script' },

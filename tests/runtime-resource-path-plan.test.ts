@@ -49,4 +49,22 @@ describe('runtime resource path plan', () => {
     ]);
     expect(result.mappings).toHaveLength(2);
   });
+
+  it('keeps the pre-redirect request URL as an alias of the final saved resource', async () => {
+    const originalUrl = 'https://unpkg.com/world-atlas@2/land-110m.json';
+    const finalUrl = 'https://unpkg.com/world-atlas@2.0.2/land-110m.json';
+    const resource = savedResource({
+      id: 'world-atlas',
+      type: 'data',
+      originalUrl,
+      finalUrl,
+    });
+
+    const result = await createRuntimeResourcePathPlan([resource], 'job-a:document');
+
+    expect(result.mappings).toHaveLength(1);
+    expect(result.mappings[0]?.normalizedUrl).toBe(finalUrl);
+    expect(result.mappings[0]?.originalUrls).toEqual([finalUrl, originalUrl]);
+    expect(result.resources[0]?.localPath).toBe(result.mappings[0]?.relativePath);
+  });
 });

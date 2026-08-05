@@ -4,8 +4,8 @@
 > 版本：v0.1  
 > 建立日期：2026-07-22  
 > 当前阶段：M10 MVP 综合验收与发布包
-> 当前状态：M10-R12 代码完成，等待 United Carriers 真实打包复验
-> 下一任务：复验 M10-R12；通过后继续 M10-T6
+> 当前状态：M10-R13 代码完成，等待 United Carriers 真实交互归档复验
+> 下一任务：复验 M10-R13；通过后继续 M10-T6
 > Git 基线：`master`，已完成任务提交至 `origin/master`
 > 产品方案：[SiteCapsule 产品需求与技术方案](./SiteCapsule-产品需求与技术方案.md)
 
@@ -402,14 +402,15 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 - [x] **M10-R9** 修复 ESM/Vite 路径及脚本内嵌资源递归抓取；
 - [x] **M10-R10** 隔离脚本闭包中的无效与重定向重复资源；
 - [x] **M10-R11** 统一下载与打包 MIME 契约并输出稳定打包诊断码；
-- [ ] **M10-R12** 为脚本闭包中的次级文档分配资产路径并按类型绑定映射（代码完成，待真实页复验）；
+- [x] **M10-R12** 为脚本闭包中的次级文档分配资产路径并按类型绑定映射；
+- [ ] **M10-R13** 保留重定向前请求 URL 别名并改写离线运行时引用（代码完成，待真实页复验）；
 - [ ] **M10-T6** 完成版本号、更新日志和演示流程；
 - [ ] **M10-T7** 用户监督验收；
 - [ ] **M10-T8** 决定是否进入增强版。
 
 验收门禁：
 
-- M10-R1 至 M10-R11 全部完成，M10-R12 等待真实页复验；
+- M10-R1 至 M10-R12 全部完成，M10-R13 等待真实页复验；
 - 所有已改写成本地路径的引用在 ZIP 中都有对应条目；
 - 离线打开没有未解释的网络或 `chrome-extension:` 请求；
 - 每个真实 ZIP 都包含资源清单、失败说明和可读报告；
@@ -480,10 +481,10 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 项目 | 当前值 |
 |---|---|
 | 当前里程碑 | M10 MVP 综合验收与发布包 |
-| 当前任务 | M10-R12 次级文档本地路径规划（代码完成，待真实页复验） |
-| 最近完成 | M10-R12 主文档身份收窄、次级文档资产映射及类型化 URL 映射 |
-| 下一任务 | United Carriers 真实打包复验；通过后执行 M10-T6 |
-| 阻塞项 | 真实交互归档曾因次级 document 无 localPath 在 packaging 阶段失败，M10-R12 尚待同页复验 |
+| 当前任务 | M10-R13 重定向请求 URL 离线别名改写（代码完成，待真实页复验） |
+| 最近完成 | M10-R12 已由用户真实 ZIP 关闭 `TypeError.LocalPath` 打包失败；M10-R13 代码与回归测试完成 |
+| 下一任务 | 重新加载新构建并生成 United Carriers 交互归档；通过后执行 M10-T6 |
+| 阻塞项 | 旧 ZIP 中 `world-atlas@2` 虽已保存为重定向终点 `@2.0.2`，脚本仍请求公网 URL，导致 Globe 数据和部分滚动交互初始化失败 |
 | Git 仓库 | `git@github.com:coderGauche/webDown.git` |
 | Git 同步策略 | 已完成任务提交并推送至 `origin/master` |
 | 最近验证日期 | 2026-08-05 |
@@ -597,6 +598,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | 2026-08-04 | M10-R8 | 完成 | Side Panel 新增默认关闭的实验性“离线动画与交互”开关，保留默认静态快照稳定性；协议升级 v21，将模式选择传入最终 HTML 改写；建立静态/交互两套归档 CSP，统一移除源站 CSP 和投机加载提示，交互模式仅允许本地脚本、资源、worker 和同源数据，已知统计/支付/同意加载器继续冻结；新增 Acorn JavaScript 改写，处理静态 import/export、字面量 dynamic import、Worker/SharedWorker、importScripts、fetch/Request/new URL 的已存档 URL；确定性 Chromium E2E 证明外部 requestAnimationFrame 脚本进入 ZIP、在解压 `file:` 页面重新执行并推进动画帧，内联统计脚本被禁用且 HTTP/HTTPS/WS/WSS 外联为 0；United Carriers 本地 HTTP 观察确认已归档脚本、6 个 Canvas、滚动和长文档可运行，同时如实保留后端 API、SPA 路由、计算 URL 和复杂 WebGL 非完全复刻边界；全量 74 文件/655 项 Vitest、ESLint、TypeScript、Chromium E2E 5/5、1.56 MB 生产构建通过，公网套件按环境跳过，生产 Manifest 无安装期 `host_permissions`；详细证据见 `docs/testing/m10-r8-offline-runtime-2026-08-04.md` |
 | 2026-08-05 | M10-R9 | 完成 | 对用户归档 `sitecapsule-unitedcarriers.com-20260805` 与原站运行时对比取证，确认滚动动画缺失不是 Canvas 天然限制，而是同目录 ESM 被改成无 `./` 的裸模块名、Vite/Rolldown 依赖表和无插值模板 `import()` 未改写、以及 350 帧 URL 嵌在 `JSON.parse` 字符串内导致；JavaScript 改写器现区分模块相对路径与文档运行路径，支持生成依赖表、静态模板字符串和 JSON 内嵌 URL，并仅对精确命中的已保存资源改写；Background 在交互模式对已下载脚本执行最多 8 轮受控依赖闭包，复用现有权限、并发、重试、体积、暂停/取消和网络安全边界，路由字符串不会被当成资源；用户样本临时副本在 Chromium 中消除裸模块/Home chunk 加载错误，Lenis/GSAP 启动，滚动从 0 到 1800 时 2,000 个元素中 441 个计算动画状态变化；E2E 新增“仅脚本内嵌、未进入 Performance”图像，证明 crawler 发现、增量下载、ZIP 写入、JSON 本地改写和离线 `Image.onload` 全链路通过；详细证据见 `docs/testing/m10-r9-script-resource-closure-2026-08-05.md` |
 | 2026-08-05 | M10-R10 | 完成 | 用户启用交互模式重新归档 United Carriers 后，在脚本闭包已下载 80,816,091 字节、保存 1,079 项资源时进入终态改写并抛出裸 `TypeError`；回放现有归档全部 40 份脚本确认 Acorn 发现与改写均可完成，缺陷位于新增资源汇入最终映射集合时缺少收敛边界；新增 `reconcileRuntimeArchiveResources`，按规范化最终 URL 选择确定性唯一保存记录、合并发现来源，将无效最终 URL 和重定向汇聚重复项降级为带字段诊断的单项失败并移除重复字节，Background 同步删除被隔离 body、重算终态计数并按规范化 URL 绑定路径；单份脚本发现异常现在只跳过该脚本且输出脱敏错误名，不再终止主任务；新增 4 项资源收敛与清单强一致测试，完整 75 文件/662 项 Vitest、format、lint、typecheck、Chromium E2E 5/5 通过，公网套件按环境跳过 |
+| 2026-08-05 | M10-R13 | 代码完成，待真实页复验 | 用户在 R12 后生成的 81 MB United Carriers 交互归档已成功打包 1,084 个文件，关闭 `TypeError.LocalPath`；本地 HTTP Chromium 实测脚本、Lenis、Canvas 和滚动可运行，但控制台显示 `https://unpkg.com/world-atlas@2/land-110m.json` 被离线 CSP 拦截；取证确认该资源已以重定向终点 `@2.0.2` 保存到 ZIP，而运行时路径计划只记录 final URL，改写查找又未索引 `originalUrls`，导致脚本中的重定向前 `fetch()` 未本地化；`createRuntimeResourcePathPlan` 现把每条保存记录的 original/final URL 合并为同一本地路径别名，HTML/CSS/srcset/JavaScript 共用查找表索引全部规范化别名并继续拒绝歧义路径；加入精确 `@2 -> @2.0.2` 模板字符串 fetch 回归；相关 5 文件/34 项及全量 77 文件/679 项 Vitest、ESLint、Prettier、TypeScript 和 1.57 MB 生产构建通过；旧 ZIP 不会被追溯修改，真实效果等待用户重新加载 `.output/chrome-mv3` 后重新归档验证 |
 
 后续每条日志需尽量包含：修改文件、测试命令、测试结果和残余风险。
 
@@ -721,6 +723,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 | D-100 | 2026-08-05 | 脚本闭包下载结果在建立离线路径前必须按规范化最终 URL 收敛，单个非主资源异常不得终止归档 | 初始发现按请求 URL 去重仍无法阻止多个请求经重定向汇聚到同一最终 URL；同一字节生成多个路径会使 JS/HTML/CSS 改写查找产生歧义，而某个脚本基准 URL 异常也不应击穿 M5-T9 的失败不阻断原则 | 最终 URL 无效的保存记录转为结构化失败；汇聚重复项按稳定 ID 选一个保存并合并发现来源，其余作为 `duplicateFinalUrl` 失败；对应 body 删除，计数重算，路径查找统一使用规范化 URL；脚本发现器逐资源隔离异常，主文档仍保持致命失败语义 |
 | D-101 | 2026-08-05 | 下载响应与归档清单必须共享完整的 RFC MIME token 接受范围，打包异常必须输出脱敏分类而非裸错误名 | United Carriers 交互归档已完成 80 MB 资源下载并通过改写，最终明确在 packaging 阶段抛出裸 `TypeError`；审计发现下载器接受 `%`、`'`、`*`、反引号、`|`、`~` 等合法 MIME token 字符，而清单打包器使用更窄正则，形成“下载成功、打包拒绝”的跨模块契约缺陷；仅显示 `TypeError` 又无法区分 MIME、路径、重定向或完整性校验 | 清单 MIME 正则与下载响应规范化器统一；增加全部缺失 token 字符回归；打包边界将内部错误映射为协议安全的 `TypeError.MimeType`、`Error.Integrity` 等稳定诊断码并记录原始 Service Worker 日志，不向 UI 泄露 URL、令牌或异常文本；76 文件/673 项测试、lint、format、typecheck 和生产构建通过，真实页结论必须等用户复验后关闭 R11 |
 | D-102 | 2026-08-05 | 只有任务主资源 ID 才是 `index.html`，其余 `document` 类型资源必须作为普通资产参与路径规划和打包 | R11 真实复验把裸错误收敛为 `TypeError.LocalPath`；审计发现改写和打包以 `resource.type !== 'document'` 排除全部文档，但脚本闭包会发现并成功下载 HTML 模板等次级文档，导致它们以 saved 状态进入清单却没有 localPath；此外仅按 URL 查找映射会让同 URL 的不同推断类型互相覆盖 | 仅 `${jobId}:document` 保留主文档特权；次级文档进入 `assets/origins/.../documents/` 并携带正文参与 ZIP；资源映射键升级为 `resourceType + normalizedUrl`；路径规划抽为可测试纯函数，对任意已保存次级资源缺少映射立即失败；增加次级文档完整打包、主文档身份和同 URL 多类型回归；77 文件/677 项测试、lint、format、typecheck 和生产构建通过，真实页结论等待用户复验 |
+| D-103 | 2026-08-05 | 资源重定向前后的 URL 必须作为同一本地条目的等价查找别名，路径仍由规范化 final URL 唯一决定 | Fetch 保存的是响应 final URL，但页面和脚本继续持有发起请求时的 original URL；只按 final URL 改写会出现“文件已在 ZIP、运行时仍请求公网”的假完整，离线 CSP 会阻止资源并使依赖它的动画或交互降级 | 运行时路径计划按资源类型和 final URL 建唯一目标，再合并该保存记录的 original/final URL；共享改写查找表规范化并索引全部别名，别名若指向不同本地路径立即报歧义；精确覆盖 unpkg 版本重定向和模板字符串 `fetch()` |
 
 ---
 
@@ -741,7 +744,7 @@ MVP 合计：35-51 等效工程日。建议额外预留约 20% 的兼容性缓�
 
 ## 13. 下一步
 
-下一步先复验 **M10-R12：United Carriers 真实交互归档打包**；通过后执行 **M10-T6：完成版本号、更新日志和演示流程**。
+下一步先复验 **M10-R13：United Carriers 重定向资源离线改写**；通过后执行 **M10-T6：完成版本号、更新日志和演示流程**。
 
 M10-T6 完成后必须：
 

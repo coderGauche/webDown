@@ -86,11 +86,15 @@ export function buildSavedResourceLookup(
       throw new TypeError('Saved resource URL must be normalized.');
     }
 
-    const existing = lookup.get(normalizedUrl);
-    if (existing && existing.relativePath !== mapping.relativePath) {
-      throw new Error('Saved resource URL has ambiguous archive paths.');
+    const aliases = [mapping.normalizedUrl, ...mapping.originalUrls];
+    for (const alias of aliases) {
+      const normalizedAlias = validateNetworkUrl(alias, 'Saved resource URL alias');
+      const existing = lookup.get(normalizedAlias);
+      if (existing && existing.relativePath !== mapping.relativePath) {
+        throw new Error('Saved resource URL has ambiguous archive paths.');
+      }
+      lookup.set(normalizedAlias, mapping);
     }
-    lookup.set(normalizedUrl, mapping);
   }
   return lookup;
 }
