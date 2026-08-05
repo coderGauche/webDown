@@ -9,6 +9,7 @@ import {
   type ResourceRecord,
 } from '@sitecapsule/domain';
 import {
+  classifyArchivePackageError,
   createCaptureArchivePackage,
   createResourcePathMappings,
   discoverJavascriptResourceReferences,
@@ -891,21 +892,38 @@ function createRuntimePipelineHandlers(
               'Interactions that require the original backend, login session, or live API may not work offline.',
               'Closed shadow roots, canvas pixels, and WebGL runtime state cannot be restored from a DOM snapshot.',
             ];
-      const packaged = await createCaptureArchivePackage({
-        job,
-        finalUrl: context.page?.finalUrl ?? job.startUrl,
-        resourceRecords: context.resources,
-        pathMappings: context.mappings,
-        indexHtml,
-        assets,
-        locale,
-        knownLimitations,
-        parser: {
-          parseFromString(input, mimeType) {
-            return new LinkedomDOMParser().parseFromString(input, mimeType) as unknown as Document;
+      let packaged;
+      try {
+        packaged = await createCaptureArchivePackage({
+          job,
+          finalUrl: context.page?.finalUrl ?? job.startUrl,
+          resourceRecords: context.resources,
+          pathMappings: context.mappings,
+          indexHtml,
+          assets,
+          locale,
+          knownLimitations,
+          parser: {
+            parseFromString(input, mimeType) {
+              return new LinkedomDOMParser().parseFromString(
+                input,
+                mimeType,
+              ) as unknown as Document;
+            },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.error(`${RUNTIME_LOG_PREFIX} Archive packaging failed.`, error);
+        throw new SiteCapsuleError(
+          createCaptureError('unexpected-error', {
+            operation: 'archive-package',
+            jobId: job.id,
+            stage: 'packaging',
+            browserError: classifyArchivePackageError(error),
+          }),
+          { cause: error },
+        );
+      }
       archiveArtifacts.set(job.id, packaged.archiveBytes);
     },
   };

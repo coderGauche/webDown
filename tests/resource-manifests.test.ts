@@ -300,6 +300,29 @@ describe('resource, failure, and original URL manifests', () => {
     }
   });
 
+  it.each([
+    "application/x-vendor'format",
+    'application/x-vendor%format',
+    'application/x-vendor*format',
+    'application/x-vendor`format',
+    'application/x-vendor|format',
+    'application/x-vendor~format',
+  ])(
+    'accepts normalized MIME token characters already accepted while fetching: %s',
+    async (mimeType) => {
+      const input = await manifestsInput();
+      const document = input.resourceRecords[0]!;
+
+      expect(() =>
+        buildArchiveResourceManifests({
+          jobId: input.jobId,
+          pathMappings: [],
+          resourceRecords: [{ ...document, mimeType }],
+        }),
+      ).not.toThrow();
+    },
+  );
+
   it('validates structured error ownership and HTTP status consistency', async () => {
     const input = await manifestsInput();
     const failed = input.resourceRecords[2]!;

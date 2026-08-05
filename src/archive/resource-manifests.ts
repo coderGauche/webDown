@@ -141,7 +141,9 @@ const MAPPING_KEYS = [
   'relativePath',
 ] as const;
 const TERMINAL_RESOURCE_STATES = new Set(['saved', 'failed', 'skipped']);
-const MIME_TYPE_PATTERN = /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/;
+// Keep this in lockstep with the RFC token grammar accepted by the download
+// response normalizer. Packaging must not reject metadata that fetching accepted.
+const MIME_TYPE_PATTERN = /^[!#$%&'*+.^_`|~0-9a-z-]+\/[!#$%&'*+.^_`|~0-9a-z-]+$/;
 const SHA_256_PATTERN = /^[a-f0-9]{64}$/;
 const UTF8_ENCODER = new TextEncoder();
 

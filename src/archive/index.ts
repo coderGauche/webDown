@@ -101,6 +101,7 @@ export {
   type CaptureArchivePackageInput,
   type CaptureArchivePackageResult,
 } from './capture-archive-package';
+export { classifyArchivePackageError } from './package-error-diagnostic';
 export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
