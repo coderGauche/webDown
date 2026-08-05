@@ -181,4 +181,71 @@ describe('runtime capture archive package', () => {
       await expect(createArchiveSha256Hex(bytes)).resolves.toBe(resource.sha256);
     }
   });
+
+  it('packages secondary documents as assets instead of requiring another page path', async () => {
+    const secondaryUrl = 'https://example.test/templates/section.html';
+    const [secondaryMapping] = await createResourcePathMappings([
+      { url: secondaryUrl, resourceType: 'document' },
+    ]);
+    const indexBytes = encoder.encode('<!doctype html><html><body>Offline</body></html>');
+    const secondaryBytes = encoder.encode('<section>Saved template</section>');
+    const resources: ResourceRecord[] = [
+      {
+        id: 'job-package:document',
+        jobId: 'job-package',
+        originalUrl: 'https://example.test/',
+        finalUrl: 'https://example.test/',
+        referrerUrl: 'https://example.test/',
+        type: 'document',
+        discoverySources: ['dom'],
+        mimeType: 'text/html',
+        httpStatus: 200,
+        localPath: 'index.html',
+        byteLength: indexBytes.byteLength,
+        state: 'saved',
+      },
+      {
+        id: 'job-package:script-resource:1',
+        jobId: 'job-package',
+        originalUrl: secondaryUrl,
+        finalUrl: secondaryUrl,
+        referrerUrl: 'https://example.test/app.js',
+        type: 'document',
+        discoverySources: ['crawler'],
+        mimeType: 'text/html',
+        httpStatus: 200,
+        localPath: secondaryMapping!.relativePath,
+        byteLength: secondaryBytes.byteLength,
+        state: 'saved',
+      },
+    ];
+
+    const result = await createCaptureArchivePackage({
+      job: job(),
+      finalUrl: 'https://example.test/',
+      resourceRecords: resources,
+      pathMappings: [secondaryMapping!],
+      indexHtml: indexBytes,
+      assets: [{ path: secondaryMapping!.relativePath, bytes: secondaryBytes }],
+      locale: 'en',
+      knownLimitations: ['Fixture limitation.'],
+      parser,
+    });
+    const entries = new Map(
+      extractZipArchiveSync(result.archiveBytes).map((entry) => [entry.path, entry.bytes]),
+    );
+
+    expect(secondaryMapping!.relativePath).toContain('/documents/');
+    expect(decoder.decode(entries.get(secondaryMapping!.relativePath))).toBe(
+      '<section>Saved template</section>',
+    );
+    expect(result.resourceManifest.resources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          localPath: secondaryMapping!.relativePath,
+          resourceType: 'document',
+        }),
+      ]),
+    );
+  });
 });

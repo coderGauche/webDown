@@ -103,6 +103,10 @@ export {
 } from './capture-archive-package';
 export { classifyArchivePackageError } from './package-error-diagnostic';
 export {
+  createRuntimeResourcePathPlan,
+  type RuntimeResourcePathPlan,
+} from './runtime-resource-path-plan';
+export {
   PORTABLE_FILE_EXTENSION_MAX_BYTES,
   PORTABLE_FILE_NAME_MAX_BYTES,
   RESOURCE_TYPE_FALLBACK_FILE_NAMES,

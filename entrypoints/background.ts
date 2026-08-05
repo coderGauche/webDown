@@ -11,7 +11,7 @@ import {
 import {
   classifyArchivePackageError,
   createCaptureArchivePackage,
-  createResourcePathMappings,
+  createRuntimeResourcePathPlan,
   discoverJavascriptResourceReferences,
   reconcileRuntimeArchiveResources,
   rewriteCssResource,
@@ -744,22 +744,14 @@ function createRuntimePipelineHandlers(
             .length,
         });
       }
-      const savedAssets = context.resources.filter(
-        (resource) => resource.state === 'saved' && resource.type !== 'document',
-      );
-      context.mappings = await createResourcePathMappings(
-        savedAssets.map((resource) => ({
-          url: resource.finalUrl ?? resource.originalUrl,
-          resourceType: resource.type,
-        })),
-      );
-      const mappingByUrl = new Map(
-        context.mappings.map((mapping) => [mapping.normalizedUrl, mapping]),
-      );
-      context.resources = context.resources.map((resource) => {
-        if (resource.state !== 'saved' || resource.type === 'document') return resource;
-        const normalizedUrl = normalizeResourceUrl(resource.finalUrl ?? resource.originalUrl);
-        const mapping = normalizedUrl ? mappingByUrl.get(normalizedUrl) : undefined;
+      const primaryResourceId = `${job.id}:document`;
+      const pathPlan = await createRuntimeResourcePathPlan(context.resources, primaryResourceId);
+      context.mappings = pathPlan.mappings;
+      context.resources = pathPlan.resources.map((resource) => {
+        if (resource.state !== 'saved' || resource.id === primaryResourceId) return resource;
+        const mapping = context.mappings.find(
+          (candidate) => candidate.relativePath === resource.localPath,
+        );
         if (!mapping) return resource;
         const body = context.bodies.get(resource.id);
         if (body && resource.type === 'stylesheet') {
@@ -852,7 +844,7 @@ function createRuntimePipelineHandlers(
       const assets = context.resources.flatMap((resource) => {
         const body = context.bodies.get(resource.id);
         return resource.state === 'saved' &&
-          resource.type !== 'document' &&
+          resource.id !== `${job.id}:document` &&
           resource.localPath &&
           body
           ? [{ path: resource.localPath, bytes: body }]

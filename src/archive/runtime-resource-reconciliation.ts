@@ -39,6 +39,10 @@ function rejectSavedResource(resource: ResourceRecord, field: string): ResourceR
   };
 }
 
+function isPrimaryDocument(resource: ResourceRecord): boolean {
+  return resource.type === 'document' && resource.id === `${resource.jobId}:document`;
+}
+
 /**
  * Redirects can make distinct discoveries resolve to one final URL. The archive
  * must store that byte resource once, otherwise URL rewriting becomes ambiguous
@@ -51,7 +55,7 @@ export function reconcileRuntimeArchiveResources(
   const invalidIds = new Set<string>();
 
   for (const resource of resources) {
-    if (resource.state !== 'saved' || resource.type === 'document') continue;
+    if (resource.state !== 'saved' || isPrimaryDocument(resource)) continue;
     const normalizedUrl = normalizeResourceUrl(resource.finalUrl ?? resource.originalUrl);
     if (!normalizedUrl || !/^https?:\/\//.test(normalizedUrl)) {
       invalidIds.add(resource.id);

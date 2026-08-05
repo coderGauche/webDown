@@ -49,7 +49,7 @@ describe('runtime archive resource reconciliation', () => {
 
   it('isolates an invalid saved final URL without changing documents or prior failures', () => {
     const document = savedResource({
-      id: 'document',
+      id: 'job-a:document',
       type: 'document',
       originalUrl: 'https://example.test/',
       finalUrl: 'https://example.test/',
@@ -67,6 +67,28 @@ describe('runtime archive resource reconciliation', () => {
       state: 'failed',
       error: { context: { field: 'finalUrl' } },
     });
+  });
+
+  it('reconciles secondary documents while preserving only the primary document identity', () => {
+    const primary = savedResource({
+      id: 'job-a:document',
+      type: 'document',
+      originalUrl: 'https://example.test/',
+      finalUrl: 'https://example.test/',
+      localPath: 'index.html',
+    });
+    const secondary = savedResource({
+      id: 'job-a:script-resource:1',
+      type: 'document',
+      originalUrl: 'https://example.test/template.html',
+      finalUrl: 'https://example.test/template.html',
+      localPath: undefined,
+    });
+
+    const result = reconcileRuntimeArchiveResources([primary, secondary]);
+
+    expect(result.rejectedResourceIds).toEqual([]);
+    expect(result.resources).toEqual([primary, secondary]);
   });
 
   it('does not mutate its input array or records', () => {
